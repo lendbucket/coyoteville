@@ -92,7 +92,9 @@ export async function notifyRegistration(r: RegistrationEmail): Promise<void> {
     resend().emails.send({
       from,
       to: r.email,
-      replyTo: OWNER_EMAIL,
+      // Vendors reply to the monitored address, not to the owner's alerts
+      // inbox, whatever the from address happens to be.
+      replyTo: supportEmail(),
       subject: vendor.subject,
       html: vendor.html,
       text: vendor.text,
@@ -132,7 +134,7 @@ export async function sendReminderEmail(
     const result = await resend().emails.send({
       from: process.env.FROM_EMAIL as string,
       to,
-      replyTo: OWNER_EMAIL,
+      replyTo: supportEmail(),
       subject: message.subject,
       html: message.html,
       text: message.text,

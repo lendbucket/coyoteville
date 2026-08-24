@@ -1,5 +1,6 @@
 import type { RegistrationEmail } from '../notify-types';
 import { ADDRESS, NEXT_EVENT, SITE_URL } from '../seo';
+import { LOGO_ALT, LOGO_URL, preheader } from './shared';
 import {
   NEXT_STEPS_CONTACT,
   NEXT_STEPS_HEADING,
@@ -89,7 +90,7 @@ export function renderVendorConfirmation(
   text: string;
 } {
   const needsPermit = r.spot_type === 'truck' || r.serves_food;
-  const logo = `${SITE_URL}/email/logo-email.png`;
+  const logo = LOGO_URL;
   const lights = `${SITE_URL}/email/lights.png`;
 
   // Same config the confirmation screen reads, so the two cannot drift.
@@ -115,10 +116,7 @@ export function renderVendorConfirmation(
 <title>Your Coyoteville spot is confirmed</title>
 </head>
 <body style="margin:0;padding:0;background-color:${BLACK};">
-<!-- Preheader. Shown in the inbox list, hidden in the message body. -->
-<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:${BLACK};">
-Your spot at Coyoteville is confirmed for ${esc(NEXT_EVENT.displayDate)}. Gates at ${esc(NEXT_EVENT.displayTime)}.
-</div>
+${preheader(`Your spot is confirmed for ${NEXT_EVENT.displayDate}. Setup opens at 8 AM.`)}
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BLACK};">
 <tr><td align="center" style="padding:0;">
@@ -129,7 +127,7 @@ Your spot at Coyoteville is confirmed for ${esc(NEXT_EVENT.displayDate)}. Gates 
   <!-- header -->
   <tr>
     <td align="center" style="padding:32px 24px 8px;background-color:${BLACK};">
-      <img src="${logo}" width="220" alt="Coyoteville, food truck park and live music, Alice, Texas" style="display:block;width:220px;max-width:220px;height:auto;border:0;outline:none;text-decoration:none;" />
+      <img src="${logo}" width="260" alt="${LOGO_ALT}" style="display:block;width:260px;max-width:260px;height:auto;border:0;outline:none;text-decoration:none;" />
     </td>
   </tr>
   <tr>
@@ -342,7 +340,7 @@ Your spot at Coyoteville is confirmed for ${esc(NEXT_EVENT.displayDate)}. Gates 
   ].join('\n');
 
   return {
-    subject: `Your Coyoteville spot is confirmed for ${NEXT_EVENT.displayDate}`,
+    subject: `Your spot is confirmed for ${NEXT_EVENT.displayDate}`,
     html,
     text,
   };
