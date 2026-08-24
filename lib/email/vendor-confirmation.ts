@@ -1,5 +1,11 @@
 import type { RegistrationEmail } from '../notify-types';
 import { ADDRESS, NEXT_EVENT, SITE_URL } from '../seo';
+import {
+  NEXT_STEPS_CONTACT,
+  NEXT_STEPS_HEADING,
+  NEXT_STEPS_SHARED,
+  nextStepsFor,
+} from '../next-steps';
 
 /**
  * Vendor confirmation email.
@@ -85,6 +91,9 @@ export function renderVendorConfirmation(
   const needsPermit = r.spot_type === 'truck' || r.serves_food;
   const logo = `${SITE_URL}/email/logo-email.png`;
   const lights = `${SITE_URL}/email/lights.png`;
+
+  // Same config the confirmation screen reads, so the two cannot drift.
+  const nextStepsBlock = nextStepsFor(r.spot_type);
 
   const bring = [
     'Your own table, chairs, canopy and decorations.',
@@ -195,6 +204,39 @@ Your spot at Coyoteville is confirmed for ${esc(NEXT_EVENT.displayDate)}. Gates 
     </td>
   </tr>
 
+  <!-- what happens next -->
+  <tr>
+    <td style="padding:0 24px 26px;background-color:${BLACK};">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${PANEL};border-left:4px solid ${RUST};">
+        <tr><td style="padding:20px 22px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            ${heading(NEXT_STEPS_HEADING)}
+            <tr><td>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                ${NEXT_STEPS_SHARED.map((i) => bullet(esc(i))).join('')}
+              </table>
+            </td></tr>
+
+            ${
+              nextStepsBlock
+                ? `<tr><td style="padding:16px 0 0;">
+                     <div style="font-family:${BODY};font-size:12px;font-weight:bold;letter-spacing:1.6px;text-transform:uppercase;color:${EMBER};padding:14px 0 10px;border-top:1px solid #2B2B30;">${esc(nextStepsBlock.heading)}</div>
+                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                       ${nextStepsBlock.items.map((i) => bullet(esc(i))).join('')}
+                     </table>
+                   </td></tr>`
+                : ''
+            }
+
+            <tr><td style="padding:16px 0 0;border-top:1px solid #2B2B30;font-family:${BODY};font-size:15px;line-height:22px;font-weight:bold;color:${CREAM};">
+              ${esc(NEXT_STEPS_CONTACT)}
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </td>
+  </tr>
+
   <!-- thank you from the CEO -->
   <tr>
     <td style="padding:0 24px 28px;background-color:${BLACK};">
@@ -272,6 +314,14 @@ Your spot at Coyoteville is confirmed for ${esc(NEXT_EVENT.displayDate)}. Gates 
     '- Admission is free and open to everyone.',
     '- Shuttles run to the stadium once the game starts.',
     '- Parking opens on the lot at kickoff for $10 per vehicle.',
+    '',
+    NEXT_STEPS_HEADING.toUpperCase(),
+    ...NEXT_STEPS_SHARED.map((i) => `- ${i}`),
+    ...(nextStepsBlock
+      ? ['', nextStepsBlock.heading.toUpperCase(), ...nextStepsBlock.items.map((i) => `- ${i}`)]
+      : []),
+    '',
+    NEXT_STEPS_CONTACT,
     '',
     'THANK YOU',
     'Thank you for taking a chance on something new in this town.',

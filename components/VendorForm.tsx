@@ -8,6 +8,7 @@ import {
   CONTRACTING_ENTITY,
 } from './VendorAgreement';
 import StringLights from './StringLights';
+import NextSteps from './NextSteps';
 import { EVENTS, PRICING, SITE } from '@/lib/seo';
 
 /** Kept in step with ALLOWED_LABEL in lib/uploads.ts. */
@@ -177,6 +178,8 @@ export default function VendorForm({
             Questions in the meantime, email <a href={`mailto:${supportEmail}`}>{supportEmail}</a>.
           </p>
         </div>
+
+        <NextSteps spot={spot} id="applied-next" />
       </section>
     );
   }

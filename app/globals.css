@@ -882,107 +882,6 @@ p {
   margin-top: 0.65rem;
 }
 
-/* ------------------------------------------------------------ gallery */
-
-.gallery {
-  position: relative;
-  background: var(--black);
-  color: var(--cream);
-  padding-block: clamp(3.6rem, 8vw, 6rem);
-}
-
-.gallery .string-lights {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 2;
-}
-
-.gallery .shell {
-  position: relative;
-  z-index: 3;
-}
-
-.gallery__grid {
-  list-style: none;
-  margin: 2.2rem 0 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
-}
-
-@media (min-width: 900px) {
-  .gallery__grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-.gallery__cell {
-  aspect-ratio: 4 / 5;
-}
-
-.gallery__figure {
-  position: relative;
-  margin: 0;
-  height: 100%;
-  overflow: hidden;
-}
-
-.gallery__caption {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2;
-  padding: 1.6rem 0.9rem 0.75rem;
-  font-family: var(--font-condensed);
-  font-weight: 600;
-  font-size: 0.92rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--cream);
-  background: linear-gradient(to top, rgba(11, 11, 12, 0.85), transparent);
-}
-
-/* A slot with no photo yet. Keeps the grid intact while shots are collected. */
-.gallery__empty {
-  height: 100%;
-  border: 2px dashed rgba(240, 169, 75, 0.4);
-  background: rgba(240, 169, 75, 0.05);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 1.25rem;
-  gap: 0.4rem;
-}
-
-.gallery__num {
-  font-family: var(--font-display);
-  font-size: 1.9rem;
-  line-height: 1;
-  color: rgba(240, 169, 75, 0.5);
-}
-
-.gallery__title {
-  font-family: var(--font-condensed);
-  font-weight: 600;
-  font-size: 0.95rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ember);
-}
-
-.gallery__note {
-  font-size: 0.82rem;
-  line-height: 1.4;
-  color: var(--dust);
-}
-
-
 /* ------------------------------------------------------------ about */
 
 .about__grid {
@@ -3220,4 +3119,94 @@ p {
   .spotlight__cell:hover img {
     transform: none;
   }
+}
+
+/* -------------------------------------------------- what happens next */
+
+.nextsteps {
+  position: relative;
+  /* The confirmation page centres its card, and a centred bullet list reads
+     badly. This section always sets its own alignment. */
+  text-align: left;
+  background: var(--char);
+  border-top: 1px solid rgba(243, 238, 229, 0.09);
+  padding-block: 0 clamp(2.6rem, 6vw, 4rem);
+}
+
+.nextsteps .string-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+
+.nextsteps__in {
+  position: relative;
+  z-index: 3;
+  padding-top: clamp(2.6rem, 6vw, 4rem);
+  max-width: 70ch;
+}
+
+.nextsteps__title {
+  font-size: clamp(1.6rem, 3.6vw, 2.4rem);
+  margin-bottom: 1.1rem;
+}
+
+.nextsteps__subhead {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 1.08rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ember);
+  margin: 0 0 0.6rem;
+}
+
+.nextsteps__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.nextsteps__list li {
+  position: relative;
+  padding-left: 1.3rem;
+  color: #c0b9ad;
+  line-height: 1.5;
+}
+
+.nextsteps__list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 7px;
+  height: 7px;
+  background: var(--ember);
+}
+
+/* The type specific block is set apart so a vendor can find their own rules
+   without reading the shared list twice. */
+.nextsteps__block {
+  margin-top: 1.6rem;
+  padding: 1.1rem 1.25rem;
+  background: rgba(240, 169, 75, 0.07);
+  border-left: 3px solid var(--ember);
+}
+
+.nextsteps__note {
+  margin: 1.4rem 0 0;
+  color: var(--dust);
+  font-size: 0.94rem;
+}
+
+.nextsteps__contact {
+  margin: 1.6rem 0 0;
+  padding-top: 1.1rem;
+  border-top: 1px solid rgba(243, 238, 229, 0.14);
+  color: var(--cream);
+  font-weight: 600;
 }

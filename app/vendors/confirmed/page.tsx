@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import StringLights from '@/components/StringLights';
+import NextSteps from '@/components/NextSteps';
 import { NEXT_EVENT } from '@/lib/seo';
 import { supportEmail } from '@/lib/support';
 
@@ -16,7 +17,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function ConfirmedPage() {
+export default function ConfirmedPage({
+  searchParams,
+}: {
+  searchParams: { spot?: string };
+}) {
   const email = supportEmail();
 
   return (
@@ -65,6 +70,8 @@ export default function ConfirmedPage() {
             </a>
           </p>
         </div>
+
+        <NextSteps spot={searchParams.spot} id="confirmed-next" />
       </main>
 
       <Footer />

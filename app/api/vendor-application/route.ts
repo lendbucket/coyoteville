@@ -474,7 +474,7 @@ export async function POST(request: Request) {
         ],
       },
       checkoutOptions: {
-        redirectUrl: `${SITE_URL}/vendors/confirmed`,
+        redirectUrl: `${SITE_URL}/vendors/confirmed?spot=${value.spot_type}`,
         askForShippingAddress: false,
         allowTipping: false,
       },

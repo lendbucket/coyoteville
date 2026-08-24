@@ -8,7 +8,6 @@ import Mission from '@/components/Mission';
 import GameNight from '@/components/GameNight';
 import Stats from '@/components/Stats';
 import About from '@/components/About';
-import Gallery from '@/components/Gallery';
 import VendorSpotlight from '@/components/VendorSpotlight';
 import Pricing from '@/components/Pricing';
 import HowItWorks from '@/components/HowItWorks';
@@ -50,7 +49,6 @@ export default function HomePage() {
         <Stats />
         <About />
         <VendorSpotlight />
-        <Gallery />
         <Pricing />
         <HowItWorks />
         <EventCountdownSection />
