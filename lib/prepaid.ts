@@ -154,3 +154,15 @@ export async function checkPrepaidGate(
 
   return { ...base, open: count < max, reason: count < max ? null : 'full', used: count };
 }
+
+/**
+ * Whether a failed prepaid insert was the cap being hit inside the database.
+ *
+ * checkPrepaidGate runs before the write so the page can say something useful,
+ * but that check and the insert are two round trips and concurrent submissions
+ * slip between them. register_prepaid_vendor re-counts under an advisory lock
+ * and raises when the cap is already met, which is what this recognises.
+ */
+export function isCapReached(error: { message?: string } | null): boolean {
+  return Boolean(error?.message && error.message.includes('prepaid_cap_reached'));
+}

@@ -4,7 +4,7 @@ import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { getClientIp, rateLimit } from '@/lib/rate-limit';
 import { AGREEMENT_VERSION } from '@/components/VendorAgreement';
 import { EVENTS, priceForSpot } from '@/lib/seo';
-import { checkPrepaidGate, tokenMatches } from '@/lib/prepaid';
+import { checkPrepaidGate, isCapReached, maxRegistrations, tokenMatches } from '@/lib/prepaid';
 import { invalidateSpots } from '@/lib/spots';
 import { MAX_PHOTOS, UploadError, storeUpload, validateUpload, type ValidatedUpload } from '@/lib/uploads';
 import { notifyRegistration } from '@/lib/notify';
@@ -46,7 +46,10 @@ export async function POST(request: Request) {
   const ip = getClientIp(request.headers);
   const userAgent = request.headers.get('user-agent')?.slice(0, 500) || 'unknown';
 
-  const limit = rateLimit(`prepaid:${ip}`, 5, 10 * 60 * 1000);
+  // Flood ceiling only. Prepaid vendors are often registered back to back
+  // from one phone or one office connection, so the per address limit is loose
+  // and the tighter per vendor limit below is keyed on the email instead.
+  const limit = rateLimit(`prepaid-ip:${ip}`, 30, 10 * 60 * 1000);
   if (!limit.ok) {
     return NextResponse.json(
       { ok: false, error: 'Too many tries. Give it a few minutes and go again.' },
@@ -101,6 +104,14 @@ export async function POST(request: Request) {
     errors.push('Type your full name in the signature field to sign.');
   }
   if (errors.length) return bad(errors[0]);
+
+  const personLimit = rateLimit(`prepaid-email:${email}`, 5, 10 * 60 * 1000);
+  if (!personLimit.ok) {
+    return NextResponse.json(
+      { ok: false, error: 'You have sent this a few times already. Give it a few minutes and go again.' },
+      { status: 429, headers: { 'Retry-After': String(personLimit.retryAfterSeconds) } }
+    );
+  }
 
   const event = EVENTS.find((e) => e.slug === event_slug)!;
 
@@ -201,10 +212,18 @@ export async function POST(request: Request) {
       permit_path: permitPath,
       amount_cents: amountCents,
       admin_notes: 'Registered through the prepaid link. Paid outside the website, no Square charge.',
+
+      // The cap travels with the payload so the database can re-check it under
+      // a lock. checkPrepaidGate above is two round trips away from this insert
+      // and concurrent submissions fit between them; this is the real gate.
+      max_registrations: maxRegistrations(),
     },
   });
 
   if (error) {
+    if (isCapReached(error)) {
+      return bad('Every prepaid spot for this event has been registered.', 409);
+    }
     console.error('prepaid registration insert failed', error);
     return bad('We could not save that. Try again in a minute.', 500);
   }

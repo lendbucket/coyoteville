@@ -279,12 +279,18 @@ export async function POST(request: Request) {
   const ip = getClientIp(request.headers);
   const userAgent = request.headers.get('user-agent')?.slice(0, 500) || 'unknown';
 
-  // Five applications per ten minutes per address is plenty for a real vendor.
-  const limit = rateLimit(`vendor:${ip}`, 5, 10 * 60 * 1000);
-  if (!limit.ok) {
+  // Two limits, because an address is not a person.
+  //
+  // Vendors sign up together on the park wifi and phones share a carrier
+  // gateway, so a whole group can arrive from one address. A tight per address
+  // limit turns that into rejected vendors. This one is a flood ceiling only:
+  // loose enough that a real crowd never touches it, tight enough to stop a
+  // script. The per vendor limit further down does the actual work.
+  const ipLimit = rateLimit(`vendor-ip:${ip}`, 30, 10 * 60 * 1000);
+  if (!ipLimit.ok) {
     return NextResponse.json(
-      { ok: false, error: 'Too many tries. Give it a few minutes and go again.' },
-      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } }
+      { ok: false, error: 'Too many applications from this connection. Give it a few minutes and go again.' },
+      { status: 429, headers: { 'Retry-After': String(ipLimit.retryAfterSeconds) } }
     );
   }
 
@@ -318,6 +324,19 @@ export async function POST(request: Request) {
   if (errors.length) {
     logFailure('validation', { firstError: errors[0], errorCount: errors.length, ...shape });
     return bad(errors[0]);
+  }
+
+  // Per vendor limit, keyed on the email rather than the address, so one person
+  // hammering submit is slowed down without touching anyone else on the same
+  // wifi. Applied after validation so a junk request cannot burn someone
+  // else's allowance by naming their address.
+  const personLimit = rateLimit(`vendor-email:${value.email}`, 5, 10 * 60 * 1000);
+  if (!personLimit.ok) {
+    logFailure('rate-limit', { scope: 'email' });
+    return NextResponse.json(
+      { ok: false, error: 'You have sent this a few times already. Give it a few minutes and go again.' },
+      { status: 429, headers: { 'Retry-After': String(personLimit.retryAfterSeconds) } }
+    );
   }
 
   // Signup cutoff. Enforced here, not just hidden in the UI, so a stale page or

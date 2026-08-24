@@ -104,15 +104,87 @@ export async function POST(request: Request) {
   try {
     // referenceId on the order is the application UUID we set at checkout.
     const square = getSquare();
-    const orderResponse = await square.orders.get({ orderId });
-    const applicationId = orderResponse.order?.referenceId;
+
+    let order;
+    try {
+      order = (await square.orders.get({ orderId })).order;
+    } catch (err) {
+      // A 404 or a 403 is permanent: the order is gone or belongs to another
+      // account, and Square will keep redelivering for days against a non 2xx.
+      // Anything else is worth a retry.
+      const status = (err as { statusCode?: number })?.statusCode;
+      if (status === 404 || status === 403) {
+        console.warn('square order not retrievable, not retrying', orderId, status);
+        return NextResponse.json({ received: true, ignored: `order lookup ${status}` });
+      }
+      throw err;
+    }
+
+    const applicationId = order?.referenceId;
 
     if (!applicationId) {
-      console.warn('square order has no referenceId', orderId);
+      // Every order we create carries one. This is a payment taken somewhere
+      // else on the same Square account, so it is not ours to act on.
       return NextResponse.json({ received: true, ignored: 'no reference id' });
     }
 
     const supabase = getSupabaseAdmin();
+
+    // What the spot actually costs, read from our own row rather than from
+    // anything in the webhook. The amount is compared before the row is
+    // touched, so a payment that does not cover the spot cannot approve it.
+    const { data: existing, error: readError } = await supabase
+      .from('vendor_applications')
+      .select('id, amount_cents, payment_status')
+      .eq('id', applicationId)
+      .maybeSingle();
+
+    if (readError) {
+      console.error('failed to read application for payment', applicationId, readError);
+      return NextResponse.json({ error: 'Database read failed.' }, { status: 500 });
+    }
+
+    if (!existing) {
+      console.warn('square order references an unknown application', applicationId);
+      return NextResponse.json({ received: true, ignored: 'unknown application' });
+    }
+
+    if (existing.payment_status !== 'unpaid') {
+      return NextResponse.json({ received: true, applicationId, ignored: 'already settled' });
+    }
+
+    const expected = Number(existing.amount_cents ?? 0);
+    const orderTotal = Number(order?.totalMoney?.amount ?? NaN);
+    const stillDue = Number(order?.netAmountDueMoney?.amount ?? NaN);
+
+    // Underpayment. Either the order is worth less than the spot we sold, or
+    // Square still shows money outstanding on it after this payment. If Square
+    // reports neither figure the payment is accepted and the gap is logged,
+    // because stranding a vendor who really paid is the worse failure.
+    const underpaid =
+      (Number.isFinite(orderTotal) && orderTotal < expected) ||
+      (Number.isFinite(stillDue) && stillDue > 0);
+
+    if (underpaid) {
+      const note = [
+        `Payment did not cover the ${expected} cent spot.`,
+        Number.isFinite(orderTotal) ? `Square order total ${orderTotal} cents.` : null,
+        Number.isFinite(stillDue) && stillDue > 0 ? `${stillDue} cents still outstanding.` : null,
+        `Left unpaid on purpose. Check Square order ${orderId}.`,
+      ]
+        .filter(Boolean)
+        .join(' ');
+      console.error('[square-webhook] underpaid', JSON.stringify({ applicationId, expected, orderTotal, stillDue, orderId }));
+
+      await supabase.from('vendor_applications').update({ admin_notes: note }).eq('id', applicationId);
+
+      // 200 so Square stops redelivering. Retrying cannot make the amount right.
+      return NextResponse.json({ received: true, applicationId, ignored: 'underpaid' });
+    }
+
+    if (!Number.isFinite(orderTotal) && !Number.isFinite(stillDue)) {
+      console.warn('[square-webhook] order carried no amount to verify', orderId);
+    }
 
     // Only rows still waiting on payment are updated. Square retries a webhook
     // until it gets a 2xx, so without this a retry would send a second set of

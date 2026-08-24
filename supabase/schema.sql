@@ -455,7 +455,32 @@ declare
   new_id     uuid;
   v_spot     text := payload->>'spot_type';
   v_event    text := payload->>'event_slug';
+  v_max      integer := nullif(payload->>'max_registrations', '')::integer;
+  v_used     integer;
 begin
+  -- Registration cap, enforced here rather than in the API route.
+  --
+  -- The route counts rows and then inserts, which are two round trips. Two
+  -- vendors submitting at the same instant both read the old count and both
+  -- get in, so the cap can be overshot by however many requests are in flight.
+  -- Taking a transaction scoped advisory lock on the event serialises the
+  -- count and the insert into one atomic step, so the last spot can only be
+  -- taken once no matter how many people are clicking at the same moment.
+  if v_max is not null then
+    perform pg_advisory_xact_lock(hashtext('coyoteville:prepaid:' || v_event)::bigint);
+
+    select count(*) into v_used
+      from public.vendor_applications
+     where event_slug = v_event
+       and payment_method = 'offline';
+
+    if v_used >= v_max then
+      raise exception 'prepaid_cap_reached'
+        using errcode = 'P0001',
+              hint = 'Every prepaid spot for this event has been registered.';
+    end if;
+  end if;
+
   insert into public.vendor_applications (
     id, business_name, contact_name, phone, email, spot_type, event_slug, sells, notes,
     waiver_accepted, permits_confirmed, signature_name, signed_date, signed_at,
