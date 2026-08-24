@@ -306,38 +306,84 @@ export async function POST(request: Request) {
   // Store the files under the application id, then record the paths. Uploading
   // after the insert keeps the keys tied to a real row rather than leaving
   // orphaned objects behind if the insert had failed.
-  if (uploads.length) {
+  //
+  // The permit and the media are handled differently on purpose. A permit is a
+  // regulatory document and the spot is not valid without it, so if it fails to
+  // store the vendor is told and checkout does not start. A logo or a photo is
+  // promotional, and losing one is not worth sending someone back to the start,
+  // so those failures are logged and the application carries on.
+  const paths: { logo_path?: string; permit_path?: string; photo_paths?: string[] } = {};
+
+  const permitUpload = uploads.find((u) => u.kind === 'permit');
+
+  if (permitUpload) {
     try {
-      let photoIndex = 0;
-      const paths: { logo_path?: string; permit_path?: string; photo_paths?: string[] } = {};
-      const photoPaths: string[] = [];
+      paths.permit_path = await storeUpload(permitUpload, inserted.id);
+    } catch (err) {
+      console.error('permit storage failed', err);
 
-      for (const upload of uploads) {
-        const path = await storeUpload(upload, inserted.id, photoIndex);
-        if (upload.kind === 'logo') paths.logo_path = path;
-        else if (upload.kind === 'permit') paths.permit_path = path;
-        else {
-          photoPaths.push(path);
-          photoIndex += 1;
-        }
-      }
-
-      if (photoPaths.length) paths.photo_paths = photoPaths;
-
-      const { error: pathError } = await supabase
+      // Leave a trail on the row rather than deleting it. The signature record
+      // is auditable and the schema says never to delete these, so the
+      // application stays visible in the tracker as unpaid with no permit.
+      // Returns an error object rather than throwing, and a failure to write
+      // the note must not mask the permit failure we are already reporting.
+      const { error: noteError } = await supabase
         .from('vendor_applications')
-        .update(paths)
+        .update({
+          admin_notes:
+            'Permit upload failed at submission. Vendor was told to try again. No payment was taken.',
+        })
         .eq('id', inserted.id);
 
-      if (pathError) throw pathError;
-    } catch (err) {
-      // The application itself is saved and the vendor should not be sent back
-      // to the start over a file. Log it; the admin view shows the gap.
-      console.error('vendor upload storage failed', err);
+      if (noteError) console.error('could not annotate failed permit row', noteError);
+
+      return bad(
+        'We could not save your food handler permit, so we did not take a payment. Try again in a minute, and email us if it keeps failing.',
+        502
+      );
     }
   }
 
-  // Free spots for Coyote groups, booster clubs and nonprofits skip checkout.
+  // Promotional media. Failures here are logged and do not stop the vendor.
+  try {
+    const photoPaths: string[] = [];
+    let photoIndex = 0;
+
+    for (const upload of uploads) {
+      if (upload.kind === 'permit') continue;
+      const path = await storeUpload(upload, inserted.id, photoIndex);
+      if (upload.kind === 'logo') paths.logo_path = path;
+      else {
+        photoPaths.push(path);
+        photoIndex += 1;
+      }
+    }
+
+    if (photoPaths.length) paths.photo_paths = photoPaths;
+  } catch (err) {
+    console.error('vendor media storage failed', err);
+  }
+
+  if (Object.keys(paths).length) {
+    const { error: pathError } = await supabase
+      .from('vendor_applications')
+      .update(paths)
+      .eq('id', inserted.id);
+
+    // A permit that stored but whose path did not record is the same problem as
+    // one that never stored, so it stops checkout too.
+    if (pathError) {
+      console.error('recording upload paths failed', pathError);
+      if (paths.permit_path) {
+        return bad(
+          'We could not save your food handler permit, so we did not take a payment. Try again in a minute, and email us if it keeps failing.',
+          502
+        );
+      }
+    }
+  }
+
+  // Alice organizations set up at no charge, so they skip checkout.
   if (isFree) {
     return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl: null });
   }
