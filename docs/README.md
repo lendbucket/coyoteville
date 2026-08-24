@@ -1,6 +1,6 @@
-# public
+# public/ assets
 
-Drop `logo.png` in this folder.
+Drop `logo.png` into the `public/` folder at the repo root.
 
 It gets used in three places:
 
