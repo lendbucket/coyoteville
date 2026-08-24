@@ -2,9 +2,12 @@ import type { Metadata } from 'next';
 import AdminRowControls from '@/components/AdminRowControls';
 import AdminAbandoned from '@/components/AdminAbandoned';
 import AdminReminderButton from '@/components/AdminReminderButton';
+import AdminSendPhotos from '@/components/AdminSendPhotos';
+import AdminSendAllPhotos from '@/components/AdminSendAllPhotos';
 import { getAbandoned, howLongAgo, lastReminderFrom } from '@/lib/abandoned';
 import { isAdminConfigured, isAdminRequest } from '@/lib/admin-auth';
 import { getAdminView, normaliseFilters } from '@/lib/admin-data';
+import { lastMediaSendFrom } from '@/lib/media-log';
 import { EVENTS, PRICING } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
@@ -98,6 +101,15 @@ export default async function AdminPage({
     getAbandoned(filters.event),
   ]);
 
+  // Vendors on this event carrying anything worth handing to whoever posts.
+  // Permits are deliberately not counted: they are never sent.
+  const withMedia = view.rows.filter((r) => r.logo_path || (r.photo_paths ?? []).length);
+  const mediaVendorCount = withMedia.length;
+  const mediaFileCount = withMedia.reduce(
+    (n, r) => n + (r.logo_path ? 1 : 0) + (r.photo_paths ?? []).length,
+    0
+  );
+
   const exportHref = `/api/admin/export?event=${encodeURIComponent(filters.event)}${
     filters.status ? `&status=${encodeURIComponent(filters.status)}` : ''
   }${filters.q ? `&q=${encodeURIComponent(filters.q)}` : ''}`;
@@ -175,6 +187,13 @@ export default async function AdminPage({
             </a>
           </div>
         </form>
+
+        {/* Everything for this event in one handoff, for whoever is posting. */}
+        <AdminSendAllPhotos
+          event={filters.event}
+          vendorCount={mediaVendorCount}
+          fileCount={mediaFileCount}
+        />
       </header>
 
       <AdminAbandoned
@@ -332,6 +351,17 @@ export default async function AdminPage({
                         <span>Photo {i + 1}</span>
                       </a>
                     ))}
+                  </div>
+                ) : null}
+
+                {r.logo_path || photos.length ? (
+                  <div className="arow__send">
+                    <AdminSendPhotos
+                      id={r.id}
+                      businessName={r.business_name}
+                      fileCount={(r.logo_path ? 1 : 0) + photos.length}
+                      lastSend={lastMediaSendFrom(r.admin_notes)}
+                    />
                   </div>
                 ) : null}
 

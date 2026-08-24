@@ -3335,3 +3335,134 @@ p {
   font-size: 0.86rem;
   color: #ffd79a;
 }
+
+/* ---------------------------------------------------- sending photos out ---
+   Handing a vendor's logo and photos to whoever writes the social post.
+   Built for a phone: every control is a 44px target, the fields are 16px so
+   iOS does not zoom the page on focus, and the panel opens in place rather
+   than in a dialog that has to be dismissed one handed. */
+
+.sendphotos,
+.sendall {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.sendphotos__toggle,
+.sendall__toggle,
+.sendphotos__send {
+  min-height: 44px;
+}
+
+.sendall {
+  margin-top: 1rem;
+}
+
+.sendphotos__last {
+  font-family: var(--font-condensed);
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+.sendphotos__panel,
+.sendall__panel {
+  flex-basis: 100%;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(243, 238, 229, 0.16);
+  border-radius: 10px;
+  background: rgba(243, 238, 229, 0.04);
+}
+
+.sendphotos__lead {
+  margin: 0 0 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--dust);
+}
+
+.sendphotos__panel .field,
+.sendall__panel .field {
+  margin-bottom: 0.85rem;
+}
+
+/* 16px minimum, or iOS zooms the whole tracker on focus. */
+.sendphotos__panel .input,
+.sendall__panel .input {
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.sendphotos__note {
+  min-height: 88px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* Recently used addresses. The datalist covers typing; these are for thumbs. */
+.sendphotos__recents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: -0.35rem 0 0.9rem;
+}
+
+.sendphotos__recent {
+  min-height: 44px;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid rgba(243, 238, 229, 0.22);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cream);
+  font-family: var(--font-condensed);
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.sendphotos__recent:hover,
+.sendphotos__recent:focus-visible {
+  border-color: var(--ember);
+  color: var(--ember);
+}
+
+.sendphotos__send {
+  width: 100%;
+}
+
+.sendphotos__error,
+.sendphotos__done,
+.sendphotos__quiet {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.sendphotos__error {
+  color: #ff9a7a;
+}
+
+.sendphotos__done {
+  color: var(--ember);
+}
+
+.sendphotos__quiet {
+  color: var(--dust);
+}
+
+.arow__send {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(243, 238, 229, 0.12);
+}
+
+@media (min-width: 640px) {
+  .sendphotos__send {
+    width: auto;
+    min-width: 200px;
+  }
+}

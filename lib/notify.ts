@@ -151,3 +151,47 @@ export async function sendReminderEmail(
     return false;
   }
 }
+
+/**
+ * Vendor photos, out to whatever address was typed into the tracker.
+ *
+ * Attachments rather than links, because the person receiving these needs to
+ * save the files and a signed URL will have expired by then. Reply-to is the
+ * public support address so a question comes somewhere useful.
+ */
+export async function sendMediaEmail(
+  to: string,
+  message: { subject: string; html: string; text: string },
+  attachments: { filename: string; content: Buffer; contentType: string }[]
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isEmailConfigured()) {
+    console.warn('email not configured, cannot send photos', { to });
+    return { ok: false, error: 'Email is not connected. Set RESEND_API_KEY and FROM_EMAIL.' };
+  }
+
+  try {
+    const result = await resend().emails.send({
+      from: process.env.FROM_EMAIL as string,
+      to,
+      replyTo: supportEmail(),
+      subject: message.subject,
+      html: message.html,
+      text: message.text,
+      attachments: attachments.map((a) => ({
+        filename: a.filename,
+        content: a.content,
+        contentType: a.contentType,
+      })),
+    });
+
+    if (result?.error) {
+      console.error('photo email rejected by Resend', { to, error: result.error });
+      return { ok: false, error: result.error.message || 'The mail provider rejected it.' };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    console.error('photo email failed to send', { to, error: err });
+    return { ok: false, error: 'Could not reach the mail provider.' };
+  }
+}
