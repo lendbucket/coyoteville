@@ -1,6 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { getStripe, isStripeConfigured } from '@/lib/stripe';
+import { getSquare, getSquareLocationId, isSquareConfigured } from '@/lib/square';
 import { getClientIp, rateLimit } from '@/lib/rate-limit';
 import { WAIVER_VERSION } from '@/components/Waiver';
 import { EVENTS, PRICING, SITE_URL, priceForSpot } from '@/lib/seo';
@@ -193,52 +194,67 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl: null });
   }
 
-  if (!isStripeConfigured()) {
+  if (!isSquareConfigured()) {
     return bad('Payment is not connected yet. Email us and we will get you set.', 503);
   }
 
   const event = EVENTS.find((e) => e.slug === value.event_slug);
-  const spotLabel =
-    value.spot_type === 'truck' ? PRICING.truck.label : PRICING.booth.label;
+  const spotLabel = value.spot_type === 'truck' ? PRICING.truck.label : PRICING.booth.label;
 
   try {
-    const stripe = getStripe();
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      customer_email: value.email,
-      client_reference_id: inserted.id,
-      success_url: `${SITE_URL}/vendors/confirmed?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${SITE_URL}/#apply`,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: 'usd',
-            unit_amount: amountCents,
-            product_data: {
-              name: `${spotLabel}, ${event ? event.name : 'Coyoteville event'}`,
-              description: `${event ? event.displayDate : ''} at Coyoteville, Alice TX. Flat rate, no commission.`.trim(),
+    const square = getSquare();
+    const locationId = getSquareLocationId();
+
+    // A full order rather than quickPay, because only an order carries
+    // referenceId. That id is the application UUID and it is how the webhook
+    // maps a completed payment back to the right row.
+    const response = await square.checkout.paymentLinks.create({
+      idempotencyKey: randomUUID(),
+      description: `${spotLabel} at Coyoteville`,
+      order: {
+        locationId,
+        referenceId: inserted.id,
+        lineItems: [
+          {
+            name: `${spotLabel}, ${event ? event.name : 'Coyoteville event'}`,
+            quantity: '1',
+            basePriceMoney: {
+              amount: BigInt(amountCents),
+              currency: 'USD',
             },
+            note: `${event ? event.displayDate : ''} at Coyoteville, Alice TX. Flat rate, no commission.`.trim(),
           },
-        },
-      ],
-      metadata: {
-        application_id: inserted.id,
-        event_slug: value.event_slug,
-        spot_type: value.spot_type,
-        business_name: value.business_name,
-        waiver_version: WAIVER_VERSION,
+        ],
       },
+      checkoutOptions: {
+        redirectUrl: `${SITE_URL}/vendors/confirmed`,
+        askForShippingAddress: false,
+        allowTipping: false,
+      },
+      prePopulatedData: {
+        buyerEmail: value.email,
+      },
+      paymentNote: `Coyoteville vendor spot, application ${inserted.id}`,
     });
+
+    const paymentLink = response.paymentLink;
+    const checkoutUrl = paymentLink?.url || paymentLink?.longUrl || null;
+
+    if (!checkoutUrl) {
+      throw new Error('Square returned no payment link URL.');
+    }
 
     await supabase
       .from('vendor_applications')
-      .update({ stripe_session_id: session.id })
+      .update({
+        square_order_id: paymentLink?.orderId ?? null,
+        square_payment_link_id: paymentLink?.id ?? null,
+      })
       .eq('id', inserted.id);
 
-    return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl: session.url });
+    return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl });
   } catch (err) {
-    console.error('stripe checkout session failed', err);
+    console.error('square payment link creation failed', err);
     // The application is saved. Only the payment handoff failed.
     return bad(
       'We saved your application but could not start checkout. Email us and we will send a payment link.',

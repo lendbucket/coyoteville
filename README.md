@@ -4,7 +4,7 @@ Food truck park and live music venue in Alice, Texas.
 150 N. Stadium Road, Alice, TX 78332, on North Stadium Road between Alice High School
 and the stadium.
 
-Next.js 14 App Router, TypeScript, plain CSS. Supabase for data, Stripe for vendor
+Next.js 14 App Router, TypeScript, plain CSS. Supabase for data, Square for vendor
 payments, deployed on Vercel.
 
 ---
@@ -20,8 +20,8 @@ app/
   sitemap.ts
   vendors/confirmed/            post checkout landing, noindexed
   api/
-    vendor-application/         validate, save, create Stripe checkout
-    stripe-webhook/             mark applications paid and approved
+    vendor-application/         validate, save, create Square payment link
+    square-webhook/             mark applications paid and approved
     subscribe/                  email list upsert
 components/
   StringLights.tsx              the festoon lights SVG
@@ -31,7 +31,7 @@ components/
 lib/
   seo.ts                        every site constant, price and JSON-LD schema
   supabase.ts                   server only client, service role
-  stripe.ts                     server only client
+  square.ts                     server only client
   rate-limit.ts                 in memory IP rate limiter
 supabase/
   schema.sql                    tables, indexes, RLS, event_roster view
@@ -103,12 +103,29 @@ Assign spots by setting `spot_number` on the application rows.
 
 ---
 
-## Stripe
+## Square
 
-1. Get your secret key from https://dashboard.stripe.com/apikeys into
-   `STRIPE_SECRET_KEY`. Use the test key locally.
-2. There are no Stripe Products to create. The checkout session builds the line item
-   inline from `PRICING` in `lib/seo.ts`.
+1. Go to https://developer.squareup.com/apps and open (or create) your application.
+2. Pick the **Sandbox** or **Production** credentials tab depending on what you are
+   wiring up, then copy:
+   - **Access token** into `SQUARE_ACCESS_TOKEN`
+   - **Location ID** into `SQUARE_LOCATION_ID` (Locations tab, or Square Dashboard
+     under Account and Settings, Business, Locations)
+3. Set `SQUARE_ENVIRONMENT` to `sandbox` or `production`.
+
+There are no Square catalog items to create. The payment link builds its line item
+inline from `PRICING` in `lib/seo.ts`.
+
+### Why a full order instead of quick pay
+
+`quickPay` is the shorter call, but it cannot carry a `reference_id`. The checkout is
+built as a full `order` so `reference_id` can be set to the application UUID. That id
+is the only thing tying a completed Square payment back to the right row, and the
+webhook reads it off the order. Do not switch this to `quickPay` without replacing
+that link some other way.
+
+`SQUARE_ENVIRONMENT` has to be exactly `production` to hit live Square. Anything else
+resolves to sandbox, so a typo cannot charge a real card.
 
 ### Webhook endpoint
 
@@ -117,28 +134,33 @@ vendors pay and their row stays `unpaid`.
 
 **Production:**
 
-1. Stripe Dashboard, **Developers, Webhooks, Add endpoint**.
-2. URL: `https://yourdomain.com/api/stripe-webhook`
-3. Select these events:
-   - `checkout.session.completed`
-   - `checkout.session.expired`
-   - `charge.refunded`
-4. Copy the **Signing secret** (`whsec_...`) into `STRIPE_WEBHOOK_SECRET`.
+1. Developer Dashboard, your app, **Webhooks, Subscriptions, Add subscription**.
+2. URL: `https://yourdomain.com/api/square-webhook`
+3. API version: leave it on the current default.
+4. Subscribe to **`payment.updated`**.
+5. Copy the **Signature key** for that subscription into
+   `SQUARE_WEBHOOK_SIGNATURE_KEY`.
 
-**Locally**, use the Stripe CLI:
+**The notification URL has to match byte for byte.** Square computes the signature
+over the notification URL concatenated with the raw request body, so the URL
+registered in the dashboard and the one this app derives from `NEXT_PUBLIC_SITE_URL`
+must be identical. A trailing slash, `http` instead of `https`, or an apex versus
+`www` mismatch all produce a valid looking request that fails verification. That is
+the first thing to check if webhooks 400.
+
+**Locally**, expose the port and register that URL as a sandbox subscription:
 
 ```bash
-stripe login
-stripe listen --forward-to localhost:3000/api/stripe-webhook
+npx localtunnel --port 3000
+# or: ngrok http 3000
 ```
 
-That prints a `whsec_...` for your `.env.local`. In another terminal:
+Then set `NEXT_PUBLIC_SITE_URL` in `.env.local` to the tunnel URL, register
+`https://<tunnel>/api/square-webhook` in the Square sandbox dashboard, and use the
+**Send test event** button on the subscription to fire a `payment.updated`.
 
-```bash
-stripe trigger checkout.session.completed
-```
-
-Test card at checkout: `4242 4242 4242 4242`, any future expiry, any CVC.
+Sandbox test card at checkout: `4111 1111 1111 1111`, any future expiry, CVV `111`,
+postal code `94103`.
 
 ---
 
@@ -152,19 +174,28 @@ The repo is already linked. Add the environment variables under
 | `NEXT_PUBLIC_SITE_URL` | your live domain | the preview URL | no trailing slash |
 | `NEXT_PUBLIC_SUPABASE_URL` | yes | yes | |
 | `SUPABASE_SERVICE_ROLE_KEY` | yes | yes | secret |
-| `STRIPE_SECRET_KEY` | live key | test key | secret |
-| `STRIPE_WEBHOOK_SECRET` | live endpoint secret | test endpoint secret | secret |
+| `SQUARE_ACCESS_TOKEN` | production token | sandbox token | secret |
+| `SQUARE_LOCATION_ID` | production location | sandbox location | |
+| `SQUARE_ENVIRONMENT` | `production` | `sandbox` | |
+| `SQUARE_WEBHOOK_SIGNATURE_KEY` | production subscription key | sandbox subscription key | secret |
 
 With the CLI:
 
 ```bash
-vercel env add STRIPE_SECRET_KEY production
+vercel env add SQUARE_ACCESS_TOKEN production
 vercel env pull .env.local
 ```
 
 `NEXT_PUBLIC_SITE_URL` matters more than it looks. It sets canonical tags, Open Graph
-URLs, the sitemap and the Stripe success and cancel URLs. Get it wrong in production
-and checkout sends people to the wrong host.
+URLs, the sitemap, the Square redirect URL, and the webhook notification URL that the
+signature is computed against. Get it wrong in production and both the checkout
+redirect and webhook verification break.
+
+**Change it and you must redeploy.** The home page is statically prerendered, so its
+canonical tag, Open Graph URLs and the sitemap bake the value in at build time. The
+API routes are dynamic and read it at runtime. Editing the variable in the Vercel
+dashboard without triggering a new build leaves those two out of sync: the webhook
+would verify against the new URL while the page still advertises the old one.
 
 ### Deploy flow
 
@@ -183,7 +214,7 @@ vercel --prod   # production
 
 After the first production deploy:
 
-1. Point the Stripe webhook at the real domain.
+1. Point the Square webhook at the real domain and swap in that endpoint signature key.
 2. Submit `https://yourdomain.com/sitemap.xml` in Google Search Console.
 3. Run the home page through the Rich Results Test to confirm the LocalBusiness,
    Event and FAQPage schemas are picked up.
@@ -218,7 +249,7 @@ browser.
 
 Flat rate. No commission on sales.
 
-Free applications skip Stripe entirely. The API returns `checkoutUrl: null`, the form
+Free applications skip Square entirely. The API returns `checkoutUrl: null`, the form
 shows a confirmation in place, and the row is written with
 `payment_status = 'not_required'` and `approval_status = 'approved'`.
 

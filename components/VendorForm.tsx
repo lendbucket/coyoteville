@@ -358,7 +358,7 @@ export default function VendorForm() {
             <span className="hint">
               {spot === 'free'
                 ? 'No payment for Coyote groups, booster clubs and nonprofits.'
-                : 'You will land on a secure Stripe checkout page.'}
+                : 'You will land on a secure Square checkout page.'}
             </span>
           </div>
         </form>

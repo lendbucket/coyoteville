@@ -29,7 +29,7 @@ export default function ConfirmedPage() {
 
           <p className="muted">
             We got your payment and your signed waiver. Your spot at {NEXT_EVENT.name} on{' '}
-            {NEXT_EVENT.displayDate} is locked in. Check your email for the Stripe receipt.
+            {NEXT_EVENT.displayDate} is locked in. Check your email for the Square receipt.
           </p>
 
           <ul className="confirm__steps">

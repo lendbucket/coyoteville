@@ -14,8 +14,10 @@ const csp = [
   `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
   "font-src 'self' data:",
   "connect-src 'self'",
-  "form-action 'self' https://checkout.stripe.com",
-  'frame-src https://js.stripe.com https://checkout.stripe.com',
+  // Square hosted checkout lives on square.link and checkout.square.site.
+  // Sandbox links come from sandbox.square.link.
+  "form-action 'self' https://square.link https://sandbox.square.link https://checkout.square.site",
+  'frame-src https://square.link https://sandbox.square.link https://checkout.square.site',
   'upgrade-insecure-requests',
 ].join('; ');
 

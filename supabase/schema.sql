@@ -62,8 +62,8 @@ create table if not exists public.vendor_applications (
   -- money
   amount_cents          integer     not null default 0,
   payment_status        text        not null default 'unpaid',
-  stripe_session_id     text,
-  stripe_payment_intent text,
+  square_order_id        text,
+  square_payment_link_id text,
   paid_at               timestamptz,
 
   -- what we do with it
@@ -98,6 +98,10 @@ comment on column public.vendor_applications.waiver_version is
   'Version string of the waiver text the vendor actually agreed to. Matches WAIVER_VERSION in components/Waiver.tsx.';
 comment on column public.vendor_applications.signer_ip is
   'Captured at signing to support the electronic signature record under Texas UETA.';
+comment on column public.vendor_applications.square_order_id is
+  'Square order id. The order carries reference_id = this row id, which is how the webhook maps a completed payment back here.';
+comment on column public.vendor_applications.square_payment_link_id is
+  'Square payment link id, kept so a link can be looked up or voided later.';
 
 create index if not exists vendor_applications_event_idx
   on public.vendor_applications (event_slug, created_at desc);
@@ -114,13 +118,13 @@ create index if not exists vendor_applications_email_idx
 create index if not exists vendor_applications_created_idx
   on public.vendor_applications (created_at desc);
 
-create unique index if not exists vendor_applications_stripe_session_idx
-  on public.vendor_applications (stripe_session_id)
-  where stripe_session_id is not null;
+create unique index if not exists vendor_applications_square_order_idx
+  on public.vendor_applications (square_order_id)
+  where square_order_id is not null;
 
-create index if not exists vendor_applications_payment_intent_idx
-  on public.vendor_applications (stripe_payment_intent)
-  where stripe_payment_intent is not null;
+create index if not exists vendor_applications_payment_link_idx
+  on public.vendor_applications (square_payment_link_id)
+  where square_payment_link_id is not null;
 
 -- ----------------------------------------------------------- subscribers ---
 
