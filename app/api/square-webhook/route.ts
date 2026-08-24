@@ -2,7 +2,9 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getSquare, isSquareConfigured } from '@/lib/square';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { SITE_URL } from '@/lib/seo';
+import { EVENTS, SITE_URL } from '@/lib/seo';
+import { invalidateSpots } from '@/lib/spots';
+import { notifyRegistration } from '@/lib/notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -112,21 +114,63 @@ export async function POST(request: Request) {
 
     const supabase = getSupabaseAdmin();
 
-    const { error } = await supabase
+    // Only rows still waiting on payment are updated. Square retries a webhook
+    // until it gets a 2xx, so without this a retry would send a second set of
+    // emails for a vendor who was already marked paid.
+    const { data: updated, error } = await supabase
       .from('vendor_applications')
       .update({
         payment_status: 'paid',
+        payment_method: 'online',
         approval_status: 'approved',
         square_order_id: orderId,
         paid_at: new Date().toISOString(),
       })
-      .eq('id', applicationId);
+      .eq('id', applicationId)
+      .eq('payment_status', 'unpaid')
+      .select(
+        'id, business_name, contact_name, phone, email, spot_type, event_slug, sells, notes, serves_food, permit_path, signature_name, signed_at, agreement_version, amount_cents'
+      )
+      .maybeSingle();
 
     if (error) {
       console.error('failed to mark application paid', applicationId, error);
       // Non 2xx tells Square to retry, which is what we want here.
       return NextResponse.json({ error: 'Database update failed.' }, { status: 500 });
     }
+
+    if (!updated) {
+      // Already settled by an earlier delivery of this event.
+      return NextResponse.json({ received: true, applicationId, ignored: 'already paid' });
+    }
+
+    invalidateSpots(updated.event_slug);
+
+    // The payment has settled, so this is the point the booking is real. Email
+    // goes out here rather than at form submission, which would notify about
+    // people who abandoned checkout. A failure is logged inside and can never
+    // turn a paid booking into an error.
+    await notifyRegistration({
+      id: updated.id,
+      business_name: updated.business_name,
+      contact_name: updated.contact_name,
+      phone: updated.phone,
+      email: updated.email,
+      spot_type: updated.spot_type,
+      event_slug: updated.event_slug,
+      event_name:
+        EVENTS.find((e) => e.slug === updated.event_slug)?.name ?? updated.event_slug,
+      sells: updated.sells,
+      notes: updated.notes,
+      serves_food: Boolean(updated.serves_food),
+      permit_uploaded: Boolean(updated.permit_path),
+      signature_name: updated.signature_name,
+      signed_at: updated.signed_at,
+      agreement_version: updated.agreement_version,
+      amount_cents: updated.amount_cents ?? 0,
+      payment_status: 'paid',
+      payment_method: 'online',
+    });
 
     return NextResponse.json({ received: true, applicationId });
   } catch (err) {

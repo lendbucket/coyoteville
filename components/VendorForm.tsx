@@ -1,7 +1,12 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
-import { VendorAgreement, AGREEMENT_VERSION } from './VendorAgreement';
+import {
+  VendorAgreement,
+  AGREEMENT_VERSION,
+  AUTHORIZED_SIGNER,
+  CONTRACTING_ENTITY,
+} from './VendorAgreement';
 import StringLights from './StringLights';
 import { EVENTS, PRICING, SITE } from '@/lib/seo';
 
@@ -15,7 +20,32 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_PHOTOS = 3;
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,application/pdf';
 
-export default function VendorForm({ signupClosed = false }: { signupClosed?: boolean }) {
+/**
+ * The vendor application.
+ *
+ * Two callers share this: the public form, which ends at Square checkout, and
+ * the hidden prepaid link, which posts to its own route and never takes a
+ * payment. One component so the agreement, the uploads and the validation
+ * cannot drift apart between the two.
+ */
+export default function VendorForm({
+  signupClosed = false,
+  endpoint = '/api/vendor-application',
+  prepaid = false,
+  token,
+  closedTitle = 'Signup is closed for this event',
+  closedBody,
+}: {
+  signupClosed?: boolean;
+  /** Where the form posts. */
+  endpoint?: string;
+  /** Prepaid vendors already paid, so there is no checkout step. */
+  prepaid?: boolean;
+  /** Prepaid link token, echoed back so the route can re-check it. */
+  token?: string;
+  closedTitle?: string;
+  closedBody?: React.ReactNode;
+}) {
   const uid = useId();
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
@@ -47,6 +77,8 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
   const fee =
     spot === 'truck' ? PRICING.truck.price : spot === 'booth' ? PRICING.booth.price : 'Free';
 
+  const heading = prepaid ? 'Register your spot' : 'Get your spot';
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (status === 'sending') return;
@@ -65,6 +97,7 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
     form.set('signature_name', signature.trim());
     form.set('signed_date', signedISO);
     form.delete('signed_date_display');
+    if (prepaid && token) form.set('prepaid_token', token);
 
     // Drop empty file inputs so the server does not see zero byte parts.
     for (const key of ['logo', 'permit']) {
@@ -92,7 +125,7 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
     }
 
     try {
-      const res = await fetch('/api/vendor-application', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         body: form,
       });
@@ -116,7 +149,9 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
 
       setStatus('done');
       setMessage(
-        'We have your application and your signed agreement. We will email you your spot number before the event.'
+        prepaid
+          ? 'Your spot is registered and your agreement is signed. No payment is due, you already paid. We will email your spot number before the event.'
+          : 'We have your application and your signed agreement. We will email you your spot number before the event.'
       );
     } catch {
       setStatus('error');
@@ -130,7 +165,7 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
         <StringLights tone="dark" variant="top" swags={5} sag={30} id="apply-lights-done" />
         <div className="shell">
           <p className="eyebrow">Vendor application</p>
-          <h2 id="apply-title">You are in</h2>
+          <h2 id="apply-title">{prepaid ? 'You are registered' : 'You are in'}</h2>
           <p className="lede">{message}</p>
           <p className="hint">
             Questions in the meantime, email <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.
@@ -148,10 +183,14 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
         <StringLights tone="dark" variant="top" swags={5} sag={30} id="apply-lights-closed" />
         <div className="shell">
           <p className="eyebrow">Vendor application</p>
-          <h2 id="apply-title">Signup is closed for this event</h2>
+          <h2 id="apply-title">{closedTitle}</h2>
           <p className="lede muted">
-            The cutoff for {EVENTS[0].name} was {EVENTS[0].signupClosesDisplay} Central. We close
-            signup two days out so we can lay out the lot and assign spot numbers.
+            {closedBody ?? (
+              <>
+                The cutoff for {EVENTS[0].name} was {EVENTS[0].signupClosesDisplay} Central. We
+                close signup two days out so we can lay out the lot and assign spot numbers.
+              </>
+            )}
           </p>
           <p className="hint">
             Email <a href={`mailto:${SITE.email}`}>{SITE.email}</a> and we will put you on the
@@ -168,11 +207,20 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
 
       <div className="shell">
         <p className="eyebrow">Vendor application</p>
-        <h2 id="apply-title">Get your spot</h2>
+        <h2 id="apply-title">{heading}</h2>
         <p className="lede muted">
-          Booths are {PRICING.booth.price} per event and truck spots are {PRICING.truck.price}.
-          Alice organizations set up at no charge. Fill this out, upload your permit if you serve
-          food, sign the agreement and pay.
+          {prepaid ? (
+            <>
+              You have already paid, so there is no payment step. Fill this out, upload your permit
+              if you serve food, and sign the agreement to register your spot.
+            </>
+          ) : (
+            <>
+              Booths are {PRICING.booth.price} per event and truck spots are {PRICING.truck.price}.
+              Alice organizations set up at no charge. Fill this out, upload your permit if you
+              serve food, sign the agreement and pay.
+            </>
+          )}
         </p>
 
         <form className="form" onSubmit={onSubmit} noValidate={false}>
@@ -385,6 +433,10 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
 
           <div className="field">
             <span className="label">Vendor Participation Agreement, read all 18 sections</span>
+            <p className="counterparty">
+              You are entering into an agreement with <b>{CONTRACTING_ENTITY}</b>,{' '}
+              {AUTHORIZED_SIGNER}.
+            </p>
             <div className="agreement-scrollwrap">
               <div
                 className="agreement-scroll"
@@ -484,14 +536,18 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
             <button className="btn btn--amber" type="submit" disabled={status === 'sending'}>
               {status === 'sending'
                 ? 'Working on it'
-                : spot === 'free'
-                  ? 'Submit application'
-                  : `Sign and pay ${fee}`}
+                : prepaid
+                  ? 'Register my spot'
+                  : spot === 'free'
+                    ? 'Submit application'
+                    : `Sign and pay ${fee}`}
             </button>
             <span className="hint">
-              {spot === 'free'
-                ? 'Alice organizations set up at no charge, so there is no payment step.'
-                : 'Checkout runs through Square.'}
+              {prepaid
+                ? 'No payment is taken here. Your fee is already settled.'
+                : spot === 'free'
+                  ? 'Alice organizations set up at no charge, so there is no payment step.'
+                  : 'Checkout runs through Square.'}
             </span>
           </div>
         </form>

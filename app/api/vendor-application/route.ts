@@ -13,6 +13,7 @@ import {
   type ValidatedUpload,
 } from '@/lib/uploads';
 import { invalidateSpots } from '@/lib/spots';
+import { notifyRegistration } from '@/lib/notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -290,6 +291,7 @@ export async function POST(request: Request) {
 
       amount_cents: amountCents,
       payment_status: isFree ? 'not_required' : 'unpaid',
+      payment_method: 'online',
       approval_status: isFree ? 'approved' : 'pending',
     })
     .select('id')
@@ -384,7 +386,32 @@ export async function POST(request: Request) {
   }
 
   // Alice organizations set up at no charge, so they skip checkout.
+  //
+  // There is no payment to wait on, so the booking is complete right here and
+  // the email goes out now. A paying vendor is notified from the Square webhook
+  // instead, once the money actually settles.
   if (isFree) {
+    await notifyRegistration({
+      id: inserted.id,
+      business_name: value.business_name,
+      contact_name: value.contact_name,
+      phone: value.phone,
+      email: value.email,
+      spot_type: value.spot_type,
+      event_slug: value.event_slug,
+      event_name: event.name,
+      sells: value.sells,
+      notes: value.notes,
+      serves_food: value.serves_food,
+      permit_uploaded: Boolean(paths.permit_path),
+      signature_name: value.signature_name,
+      signed_at: new Date().toISOString(),
+      agreement_version: AGREEMENT_VERSION,
+      amount_cents: amountCents,
+      payment_status: 'not_required',
+      payment_method: 'online',
+    });
+
     return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl: null });
   }
 

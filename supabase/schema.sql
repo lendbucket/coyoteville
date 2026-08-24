@@ -32,6 +32,11 @@ create table if not exists public.events (
   booth_capacity integer,
   truck_capacity integer,
 
+  -- Vendors who committed by phone or on Facebook rather than through the
+  -- form. The live meter adds these to the website count.
+  booth_claimed_offline integer not null default 0,
+  truck_claimed_offline integer not null default 0,
+
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
 
@@ -43,8 +48,10 @@ create table if not exists public.events (
 -- database that already ran the original schema.
 alter table public.events add column if not exists booth_capacity integer;
 alter table public.events add column if not exists truck_capacity integer;
+alter table public.events add column if not exists booth_claimed_offline integer not null default 0;
+alter table public.events add column if not exists truck_claimed_offline integer not null default 0;
 
-do $
+do $$
 begin
   if not exists (select 1 from pg_constraint where conname = 'events_booth_capacity_check') then
     alter table public.events
@@ -56,12 +63,24 @@ begin
       add constraint events_truck_capacity_check
       check (truck_capacity is null or truck_capacity >= 0);
   end if;
-end $;
+  if not exists (select 1 from pg_constraint where conname = 'events_booth_offline_check') then
+    alter table public.events
+      add constraint events_booth_offline_check check (booth_claimed_offline >= 0);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'events_truck_offline_check') then
+    alter table public.events
+      add constraint events_truck_offline_check check (truck_claimed_offline >= 0);
+  end if;
+end $$;
 
 comment on column public.events.booth_capacity is
   'Number of vendor booth spots for this event. Null means not set, and the site shows a neutral state instead of a percentage.';
 comment on column public.events.truck_capacity is
   'Number of food truck spots for this event. Null means not set.';
+comment on column public.events.booth_claimed_offline is
+  'Booth vendors who committed by phone or Facebook rather than through the form. Added to the website count by the live meter. Decrement this when one of them registers on the site, or they are counted twice.';
+comment on column public.events.truck_claimed_offline is
+  'Food truck vendors who committed by phone or Facebook rather than through the form. Decrement when one registers on the site.';
 
 comment on table public.events is 'Event calendar. The slug is what the application form submits.';
 
@@ -103,6 +122,9 @@ create table if not exists public.vendor_applications (
   -- money
   amount_cents          integer     not null default 0,
   payment_status        text        not null default 'unpaid',
+  -- How the fee was taken. 'online' is Square checkout, 'offline' is a vendor
+  -- who paid by phone or in person and registered through the prepaid link.
+  payment_method        text,
   square_order_id        text,
   square_payment_link_id text,
   paid_at               timestamptz,
@@ -120,6 +142,9 @@ create table if not exists public.vendor_applications (
 
   constraint vendor_applications_payment_status_check
     check (payment_status in ('unpaid', 'paid', 'not_required', 'expired', 'refunded')),
+
+  constraint vendor_applications_payment_method_check
+    check (payment_method is null or payment_method in ('online', 'offline')),
 
   constraint vendor_applications_approval_status_check
     check (approval_status in ('pending', 'approved', 'waitlist', 'declined', 'cancelled')),
@@ -173,6 +198,21 @@ alter table public.vendor_applications add column if not exists logo_path    tex
 alter table public.vendor_applications add column if not exists photo_paths  text[] not null default '{}';
 alter table public.vendor_applications add column if not exists permit_path  text;
 alter table public.vendor_applications add column if not exists serves_food  boolean not null default false;
+alter table public.vendor_applications add column if not exists payment_method text;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'vendor_applications_payment_method_check'
+  ) then
+    alter table public.vendor_applications
+      add constraint vendor_applications_payment_method_check
+      check (payment_method is null or payment_method in ('online', 'offline'));
+  end if;
+end $$;
+
+comment on column public.vendor_applications.payment_method is
+  'online for Square checkout, offline for vendors who paid outside the site and registered through the prepaid link. Null on rows created before this column existed.';
 
 comment on column public.vendor_applications.permit_path is
   'Storage path of the food handler permit in the private coyoteville-permits bucket. Never expose this directly, mint a signed URL.';
@@ -272,6 +312,7 @@ select
   a.notes,
   a.amount_cents,
   a.payment_status,
+  a.payment_method,
   a.approval_status,
   a.paid_at,
   a.signature_name,
@@ -345,6 +386,9 @@ on conflict (slug) do update
       blurb        = excluded.blurb,
       booth_capacity = excluded.booth_capacity,
       truck_capacity = excluded.truck_capacity;
+-- booth_claimed_offline and truck_claimed_offline are deliberately absent from
+-- that update list. They are maintained by hand, and re-running this file must
+-- not reset them to zero.
 
 -- -------------------------------------------------------------- storage ---
 -- Two buckets, both private.
@@ -385,3 +429,83 @@ on conflict (id) do update
 drop policy if exists "coyoteville media public read" on storage.objects;
 drop policy if exists "coyoteville anon upload"       on storage.objects;
 
+
+-- --------------------------------------------------- prepaid registration ---
+-- Vendors who paid by phone or in person are already counted in
+-- booth_claimed_offline / truck_claimed_offline. When one of them registers
+-- through the prepaid link their application starts counting on its own, so the
+-- offline tally has to come down by one at the same moment. Doing both in one
+-- function body puts them in a single transaction: either the application and
+-- the decrement both land, or neither does, and the meter never double counts.
+--
+-- Called only by the API route with the service role key. Execute is revoked
+-- from anon and authenticated below.
+
+create or replace function public.register_prepaid_vendor(payload jsonb)
+returns uuid
+language plpgsql
+as $$
+declare
+  new_id     uuid;
+  v_spot     text := payload->>'spot_type';
+  v_event    text := payload->>'event_slug';
+begin
+  insert into public.vendor_applications (
+    id, business_name, contact_name, phone, email, spot_type, event_slug, sells, notes,
+    waiver_accepted, permits_confirmed, signature_name, signed_date, signed_at,
+    agreement_version, signer_ip, signer_user_agent, serves_food,
+    logo_path, photo_paths, permit_path,
+    amount_cents, payment_status, payment_method, paid_at,
+    approval_status, admin_notes
+  )
+  values (
+    coalesce((payload->>'id')::uuid, gen_random_uuid()),
+    payload->>'business_name',
+    payload->>'contact_name',
+    payload->>'phone',
+    payload->>'email',
+    v_spot,
+    v_event,
+    payload->>'sells',
+    payload->>'notes',
+    true,
+    true,
+    payload->>'signature_name',
+    (payload->>'signed_date')::date,
+    now(),
+    payload->>'agreement_version',
+    payload->>'signer_ip',
+    payload->>'signer_user_agent',
+    coalesce((payload->>'serves_food')::boolean, false),
+    payload->>'logo_path',
+    coalesce(
+      (select array_agg(value::text) from jsonb_array_elements_text(payload->'photo_paths')),
+      '{}'
+    ),
+    payload->>'permit_path',
+    coalesce((payload->>'amount_cents')::integer, 0),
+    'paid',
+    'offline',
+    now(),
+    'approved',
+    payload->>'admin_notes'
+  )
+  returning id into new_id;
+
+  if v_spot = 'booth' then
+    update public.events
+       set booth_claimed_offline = greatest(0, booth_claimed_offline - 1)
+     where slug = v_event;
+  elsif v_spot = 'truck' then
+    update public.events
+       set truck_claimed_offline = greatest(0, truck_claimed_offline - 1)
+     where slug = v_event;
+  end if;
+
+  return new_id;
+end $$;
+
+comment on function public.register_prepaid_vendor(jsonb) is
+  'Inserts a prepaid vendor application and decrements the matching offline counter in one transaction, so a vendor who already paid is never counted twice on the live meter.';
+
+revoke all on function public.register_prepaid_vendor(jsonb) from anon, authenticated;

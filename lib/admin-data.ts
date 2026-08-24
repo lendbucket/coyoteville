@@ -24,6 +24,7 @@ export type AdminApplication = {
   permit_path: string | null;
   amount_cents: number;
   payment_status: string;
+  payment_method: string | null;
   approval_status: string;
   spot_number: string | null;
   created_at: string;
@@ -62,6 +63,7 @@ const COLUMNS = [
   'permit_path',
   'amount_cents',
   'payment_status',
+  'payment_method',
   'approval_status',
   'spot_number',
   'created_at',

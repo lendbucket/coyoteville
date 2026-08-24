@@ -211,6 +211,11 @@ export default async function AdminPage({
                       {r.payment_status === 'not_required' ? 'Free' : r.payment_status}
                       {r.amount_cents ? ` ${money(r.amount_cents)}` : ''}
                     </span>
+                    {r.payment_method === 'offline' ? (
+                      <span className="tag tag--prepaid">Prepaid link</span>
+                    ) : r.payment_method === 'online' ? (
+                      <span className="tag tag--web">Website</span>
+                    ) : null}
                     {r.spot_number ? <span className="tag tag--spot">Spot {r.spot_number}</span> : null}
                   </div>
                 </div>

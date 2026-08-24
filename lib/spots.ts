@@ -6,16 +6,25 @@ import { NEXT_EVENT } from './seo';
 /**
  * Live spot counts.
  *
- * Every number here is counted out of the database. Claimed means a row whose
- * payment has actually settled: `paid` for the ones that go through Square, and
- * `not_required` for the free Coyote organisation spots, which are confirmed
- * the moment they are submitted. Rows sitting at `unpaid` are people who
- * started checkout and have not finished, and they do not hold a spot, which is
- * the same rule the pricing copy states.
+ * Website applications are counted out of the database. Claimed means a row
+ * whose payment has actually settled: 'paid' for the ones that go through
+ * Square, and 'not_required' for the free Alice organisation spots, which are
+ * confirmed the moment they are submitted. Rows sitting at 'unpaid' are people
+ * who started checkout and have not finished, and they do not hold a spot,
+ * which is the same rule the pricing copy states.
  *
- * Capacity comes from booth_capacity and truck_capacity on the events row. If
- * neither is set the snapshot reports capacityKnown false and the UI shows a
- * count with no percentage, rather than inventing a denominator.
+ * On top of that, booth_claimed_offline and truck_claimed_offline on the events
+ * row hold vendors who committed by phone or on Facebook rather than through
+ * the form. Claimed for a type is the website count plus that number.
+ *
+ * IMPORTANT: decrement the offline count when one of those vendors later
+ * registers through the site. Their application starts counting on its own at
+ * that point, and leaving the offline number alone counts them twice and shows
+ * the event fuller than it is.
+ *
+ * Capacity comes from booth_capacity and truck_capacity. If neither is set the
+ * snapshot reports capacityKnown false and the UI shows a count with no
+ * percentage, rather than inventing a denominator.
  */
 
 /** Payment states that mean the spot is actually held. */
@@ -23,7 +32,13 @@ const CLAIMED_STATES = ['paid', 'not_required'] as const;
 
 export type SpotLine = {
   capacity: number | null;
+  /**
+   * Website applications plus the offline count, clamped to capacity so the
+   * page never reads "22 of 20 claimed" when an offline number is stale.
+   */
   claimed: number;
+  /** The offline portion of the claimed figure, for reconciling the numbers. */
+  offline: number;
   /** Null when capacity is unknown. Never negative, never above capacity. */
   remaining: number | null;
 };
@@ -45,23 +60,123 @@ export type SpotsSnapshot = {
 };
 
 function emptySnapshot(eventSlug: string): SpotsSnapshot {
-  const line: SpotLine = { capacity: null, claimed: 0, remaining: null };
+  const blank: SpotLine = { capacity: null, claimed: 0, offline: 0, remaining: null };
   return {
     eventSlug,
     available: false,
     capacityKnown: false,
-    booth: { ...line },
-    truck: { ...line },
-    total: { ...line, percent: null },
+    booth: { ...blank },
+    truck: { ...blank },
+    total: { ...blank, percent: null },
     freeClaimed: 0,
   };
 }
 
-function line(capacity: number | null, claimed: number): SpotLine {
+function line(capacity: number | null, website: number, offline: number): SpotLine {
+  // A negative offline number is a data entry slip, not a credit against real
+  // applications, so it floors at zero.
+  const offlineCount = Math.max(0, offline);
+  const total = website + offlineCount;
+
   return {
     capacity,
-    claimed,
-    remaining: capacity === null ? null : Math.max(0, capacity - claimed),
+    claimed: capacity === null ? total : Math.min(total, capacity),
+    offline: offlineCount,
+    remaining: capacity === null ? null : Math.max(0, capacity - total),
+  };
+}
+
+/* ----------------------------------------------------------- event row */
+
+type EventCounts = {
+  boothCapacity: number | null;
+  truckCapacity: number | null;
+  boothOffline: number;
+  truckOffline: number;
+};
+
+const WITH_OFFLINE =
+  'booth_capacity, truck_capacity, booth_claimed_offline, truck_claimed_offline';
+const WITHOUT_OFFLINE = 'booth_capacity, truck_capacity';
+
+/**
+ * Whether the offline columns exist. Null until the first query answers it.
+ * Remembered so a database that predates them costs one failed query per
+ * process rather than one per snapshot.
+ */
+let offlineColumnsPresent: boolean | null = null;
+
+/** PostgREST reports an unknown column as 42703. */
+function isMissingColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === '42703') return true;
+  return /column .* does not exist/i.test(error.message ?? '');
+}
+
+/**
+ * Read capacity and the offline counts for an event.
+ *
+ * On a database that has not had the offline columns added yet the wide select
+ * fails, and this falls back to the original two columns and treats offline as
+ * zero rather than erroring the whole snapshot.
+ */
+async function fetchEventCounts(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  eventSlug: string
+): Promise<EventCounts> {
+  const empty: EventCounts = {
+    boothCapacity: null,
+    truckCapacity: null,
+    boothOffline: 0,
+    truckOffline: 0,
+  };
+
+  if (offlineColumnsPresent !== false) {
+    const { data, error } = await supabase
+      .from('events')
+      .select(WITH_OFFLINE)
+      .eq('slug', eventSlug)
+      .maybeSingle();
+
+    if (!error) {
+      offlineColumnsPresent = true;
+      return {
+        boothCapacity: data?.booth_capacity ?? null,
+        truckCapacity: data?.truck_capacity ?? null,
+        boothOffline: data?.booth_claimed_offline ?? 0,
+        truckOffline: data?.truck_claimed_offline ?? 0,
+      };
+    }
+
+    if (!isMissingColumn(error)) {
+      // A real failure. Capacity stays unknown and the UI shows the neutral
+      // state instead of a percentage of nothing.
+      console.error('event capacity read failed', error);
+      return empty;
+    }
+
+    offlineColumnsPresent = false;
+    console.warn(
+      'events.booth_claimed_offline / truck_claimed_offline are missing; treating offline counts as 0'
+    );
+  }
+
+  const { data, error } = await supabase
+    .from('events')
+    .select(WITHOUT_OFFLINE)
+    .eq('slug', eventSlug)
+    .maybeSingle();
+
+  if (error) {
+    console.error('event capacity read failed', error);
+    return empty;
+  }
+
+  return {
+    boothCapacity: data?.booth_capacity ?? null,
+    truckCapacity: data?.truck_capacity ?? null,
+    boothOffline: 0,
+    truckOffline: 0,
   };
 }
 
@@ -83,12 +198,8 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
   try {
     const supabase = getSupabaseAdmin();
 
-    const [capacityResult, rowsResult] = await Promise.all([
-      supabase
-        .from('events')
-        .select('booth_capacity, truck_capacity')
-        .eq('slug', eventSlug)
-        .maybeSingle(),
+    const [counts, rowsResult] = await Promise.all([
+      fetchEventCounts(supabase, eventSlug),
       supabase
         .from('vendor_applications')
         .select('spot_type')
@@ -98,36 +209,40 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
 
     if (rowsResult.error) throw rowsResult.error;
 
-    const boothCapacity = capacityResult.data?.booth_capacity ?? null;
-    const truckCapacity = capacityResult.data?.truck_capacity ?? null;
-
-    let boothClaimed = 0;
-    let truckClaimed = 0;
+    let boothWebsite = 0;
+    let truckWebsite = 0;
     let freeClaimed = 0;
 
     for (const row of rowsResult.data ?? []) {
-      if (row.spot_type === 'booth') boothClaimed += 1;
-      else if (row.spot_type === 'truck') truckClaimed += 1;
+      if (row.spot_type === 'booth') boothWebsite += 1;
+      else if (row.spot_type === 'truck') truckWebsite += 1;
       else if (row.spot_type === 'free') freeClaimed += 1;
     }
 
-    const capacityKnown = boothCapacity !== null || truckCapacity !== null;
+    const booth = line(counts.boothCapacity, boothWebsite, counts.boothOffline);
+    const truck = line(counts.truckCapacity, truckWebsite, counts.truckOffline);
+
+    const capacityKnown = counts.boothCapacity !== null || counts.truckCapacity !== null;
 
     const totalCapacity = capacityKnown
-      ? (boothCapacity ?? 0) + (truckCapacity ?? 0)
+      ? (counts.boothCapacity ?? 0) + (counts.truckCapacity ?? 0)
       : null;
-    const totalClaimed = boothClaimed + truckClaimed;
 
-    const totalLine = line(totalCapacity, totalClaimed);
+    // Each type is clamped to its own capacity first, so a booth overshoot
+    // cannot be hidden by trucks having room to spare.
+    const totalClaimed = booth.claimed + truck.claimed;
 
     return {
       eventSlug,
       available: true,
       capacityKnown,
-      booth: line(boothCapacity, boothClaimed),
-      truck: line(truckCapacity, truckClaimed),
+      booth,
+      truck,
       total: {
-        ...totalLine,
+        capacity: totalCapacity,
+        claimed: totalClaimed,
+        offline: booth.offline + truck.offline,
+        remaining: totalCapacity === null ? null : Math.max(0, totalCapacity - totalClaimed),
         percent:
           totalCapacity && totalCapacity > 0
             ? Math.min(100, Math.round((totalClaimed / totalCapacity) * 100))

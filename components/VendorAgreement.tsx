@@ -7,18 +7,27 @@
  * signatures pointing at the language that was actually on screen.
  */
 
-export const AGREEMENT_VERSION = "v2.0-2026";
+/**
+ * v3.0-2026 changed the contracting entity from Reyna Title LLC d/b/a
+ * Coyoteville to Coyoteville Alice LLC. That is a different legal counterparty,
+ * which is precisely what this version string exists to record: anything signed
+ * under v2.0-2026 contracted with the old entity and must keep pointing there.
+ */
+export const AGREEMENT_VERSION = "v3.0-2026";
 
-export const CONTRACTING_ENTITY = "Reyna Title LLC d/b/a Coyoteville";
-export const AUTHORIZED_SIGNER = "Robert Reyna, Authorized Signer";
+export const CONTRACTING_ENTITY = "Coyoteville Alice LLC";
+export const CONTRACTING_ENTITY_FULL =
+  "Coyoteville Alice LLC, a Texas limited liability company";
+export const AUTHORIZED_SIGNER = "Robert Reyna, Chief Executive Officer";
+export const ENTITY_ADDRESS = "150 North Stadium Road, Alice, Texas 78332";
 
-export function VendorAgreement() {
+export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
   return (
     <div className="agreement">
       <p className="agreement__intro">
         This Vendor Participation Agreement, referred to as this Agreement, is entered into
-        between <strong>Reyna Title LLC, a Texas limited liability company, doing business as
-        Coyoteville</strong>, together with its owners, members, managers, officers, employees,
+        between <strong>Coyoteville Alice LLC, a Texas limited liability company, doing business
+        as Coyoteville</strong>, together with its owners, members, managers, officers, employees,
         agents, contractors, volunteers, affiliated and related entities, and the owner of the real
         property located at 150 North Stadium Road, Alice, Texas, all of whom are collectively
         referred to as the <strong>Released Parties</strong>, and the vendor identified in this
@@ -106,8 +115,8 @@ export function VendorAgreement() {
         <strong>one million dollars per occurrence and two million dollars in the aggregate</strong>
         . Vendor will also maintain any auto liability coverage required for its vehicles and
         trailers, and workers compensation coverage as required by law for its employees. Upon
-        request, Vendor will provide a certificate of insurance naming Coyoteville, Reyna Title LLC,
-        and the property owner as additional insureds. Vendor&apos;s insurance is primary and non
+        request, Vendor will provide a certificate of insurance naming Coyoteville Alice LLC and
+        the property owner as additional insureds. Vendor&apos;s insurance is primary and non
         contributory as to any coverage held by the Released Parties. Vendor waives all rights of
         subrogation against the Released Parties to the extent permitted by its policies.
         Vendor&apos;s failure to maintain insurance does not relieve Vendor of any obligation under
@@ -322,19 +331,44 @@ export function VendorAgreement() {
           authorized to bind the Vendor business named in this application.
         </p>
       </div>
+      {/* Execution block. Sits above the electronic signature language so the
+          counterparty is established before the clause that makes a typed name
+          binding. Styled to read as a signature block rather than body copy. */}
+      <div className="agreement__signing">
+        <p className="agreement__signinghd">This agreement is between</p>
+
+        <div className="agreement__parties">
+          <div className="agreement__party">
+            <span className="agreement__partyrole">Vendor</span>
+            <span className="agreement__partyname">
+              {vendorName || 'The vendor named in this application'}
+            </span>
+            <span className="agreement__partymeta">
+              As entered on this application, signed electronically below.
+            </span>
+          </div>
+
+          <div className="agreement__party">
+            <span className="agreement__partyrole">Coyoteville</span>
+            <span className="agreement__partyname agreement__partyname--signature">
+              Robert Reyna
+            </span>
+            <span className="agreement__partymeta">
+              Chief Executive Officer, Authorized Signer
+              <br />
+              {CONTRACTING_ENTITY_FULL}
+              <br />
+              {ENTITY_ADDRESS}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <p>
         The parties agree that a typed name submitted electronically constitutes a valid and legally
         binding signature under the Texas Uniform Electronic Transactions Act, Chapter 322 of the
         Texas Business and Commerce Code, and consent to conduct this transaction by electronic
         means.
-      </p>
-
-      <p className="agreement__exec">
-        <strong>Coyoteville:</strong> Reyna Title LLC d/b/a Coyoteville
-        <br />
-        By: Robert Reyna, Authorized Signer
-        <br />
-        150 North Stadium Road, Alice, Texas 78332
       </p>
     </div>
   );

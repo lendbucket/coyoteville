@@ -2906,3 +2906,130 @@ p {
 .hero__tagline {
   text-shadow: 0 1px 2px rgba(11, 11, 12, 0.95), 0 2px 14px rgba(11, 11, 12, 0.9);
 }
+
+/* ------------------------------------------- agreement execution block */
+
+/* The formal signature block at the end of the agreement. It has to read as a
+   signature page rather than another paragraph, so it carries its own border
+   and field, and the signer's name is set in the display face at signature
+   size. */
+.agreement__signing {
+  margin: 1.6rem 0;
+  border: 3px solid var(--ember);
+  border-radius: var(--radius-sm);
+  background: rgba(240, 169, 75, 0.08);
+  padding: 1.2rem 1.3rem 1.35rem;
+}
+
+.agreement__signinghd {
+  margin: 0 0 1rem !important;
+  padding-bottom: 0.6rem;
+  border-bottom: 2px solid rgba(240, 169, 75, 0.45);
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 0.86rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.agreement__parties {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.1rem;
+}
+
+@media (min-width: 620px) {
+  .agreement__parties {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.4rem;
+  }
+}
+
+.agreement__partyrole {
+  display: block;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 0.74rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dust);
+  margin-bottom: 0.3rem;
+}
+
+.agreement__partyname {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--cream);
+  line-height: 1.25;
+}
+
+/* The counterparty signature. Display face, signature size, ember. */
+.agreement__partyname--signature {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--ember);
+  margin-bottom: 0.15rem;
+}
+
+.agreement__partymeta {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: rgba(247, 240, 226, 0.78);
+  text-transform: none;
+  font-weight: 400;
+}
+
+/* Printed, the block keeps its weight in black and white. */
+@media print {
+  .agreement__signing {
+    border-color: #000;
+    background: none;
+    break-inside: avoid;
+  }
+
+  .agreement__signinghd,
+  .agreement__partyname--signature {
+    color: #000;
+  }
+
+  .agreement__partymeta,
+  .agreement__partyname {
+    color: #000;
+  }
+}
+
+/* ------------------------------------------------ counterparty notice */
+
+/* Sits above the agreement scroll box so the vendor knows who they are
+   contracting with before they start reading, not only at the end. */
+.counterparty {
+  margin: 0 0 0.7rem;
+  padding: 0.75rem 0.95rem;
+  border-left: 3px solid var(--ember);
+  background: rgba(240, 169, 75, 0.07);
+  font-size: 0.95rem;
+  color: var(--cream);
+}
+
+.counterparty b {
+  color: var(--ember);
+}
+
+/* Which path a vendor came through, at a glance in the tracker. */
+.tag--prepaid {
+  background: #4b3a6b;
+  color: #e6dcff;
+}
+
+.tag--web {
+  background: rgba(243, 238, 229, 0.14);
+  color: var(--cream);
+}

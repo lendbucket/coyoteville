@@ -221,6 +221,69 @@ After the first production deploy:
 
 ---
 
+## Email
+
+Registration email goes out through [Resend](https://resend.com). Two messages
+per registration: a notification to `ceo@36west.org` and a short confirmation to
+the vendor.
+
+Set two variables:
+
+- `RESEND_API_KEY` — from the Resend dashboard, starts with `re_`.
+- `FROM_EMAIL` — the sender, e.g. `Coyoteville <vendors@coyoteville.com>`.
+
+**The sending domain has to be verified in Resend or the emails fail silently.**
+Add the domain under Domains in Resend, publish the DKIM and SPF records it
+gives you, and wait for it to show as verified. Until then Resend accepts the
+API call and simply does not deliver, so nothing throws and nothing arrives.
+Sending from a domain you do not control fails the same way.
+
+Timing differs by path, on purpose:
+
+- **Paid applications** send from the Square webhook when the payment settles,
+  not when the form is submitted. Someone who abandons checkout never generates
+  a notification. The webhook only sends on the transition out of `unpaid`, so a
+  Square retry cannot send twice.
+- **Free Alice organization spots** send at submission. There is no payment to
+  wait on.
+- **Prepaid link registrations** send at submission for the same reason.
+
+A failed send is logged and never fails a registration. If `RESEND_API_KEY` or
+`FROM_EMAIL` is missing the send is skipped with a warning and everything else
+works normally.
+
+## Prepaid registration link
+
+For vendors who committed and paid off the site. Lives at `/r/<token>`, is not
+linked from anywhere, is excluded from the sitemap, and is `noindex, nofollow`.
+A token that does not match returns a real 404, so the response looks the same
+as any route that does not exist.
+
+Deliberately **not** listed in `robots.txt`. Putting a secret path in a public
+file advertises it. The same reasoning applies to `/admin`.
+
+Three variables:
+
+- `PREPAID_ACCESS_TOKEN` — the whole credential. Long and random.
+- `PREPAID_LINK_EXPIRES_AT` — ISO timestamp. Nothing is accepted after it. An
+  unreadable value is treated as expired, which fails closed.
+- `PREPAID_MAX_REGISTRATIONS` — cap, counted from rows with
+  `payment_method = 'offline'` for the current event.
+
+Both gates are checked when the page renders and again in the API route, so a
+stale tab or a direct post gets neither.
+
+These registrations write to `vendor_applications` like any other, with the same
+agreement, uploads and server side stamping. The difference is payment:
+`payment_status = 'paid'`, `payment_method = 'offline'`,
+`approval_status = 'approved'`, and Square is never called.
+
+Because those vendors are already counted in `booth_claimed_offline` /
+`truck_claimed_offline`, a successful registration decrements the matching
+counter inside the same transaction as the insert, through the
+`register_prepaid_vendor` function. Without that they would be counted twice on
+the live meter.
+
 ## The waiver
 
 `components/Waiver.tsx` holds the waiver text and exports `WAIVER_VERSION`.
