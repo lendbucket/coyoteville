@@ -50,6 +50,7 @@ type SquarePaymentEvent = {
         id?: string;
         status?: string;
         order_id?: string;
+        amount_money?: { amount?: number; currency?: string };
       };
     };
   };
@@ -156,14 +157,27 @@ export async function POST(request: Request) {
     const expected = Number(existing.amount_cents ?? 0);
     const orderTotal = Number(order?.totalMoney?.amount ?? NaN);
     const stillDue = Number(order?.netAmountDueMoney?.amount ?? NaN);
+    const paidNow = Number(payment.amount_money?.amount ?? NaN);
+
+    // This payment on its own covers the spot. Settle without consulting the
+    // order at all.
+    //
+    // The order is the better source for a part paid balance, but it is also a
+    // second read that can lag the payment that triggered this delivery. If
+    // that read came back mid reconciliation, netAmountDueMoney would still be
+    // above zero and every ordinary payment would be refused. Taking the plain
+    // case off the order's answer entirely removes that failure mode, which
+    // would otherwise land on every vendor at once on the day of the event.
+    const coveredByThisPayment = Number.isFinite(paidNow) && paidNow >= expected;
 
     // Underpayment. Either the order is worth less than the spot we sold, or
-    // Square still shows money outstanding on it after this payment. If Square
-    // reports neither figure the payment is accepted and the gap is logged,
-    // because stranding a vendor who really paid is the worse failure.
+    // Square still shows money outstanding on it. If Square reports no figures
+    // at all the payment is accepted and the gap is logged, because stranding
+    // a vendor who really paid is the worse failure.
     const underpaid =
-      (Number.isFinite(orderTotal) && orderTotal < expected) ||
-      (Number.isFinite(stillDue) && stillDue > 0);
+      !coveredByThisPayment &&
+      ((Number.isFinite(orderTotal) && orderTotal < expected) ||
+        (Number.isFinite(stillDue) && stillDue > 0));
 
     if (underpaid) {
       const note = [
@@ -174,7 +188,7 @@ export async function POST(request: Request) {
       ]
         .filter(Boolean)
         .join(' ');
-      console.error('[square-webhook] underpaid', JSON.stringify({ applicationId, expected, orderTotal, stillDue, orderId }));
+      console.error("[square-webhook] underpaid", JSON.stringify({ applicationId, expected, paidNow, orderTotal, stillDue, orderId }));
 
       await supabase.from('vendor_applications').update({ admin_notes: note }).eq('id', applicationId);
 
