@@ -21,8 +21,8 @@ export default async function SpotsMeter() {
             </h2>
           </div>
           <p className="spots__empty">
-            Spot counts are not available right now. The application below still works, and we
-            confirm your space by email either way.
+            Spot counts are not loading right now. The application below still works and we
+            confirm your space by email.
           </p>
         </div>
       </section>
@@ -38,9 +38,7 @@ export default async function SpotsMeter() {
       <div className="shell">
         <div className="spots__head">
           <h2 id="spots-title" className="spots__title">
-            {percent !== null && percent >= 75
-              ? `Spots for ${NEXT_EVENT.name} are going fast`
-              : `Spots for ${NEXT_EVENT.name}`}
+            Spots for {NEXT_EVENT.name}
           </h2>
           {percent !== null ? <p className="spots__pct">{percent}% full</p> : null}
         </div>
@@ -99,9 +97,9 @@ export default async function SpotsMeter() {
             </span>
           </li>
           <li>
-            <span className="spots__splitlabel">Coyote organisations</span>
+            <span className="spots__splitlabel">Alice organizations</span>
             <span className="spots__splitvalue">
-              {freeClaimed} signed up &middot; always free
+              {freeClaimed} signed up &middot; no charge
             </span>
           </li>
         </ul>

@@ -13,7 +13,7 @@ import { SITE } from '@/lib/seo';
  */
 export default function Brand({
   href = '/',
-  size = 52,
+  size = 100,
   showName = false,
 }: {
   href?: string;
@@ -37,7 +37,7 @@ export default function Brand({
           alt=""
           width={Math.round(size * 1.5)}
           height={size}
-          style={{ height: size }}
+          style={{ '--brand-h': `${size}px` } as React.CSSProperties}
           onError={() => setFailed(true)}
         />
       )}

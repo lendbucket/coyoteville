@@ -310,7 +310,7 @@ revoke all on public.event_roster        from anon, authenticated;
 
 -- ----------------------------------------------------------------- seed ---
 
-insert into public.events (slug, name, starts_at, ends_at, display_date, display_time, blurb)
+insert into public.events (slug, name, starts_at, ends_at, display_date, display_time, blurb, booth_capacity, truck_capacity)
 values (
   'tailgate-kickoff-2026-08-28',
   'Tailgate Kickoff',
@@ -318,7 +318,9 @@ values (
   '2026-08-28 22:00:00-05',
   'Friday, August 28, 2026',
   '4:00 PM',
-  'First home game of the season. We open at 4:00 PM.'
+  'First home game of the season. We open at 4:00 PM.',
+  20,
+  14
 )
 on conflict (slug) do update
   set name         = excluded.name,
@@ -326,7 +328,9 @@ on conflict (slug) do update
       ends_at      = excluded.ends_at,
       display_date = excluded.display_date,
       display_time = excluded.display_time,
-      blurb        = excluded.blurb;
+      blurb        = excluded.blurb,
+      booth_capacity = excluded.booth_capacity,
+      truck_capacity = excluded.truck_capacity;
 
 -- -------------------------------------------------------------- storage ---
 -- Two buckets, both private.
@@ -367,9 +371,3 @@ on conflict (id) do update
 drop policy if exists "coyoteville media public read" on storage.objects;
 drop policy if exists "coyoteville anon upload"       on storage.objects;
 
--- Backfill capacity for the seeded event so the meter has something real to
--- count against. Change these numbers per event, or edit the row directly.
-update public.events
-   set booth_capacity = coalesce(booth_capacity, 30),
-       truck_capacity = coalesce(truck_capacity, 10)
- where slug = 'tailgate-kickoff-2026-08-28';

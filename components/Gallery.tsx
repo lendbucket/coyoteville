@@ -15,8 +15,8 @@ export default function Gallery() {
       <StringLights tone="dark" variant="top" swags={5} sag={30} bulbsPerSwag={7} id="gallery-lights" />
 
       <div className="shell">
-        <p className="eyebrow">From the lot</p>
-        <h2 id="gallery-title">These slots get filled Friday night</h2>
+        <p className="eyebrow">Photos</p>
+        <h2 id="gallery-title">Photos</h2>
 
         <ul className="gallery__grid">
           {GALLERY.map((slot) => (

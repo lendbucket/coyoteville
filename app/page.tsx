@@ -5,6 +5,7 @@ import Ticker from '@/components/Ticker';
 import SpotsMeter from '@/components/SpotsMeter';
 import Split from '@/components/Split';
 import Mission from '@/components/Mission';
+import GameNight from '@/components/GameNight';
 import Stats from '@/components/Stats';
 import About from '@/components/About';
 import Gallery from '@/components/Gallery';
@@ -43,6 +44,7 @@ export default function HomePage() {
         <SpotsMeter />
         <Split />
         <Mission />
+        <GameNight />
         <Stats />
         <About />
         <Gallery />

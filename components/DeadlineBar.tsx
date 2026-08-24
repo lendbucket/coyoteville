@@ -80,7 +80,7 @@ export default function DeadlineBar({
         </Countdown>
 
         <a className="deadline__cta" href="#apply">
-          Grab a spot
+          Apply now
         </a>
       </div>
     </div>

@@ -74,25 +74,25 @@ export const GALLERY: GallerySlot[] = [
   {
     id: '01',
     title: 'Trucks at night',
-    note: 'Lit up serving windows, a line of people, string lights overhead.',
+    note: 'Serving windows open, people in line, lights on.',
     photo: null,
   },
   {
     id: '02',
     title: 'The food',
-    note: 'Close crops. Steam, hands, a basket of something.',
+    note: 'Close shots of what the trucks are serving.',
     photo: null,
   },
   {
     id: '03',
     title: 'The crowd',
-    note: 'Families in chairs, kids running, Coyote gear.',
+    note: 'Families eating, kids, people in Coyote gear.',
     photo: null,
   },
   {
     id: '04',
     title: 'The stage',
-    note: 'Band playing, lights on, people watching.',
+    note: 'The band playing and people watching.',
     photo: null,
   },
 ];

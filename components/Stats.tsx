@@ -8,10 +8,10 @@ import { NEXT_EVENT, PRICING } from '@/lib/seo';
  */
 export default function Stats() {
   const stats = [
-    { value: NEXT_EVENT.displayTime.replace(/:00\s*/, ''), label: 'Gates open Friday' },
+    { value: NEXT_EVENT.displayTime.replace(/:00\s*/, ''), label: 'We open' },
     { value: PRICING.booth.price, label: PRICING.booth.label },
     { value: PRICING.truck.price, label: PRICING.truck.label },
-    { value: 'Free', label: 'Coyote groups and nonprofits' },
+    { value: 'Free', label: 'Alice organizations' },
   ];
 
   return (

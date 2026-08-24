@@ -39,7 +39,7 @@ const yellowtail = Yellowtail({
 
 const TITLE = 'Food Truck Park in Alice TX | Coyoteville Live Music';
 const DESCRIPTION =
-  'Coyoteville is a food truck park in Alice TX with live music, local food trucks and vendor booths on North Stadium Road. Booths are $25, truck spots are $50, flat rate with no commission.';
+  'Coyoteville is an outdoor food truck park at 150 N. Stadium Road in Alice, TX, across from the stadium. We open at 4:00 PM before home games. Admission is free. Parking on the lot opens at kickoff for $10 per vehicle and shuttles run to the stadium. Vendor booths are $25 and truck spots are $50.';
 
 export const viewport: Viewport = {
   themeColor: '#0B0B0C',

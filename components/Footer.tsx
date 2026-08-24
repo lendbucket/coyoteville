@@ -12,11 +12,11 @@ export default function Footer() {
       <div className="shell footer__grid">
         <div>
           <div className="footer__brand">
-            <Brand size={72} />
+            <Brand size={144} />
           </div>
           <p style={{ maxWidth: '34ch' }}>
-            {SITE.tagline} in {ADDRESS.city}, {ADDRESS.state}. Pull up on North Stadium Road and
-            stay a while.
+            Outdoor food truck park at {ADDRESS.street} in {ADDRESS.city}, {ADDRESS.state}. We
+            open at 4:00 PM before home games. Admission is free.
           </p>
         </div>
 
@@ -65,7 +65,8 @@ export default function Footer() {
           Copyright {year} {SITE.name}. All rights reserved.
         </span>
         <span>
-          Booths {PRICING.booth.price}. Truck spots {PRICING.truck.price}. No commission.
+          Booths {PRICING.booth.price} per event. Truck spots {PRICING.truck.price}. Alice
+          organizations set up free.
         </span>
       </div>
     </footer>

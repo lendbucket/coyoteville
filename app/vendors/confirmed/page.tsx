@@ -24,39 +24,41 @@ export default function ConfirmedPage() {
         <div className="shell confirm__card">
           <StringLights tone="dark" variant="top" swags={4} sag={26} bulbsPerSwag={6} id="confirm-lights" />
 
-          <p className="confirm__script">You are in</p>
+          <p className="confirm__script">Confirmed</p>
           <h1 style={{ fontSize: 'clamp(1.9rem, 4.5vw, 2.9rem)' }}>Your spot is paid</h1>
 
           <p className="muted">
-            We got your payment and your signed agreement. Your spot at {NEXT_EVENT.name} on{' '}
-            {NEXT_EVENT.displayDate} is locked in. Check your email for the Square receipt.
+            We have your payment and your signed agreement. Your spot at {NEXT_EVENT.name} on{' '}
+            {NEXT_EVENT.displayDate} is confirmed. Square sends the receipt to your email.
           </p>
 
           <ul className="confirm__steps">
             <li>
-              <strong>We will email you a spot number</strong> a few days before the event, along
-              with what time to roll in and where to park.
+              <strong>We will email your spot number</strong> a few days before the event, with
+              your setup time.
             </li>
             <li>
-              <strong>Bring your own everything.</strong> Tent, weights, tables, chairs,
-              generator, fuel, water, cooking gear and a fire extinguisher.
+              <strong>Bring your own setup.</strong> Table, chairs, canopy, decorations,
+              weights, generator, fuel, water, cooking gear and a fire extinguisher. One vehicle
+              per space.
             </li>
             <li>
-              <strong>Have your permits on you.</strong> Health department paperwork and your food
-              handler cards need to be on site.
+              <strong>Keep your permits on site.</strong> Food handler and health permits have to
+              be with you at the event.
             </li>
             <li>
-              <strong>Grease and gray water leave with you.</strong> Nothing goes on the ground.
+              <strong>Grease and gray water leave with you.</strong> Nothing is discharged on the
+              lot.
             </li>
           </ul>
 
           <p className="muted">
-            Need to change something, email <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.
+            To change anything, email <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.
           </p>
 
           <p style={{ marginTop: '1.6rem' }}>
             <a className="btn btn--amber" href="/">
-              Back to the park
+              Back to the site
             </a>
           </p>
         </div>

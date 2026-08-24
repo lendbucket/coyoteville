@@ -33,8 +33,9 @@ export default function Hero() {
         </h1>
 
         <p className="hero__lede">
-          Trucks, live music, and somewhere for this town to actually go on a Friday night. Right
-          across from the stadium.
+          Coyoteville is an outdoor food truck park on North Stadium Road, directly across from
+          the stadium. We open at 4:00 PM before home games. Admission is free and everyone is
+          welcome.
         </p>
       </div>
 
@@ -44,21 +45,21 @@ export default function Hero() {
 
       <div className="hero__actions">
         <a className="btn btn--rust" href="#apply">
-          Reserve your spot
+          Apply for a spot
         </a>
         <a className="btn btn--ghost" href="#vendors">
-          See who is coming
+          Vendor spots and prices
         </a>
       </div>
 
       <p className="hero__meta">
-        <span>Next up: {NEXT_EVENT.name}</span>
+        <span>{NEXT_EVENT.name}</span>
         <span>
           <time dateTime={NEXT_EVENT.startISO}>
             {NEXT_EVENT.displayDate} at {NEXT_EVENT.displayTime}
           </time>
         </span>
-        <span>Free to attend. Free parking.</span>
+        <span>Admission is free</span>
       </p>
     </section>
   );

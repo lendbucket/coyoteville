@@ -1,35 +1,33 @@
-import { ADDRESS, NEXT_EVENT, SITE } from '@/lib/seo';
+import { ADDRESS, NEXT_EVENT, PRICING, SITE } from '@/lib/seo';
 
 export default function About() {
   return (
     <section className="section section--char" id="about" aria-labelledby="about-title">
       <div className="shell about__grid">
         <div>
-          <p className="eyebrow">About the park</p>
-          <h2 id="about-title">A food truck park built for Alice</h2>
+          <p className="eyebrow">The lot</p>
+          <h2 id="about-title">About the park</h2>
 
           <p className="lede">
-            Coyoteville sits on North Stadium Road, right between Alice High School and the
-            stadium. It started simple. Get good local food in one place, put up some lights,
-            get a band going and give folks a reason to stay out a little longer.
+            Coyoteville is on North Stadium Road, between Alice High School and the stadium. We
+            open at 4:00 PM before home games.
           </p>
 
           <p>
-            On event nights the lot fills up with food trucks and vendor booths from around Jim
-            Wells County. Tacos, barbecue, kettle corn, lumpia, sweets, candles, shirts, all of
-            it. Somebody is on the speakers. Kids run around. Parking is right there and it does
-            not cost you anything to walk in.
+            The lot fills with food trucks and vendor booths from around Jim Wells County. Tacos,
+            barbecue, kettle corn, lumpia, sweets, candles, shirts. There is live music most
+            nights.
           </p>
 
           <p>
-            We keep it easy for the folks who set up here too. Flat fee, no commission, and free
-            spots for Coyote groups, booster clubs and nonprofits. This is a hometown lot. It
-            works because Alice shows up.
+            Booths are {PRICING.booth.price} per event and truck spots are {PRICING.truck.price}.
+            Alice organizations set up at no charge. We do not take a percentage of what anyone
+            earns.
           </p>
         </div>
 
         <div className="factcard">
-          <h3>The short version</h3>
+          <h3>Details</h3>
           <ul className="factlist">
             <li>
               <span className="factlist__label">Where</span>
@@ -50,8 +48,10 @@ export default function About() {
               </span>
             </li>
             <li>
-              <span className="factlist__label">Getting in</span>
-              <span className="factlist__value">Free to attend. Free parking.</span>
+              <span className="factlist__label">Admission</span>
+              <span className="factlist__value">
+                Free. Parking on the lot opens at kickoff for $10 per vehicle.
+              </span>
             </li>
             <li>
               <span className="factlist__label">Questions</span>

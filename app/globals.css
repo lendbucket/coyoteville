@@ -41,7 +41,7 @@
   /* layout */
   --shell: 1140px;
   --gutter: clamp(1.15rem, 4vw, 2.5rem);
-  --nav-h: 80px;
+  --nav-h: 128px;
   --radius: 14px;
   --radius-sm: 9px;
 
@@ -456,9 +456,19 @@ p {
    attributes, and the optimised SVG carries no intrinsic size to fall back on,
    so the mark would collapse. */
 .brand__mark {
+  height: var(--brand-h, 100px);
   width: auto;
   display: block;
   flex: none;
+}
+
+/* The badge carries a lot of small detail, so it is set large. On a narrow
+   screen a full size mark would eat the viewport, so cap it there instead of
+   shrinking it everywhere. */
+@media (max-width: 720px) {
+  .brand__mark {
+    height: min(var(--brand-h, 100px), 62px);
+  }
 }
 
 .brand__fallback {
@@ -2768,4 +2778,77 @@ p {
     rgba(11, 11, 12, 0.34) 38%,
     rgba(11, 11, 12, 0.93) 100%
   );
+}
+
+/* The nav is sized around the badge. Narrow screens cap the badge, so the bar
+   comes down with it. */
+@media (max-width: 720px) {
+  :root {
+    --nav-h: 84px;
+  }
+}
+
+/* ------------------------------------------------------------ mission */
+
+/* Single column now. The summary pills that used to sit alongside repeated
+   what the copy already says, so the text runs on its own measure. */
+.mission__body {
+  max-width: 62ch;
+}
+
+.mission__body p {
+  color: #c0b9ad;
+  max-width: none;
+}
+
+/* --------------------------------------------------------- game night */
+
+.gamenight {
+  background: var(--char);
+  color: var(--cream);
+  border-block: 1px solid rgba(243, 238, 229, 0.09);
+}
+
+.gamenight__list {
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+}
+
+@media (min-width: 820px) {
+  .gamenight__list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.gamenight__item {
+  background: rgba(240, 169, 75, 0.07);
+  border-left: 3px solid var(--ember);
+  padding: 1.25rem 1.35rem;
+}
+
+.gamenight__label {
+  display: block;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ember);
+  margin-bottom: 0.35rem;
+}
+
+.gamenight__body {
+  margin: 0;
+  font-size: 0.98rem;
+  color: #b9b2a6;
+}
+
+/* The tagline is small, letterspaced and ember, and it lands on the brightest
+   part of the photograph. It needs more than the shared hero shadow. */
+.hero__tagline {
+  text-shadow: 0 1px 2px rgba(11, 11, 12, 0.95), 0 2px 14px rgba(11, 11, 12, 0.9);
 }

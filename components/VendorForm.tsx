@@ -116,7 +116,7 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
 
       setStatus('done');
       setMessage(
-        'You are on the list. We got your application and your signed agreement. Watch your email for the spot number.'
+        'We have your application and your signed agreement. We will email you your spot number before the event.'
       );
     } catch {
       setStatus('error');
@@ -151,11 +151,11 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
           <h2 id="apply-title">Signup is closed for this event</h2>
           <p className="lede muted">
             The cutoff for {EVENTS[0].name} was {EVENTS[0].signupClosesDisplay} Central. We close
-            it so we can lay the lot out and get everyone a spot number before event day.
+            signup two days out so we can lay out the lot and assign spot numbers.
           </p>
           <p className="hint">
             Email <a href={`mailto:${SITE.email}`}>{SITE.email}</a> and we will put you on the
-            list for the next one.
+            list for the next event.
           </p>
         </div>
       </section>
@@ -170,9 +170,9 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
         <p className="eyebrow">Vendor application</p>
         <h2 id="apply-title">Get your spot</h2>
         <p className="lede muted">
-          Fill this out, read the agreement, sign it and pay. That is the whole process. Booths are{' '}
-          {PRICING.booth.price}, truck spots are {PRICING.truck.price}, and Coyote groups,
-          booster clubs and nonprofits are free.
+          Booths are {PRICING.booth.price} per event and truck spots are {PRICING.truck.price}.
+          Alice organizations set up at no charge. Fill this out, upload your permit if you serve
+          food, sign the agreement and pay.
         </p>
 
         <form className="form" onSubmit={onSubmit} noValidate={false}>
@@ -324,8 +324,8 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
           <fieldset className="uploads">
             <legend className="label">Photos and permits</legend>
             <p className="hint uploads__intro">
-              {ALLOWED_HINT} Up to 10MB each. Your logo and photos get used to spotlight you on
-              our socials. Permits are stored privately and are only visible to us.
+              {ALLOWED_HINT} Up to 10MB each. We use your logo and photos to post about you
+              before the event. Permits are stored privately and are only visible to us.
             </p>
 
             <div className="field">
@@ -339,7 +339,7 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
                 type="file"
                 accept={ACCEPT}
               />
-              <span className="hint">Optional, but it is what we post with your name.</span>
+              <span className="hint">Optional. We post this with your name.</span>
             </div>
 
             <div className="field">
@@ -355,7 +355,7 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
                 multiple
               />
               <span className="hint">
-                Up to {MAX_PHOTOS}. Pick the ones you would want people to see first.
+                Up to {MAX_PHOTOS}.
               </span>
             </div>
 
@@ -375,8 +375,8 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
               />
               <span className="hint" id={`${uid}-permit-hint`}>
                 {permitRequired
-                  ? 'Required for your spot type. A clear photo or a PDF of the certificate is fine.'
-                  : 'Required as soon as you tick the food box above or pick a food truck spot.'}
+                  ? 'Required for your spot type. A photo or a PDF of the certificate works.'
+                  : 'Required if you tick the food box above or pick a food truck spot.'}
               </span>
             </div>
           </fieldset>
@@ -490,8 +490,8 @@ export default function VendorForm({ signupClosed = false }: { signupClosed?: bo
             </button>
             <span className="hint">
               {spot === 'free'
-                ? 'No payment for Coyote groups, booster clubs and nonprofits.'
-                : 'You will land on a secure Square checkout page.'}
+                ? 'Alice organizations set up at no charge, so there is no payment step.'
+                : 'Checkout runs through Square.'}
             </span>
           </div>
         </form>

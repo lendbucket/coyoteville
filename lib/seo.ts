@@ -62,13 +62,13 @@ export const MAPS_URL =
   'https://www.google.com/maps/dir/?api=1&destination=' +
   encodeURIComponent('150 N. Stadium Road, Alice, TX 78332');
 
-/** Flat rate per event. No commission is taken on sales. */
+/** Flat rate per event. We take no percentage of what a vendor earns. */
 export const PRICING = {
   booth: { id: 'booth', label: 'Vendor Booth', cents: 2500, price: '$25' },
   truck: { id: 'truck', label: 'Food Truck Spot', cents: 5000, price: '$50' },
   free: {
     id: 'free',
-    label: 'Coyote Group, Booster Club or Nonprofit',
+    label: 'Alice Organization',
     cents: 0,
     price: 'Free',
   },
@@ -143,6 +143,26 @@ export function signupClosesZone(event: EventConfig = NEXT_EVENT): string {
   return zoneAbbreviation(signupClosesAt(event), EVENT_TIMEZONE);
 }
 
+/**
+ * Game night logistics. One source for the section, the FAQ and the FAQPage
+ * schema, because the parking price and the shuttle are what people search for
+ * and the three places must not drift apart.
+ */
+export const GAME_NIGHT = [
+  {
+    label: 'Admission is free',
+    body: 'There is no cover and no ticket to walk in and eat.',
+  },
+  {
+    label: 'Shuttles to the stadium',
+    body: 'Shuttles run from Coyoteville to the stadium once the game starts, so you can eat with us and still make kickoff.',
+  },
+  {
+    label: 'Parking',
+    body: 'Parking opens on the lot at kickoff for $10 per vehicle.',
+  },
+] as const;
+
 export const PAST_VENDORS = [
   'MuddyWaterz Food Truck',
   'Refined Taste Caterers and Events',
@@ -181,39 +201,51 @@ export const KEYWORDS = [
 export const FAQ = [
   {
     q: 'Where is Coyoteville?',
-    a: 'We are at 150 N. Stadium Road in Alice, Texas. Look for us on North Stadium Road between Alice High School and the stadium. Parking is easy and the lot is right there.',
+    a: 'We are at 150 N. Stadium Road in Alice, Texas, directly across from the stadium and next to Alice High School.',
+  },
+  {
+    q: 'What time do you open?',
+    a: 'We open at 4:00 PM before home games. Admission is free.',
+  },
+  {
+    q: 'Is there parking at Coyoteville?',
+    a: 'Parking opens on the lot at kickoff for $10 per vehicle.',
+  },
+  {
+    q: 'Do you run a shuttle to the stadium?',
+    a: 'Yes. Shuttles run from Coyoteville to the stadium once the game starts, so you can eat with us and still make kickoff.',
   },
   {
     q: 'What does it cost to vend?',
-    a: 'A vendor booth is $25 per event. A food truck spot is $50 per event. That is a flat rate. We do not take a cut of your sales.',
+    a: 'A vendor booth is $25 per event. A food truck spot is $50 per event. That is the whole fee. We do not take a percentage of your sales.',
   },
   {
-    q: 'Do school groups and nonprofits pay?',
-    a: 'No. Alice Coyote organizations, booster clubs and nonprofits get a free spot. Pick the free option on the application and we will get you set.',
+    q: 'Do Alice organizations pay?',
+    a: 'No. Any Alice organization sets up at no charge and keeps everything it raises. That covers band, colorguard, athletics, clubs, churches and youth groups. Pick the organization option on the application.',
   },
   {
-    q: 'What do I need to bring?',
-    a: 'Everything you sell with. Your own tent, tables, chairs, generator, fuel, water, cooking gear and a fire extinguisher. We bring the ground, the lights and the crowd.',
+    q: 'What do I need to bring as a vendor?',
+    a: 'Your own table, chairs, canopy and decorations. Trucks bring their own generator, fuel and water. Everyone brings a fire extinguisher rated for what they are cooking. One vehicle per space.',
   },
   {
     q: 'Do I need permits and insurance?',
-    a: 'Yes. Every vendor handles their own permits, licenses, health department approvals and food handler cards. You also carry your own general liability insurance. We do not cover that for you.',
+    a: 'Yes. All food trucks must have current food handler and health permits on site. Vendors handle their own licenses and health department approvals, and carry their own general liability insurance. We do not provide coverage.',
   },
   {
     q: 'What happens if it rains?',
-    a: 'Events run rain or shine. Fees are not refundable. If we have to cancel an event on our end, your fee gets credited toward the next one.',
+    a: 'Events run rain or shine and vendor fees are not refundable. If we cancel an event ourselves, your fee is credited to the next one.',
   },
   {
     q: 'When is the next event?',
-    a: 'Tailgate Kickoff on Friday, August 28, 2026 at 4:00 PM. It is the first home game of the season.',
+    a: 'Tailgate Kickoff, Friday, August 28, 2026 at 4:00 PM. It is the first home game of the season.',
   },
   {
     q: 'Can I sell alcohol?',
-    a: 'Not without written approval from us and the right TABC permitting. Ask first.',
+    a: 'Not without written approval from us and the right TABC permitting. Ask before you apply.',
   },
   {
     q: 'How do I hold my spot?',
-    a: 'Fill out the application, sign the Vendor Participation Agreement and pay. Your spot is not reserved until the fee is paid. Space assignment is up to us so we can keep the layout safe and the traffic moving.',
+    a: 'Fill out the application, upload your permit if you serve food, sign the Vendor Participation Agreement and pay. The spot is not held until the fee is in. We assign spaces so the layout stays safe.',
   },
 ] as const;
 
@@ -248,7 +280,7 @@ export function organizationSchema() {
       caption: `${SITE.name} logo`,
     },
     image: SITE.ogImage,
-    description: `${SITE.name} is a food truck park and live music venue in ${ADDRESS.city}, ${ADDRESS.state}.`,
+    description: `${SITE.name} is an outdoor food truck park at ${ADDRESS.street} in ${ADDRESS.city}, ${ADDRESS.state}, across from the stadium. Admission is free.`,
     email: SITE.email,
     address: postalAddress,
     sameAs: [SITE.facebook],
@@ -266,7 +298,7 @@ export function websiteSchema() {
     '@id': `${SITE_URL}/#website`,
     url: SITE_URL,
     name: SITE.name,
-    description: 'Food truck park and live music in Alice, Texas.',
+    description: 'Outdoor food truck park on North Stadium Road in Alice, Texas. Opens 4:00 PM before home games.',
     inLanguage: 'en-US',
     publisher: { '@id': `${SITE_URL}/#organization` },
   };
@@ -280,7 +312,7 @@ export function localBusinessSchema() {
     name: SITE.name,
     alternateName: `${SITE.name} ${ADDRESS.city} ${ADDRESS.stateCode}`,
     description:
-      'Food truck park and live music venue in Alice, Texas. Local food trucks, craft and retail vendor booths, live music and tailgate nights on North Stadium Road.',
+      'Outdoor food truck park at 150 N. Stadium Road in Alice, Texas, directly across from the stadium. Local food trucks, vendor booths and live music before and after home games. Admission is free. Parking on the lot opens at kickoff for $10 per vehicle, and shuttles run to the stadium once the game starts.',
     slogan: SITE.tagline,
     url: SITE_URL,
     image: SITE.ogImage,
@@ -329,7 +361,7 @@ export function eventSchema() {
     '@type': 'Event',
     '@id': `${SITE_URL}/#event-${e.slug}`,
     name: `${e.name} at ${SITE.name}`,
-    description: `${e.blurb} Food trucks, vendor booths and live music at ${SITE.name} in ${ADDRESS.city}, ${ADDRESS.state}.`,
+    description: `${e.blurb} Food trucks, vendor booths and live music at ${SITE.name}, ${ADDRESS.street}, ${ADDRESS.city}, ${ADDRESS.state}. Admission is free. Parking on the lot opens at kickoff for $10 per vehicle, and shuttles run to the stadium once the game starts.`,
     startDate: e.startISO,
     endDate: e.endISO,
     eventStatus: 'https://schema.org/EventScheduled',

@@ -370,7 +370,7 @@ export async function POST(request: Request) {
               amount: BigInt(amountCents),
               currency: 'USD',
             },
-            note: `${event ? event.displayDate : ''} at Coyoteville, Alice TX. Flat rate, no commission.`.trim(),
+            note: `${event ? event.displayDate : ''} at Coyoteville, 150 N. Stadium Road, Alice TX.`.trim(),
           },
         ],
       },

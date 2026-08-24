@@ -9,11 +9,26 @@ import { getSpots, type SpotLine } from '@/lib/spots';
  * rather than guessed at.
  */
 
-/** Shared terms that apply to booths and trucks alike. */
-const BOTH = [
-  'One vehicle on the property so the lot does not get crowded',
-  'Bring your own table, chairs, canopy and decorations',
-  'Bring your Coyote spirit',
+/**
+ * Card copy is the owner's own wording, split at sentence boundaries so it fits
+ * the card. The words are exact. Do not reword it to balance the columns.
+ */
+const BOOTH_POINTS = [
+  'A designated space to set up.',
+  'Open to Coyote merch, boutiques, crafts, small businesses, and other vendors.',
+  'Bring your own table, chairs, canopy, and decorations.',
+  'One vehicle per space.',
+];
+
+const TRUCK_POINTS = [
+  'A designated spot for your truck with room to serve a line.',
+  'All food trucks must have current food handler and health permits on site.',
+  'One vehicle per space.',
+];
+
+const ORG_POINTS = [
+  'Any Alice organization sets up at no charge and keeps everything it raises.',
+  'Band, colorguard, athletics, clubs, churches, and youth groups.',
 ];
 
 function spotsLeftLabel(line: SpotLine): string | null {
@@ -33,12 +48,7 @@ export default async function Pricing() {
       per: 'per event',
       feature: false,
       flag: null as string | null,
-      points: [
-        'A designated area to set up',
-        'Coyote merch, boutiques and crafts',
-        'Small businesses and misc vendors',
-        ...BOTH,
-      ],
+      points: BOOTH_POINTS,
       left: spots.available ? spotsLeftLabel(spots.booth) : null,
     },
     {
@@ -46,15 +56,8 @@ export default async function Pricing() {
       amount: PRICING.truck.price,
       per: 'per event',
       feature: true,
-      flag: spots.available && spots.truck.remaining !== null && spots.truck.remaining <= 3
-        ? 'Filling fast'
-        : 'Most trucks',
-      points: [
-        'A designated spot for your truck',
-        'Food handler and health permits required',
-        'Room to pull in and serve a line',
-        ...BOTH,
-      ],
+      flag: null as string | null,
+      points: TRUCK_POINTS,
       left: spots.available ? spotsLeftLabel(spots.truck) : null,
     },
     {
@@ -63,25 +66,18 @@ export default async function Pricing() {
       per: 'always',
       feature: false,
       flag: null as string | null,
-      points: [
-        'Alice Coyote organizations',
-        'Band, colorguard, sports and clubs',
-        'Booster clubs, churches and nonprofits',
-        'Keep every dollar you raise',
-        'Same application, no payment step',
-      ],
-      left: 'Always open',
+      points: ORG_POINTS,
+      left: 'No limit on organization spots',
     },
   ];
 
   return (
     <section className="section section--cream-deep" id="vendors" aria-labelledby="vendors-title">
       <div className="shell">
-        <p className="eyebrow">Vendors, trucks and organizations</p>
-        <h2 id="vendors-title">Come set up where the whole town shows up</h2>
+        <p className="eyebrow">Vendors and trucks</p>
+        <h2 id="vendors-title">Vendor spots</h2>
         <p className="lede">
-          One flat fee per event. We do not take a percentage of what you sell. What you make is
-          yours.
+          One flat fee per event. We do not take a percentage of what you sell.
         </p>
 
         <div className="pricing__grid">
@@ -105,9 +101,9 @@ export default async function Pricing() {
         </div>
 
         <p className="pricing__note">
-          Spots are first come, first paid. Your space is not held until the fee is in. Space
-          assignment is up to us so the layout stays safe and people can move around. Every
-          vendor carries their own permits and insurance.
+          Spots are first come, first paid, and your space is not held until the fee is in. We
+          assign spaces so the layout stays safe. Every vendor carries their own permits and
+          insurance.
         </p>
       </div>
     </section>

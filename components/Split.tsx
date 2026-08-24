@@ -20,14 +20,15 @@ export default function Split() {
       </div>
 
       <div className="split__text">
-        <p className="eyebrow">The spot</p>
-        <h2 id="split-title">Right between the school and the stadium</h2>
+        <p className="eyebrow">Where we are</p>
+        <h2 id="split-title">Across from the stadium</h2>
         <p>
-          North Stadium Road, in Alice. You already drive past it on the way to every game, every
-          graduation and every band night.
+          The lot is on North Stadium Road, directly across from the stadium and next to Alice
+          High School.
         </p>
         <p>
-          Park once and walk in. It works because Alice shows up.
+          Shuttles run to the stadium once the game starts. Parking opens on the lot at kickoff
+          for $10 per vehicle.
         </p>
       </div>
     </section>

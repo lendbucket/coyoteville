@@ -30,7 +30,7 @@ export default function EmailCapture() {
       }
 
       setState('ok');
-      setNote('You are on the list. We will send you the next lineup.');
+      setNote('You are on the list. We will email you before the next event.');
       setEmail('');
     } catch {
       setState('error');
@@ -42,9 +42,10 @@ export default function EmailCapture() {
     <section className="band" aria-labelledby="band-title">
       <div className="shell band__inner">
         <div>
-          <h2 id="band-title">Know when the next one is</h2>
+          <h2 id="band-title">Get the next event by email</h2>
           <p style={{ margin: 0, maxWidth: '46ch' }}>
-            One email before each event. The lineup, the trucks and the music. Nothing else.
+            We send one email before each event with the date and which trucks are coming. That
+            is all we use it for.
           </p>
         </div>
 

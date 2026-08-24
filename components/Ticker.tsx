@@ -15,9 +15,9 @@ import { NEXT_EVENT, PRICING } from '@/lib/seo';
 export default function Ticker() {
   const items = [
     `${NEXT_EVENT.name} · ${NEXT_EVENT.displayDate} · ${NEXT_EVENT.displayTime}`,
-    'Free spots for Alice Coyote organizations',
+    'Alice organizations set up free',
     `Vendor booths ${PRICING.booth.price} · Truck spots ${PRICING.truck.price}`,
-    'Flat rate. No commission on your sales.',
+    'Admission is free · Parking $10 per vehicle at kickoff',
   ];
 
   const COPIES = 3;
@@ -30,8 +30,9 @@ export default function Ticker() {
         <time dateTime={NEXT_EVENT.startISO}>
           {NEXT_EVENT.displayDate} at {NEXT_EVENT.displayTime}
         </time>
-        . Vendor booths {PRICING.booth.price}, food truck spots {PRICING.truck.price}, free for
-        Alice Coyote organizations, booster clubs and nonprofits.
+        . Vendor booths {PRICING.booth.price}, food truck spots {PRICING.truck.price}. Alice
+        organizations set up free. Admission is free and parking on the lot opens at kickoff for
+        $10 per vehicle.
       </p>
 
       <div className="ticker__track" aria-hidden="true">
