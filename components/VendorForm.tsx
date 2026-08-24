@@ -35,6 +35,7 @@ export default function VendorForm({
   token,
   closedTitle = 'Signup is closed for this event',
   closedBody,
+  supportEmail = SITE.email,
 }: {
   signupClosed?: boolean;
   /** Where the form posts. */
@@ -45,6 +46,11 @@ export default function VendorForm({
   token?: string;
   closedTitle?: string;
   closedBody?: React.ReactNode;
+  /**
+   * Passed in from the server. SUPPORT_EMAIL is not inlined into the client
+   * bundle, so reading it here directly would disagree with the server render.
+   */
+  supportEmail?: string;
 }) {
   const uid = useId();
   const [status, setStatus] = useState<Status>('idle');
@@ -168,7 +174,7 @@ export default function VendorForm({
           <h2 id="apply-title">{prepaid ? 'You are registered' : 'You are in'}</h2>
           <p className="lede">{message}</p>
           <p className="hint">
-            Questions in the meantime, email <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.
+            Questions in the meantime, email <a href={`mailto:${supportEmail}`}>{supportEmail}</a>.
           </p>
         </div>
       </section>
@@ -193,7 +199,7 @@ export default function VendorForm({
             )}
           </p>
           <p className="hint">
-            Email <a href={`mailto:${SITE.email}`}>{SITE.email}</a> and we will put you on the
+            Email <a href={`mailto:${supportEmail}`}>{supportEmail}</a> and we will put you on the
             list for the next event.
           </p>
         </div>

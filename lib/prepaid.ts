@@ -82,9 +82,16 @@ export type PrepaidGate = {
   expiresAtMs: number | null;
 };
 
+type CountResult = {
+  count: number | null;
+  error: { code?: string; message?: string; details?: string; hint?: string } | null;
+};
+
 /** Count offline registrations already taken for an event. */
-async function countOffline(eventSlug: string): Promise<number | null> {
-  if (!isSupabaseConfigured()) return null;
+async function countOffline(eventSlug: string): Promise<CountResult> {
+  if (!isSupabaseConfigured()) {
+    return { count: null, error: { message: 'Supabase is not configured' } };
+  }
 
   try {
     const supabase = getSupabaseAdmin();
@@ -94,11 +101,21 @@ async function countOffline(eventSlug: string): Promise<number | null> {
       .eq('event_slug', eventSlug)
       .eq('payment_method', 'offline');
 
-    if (error) throw error;
-    return count ?? 0;
+    if (error) {
+      return {
+        count: null,
+        error: {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        },
+      };
+    }
+
+    return { count: count ?? 0, error: null };
   } catch (err) {
-    console.error('prepaid registration count failed', err);
-    return null;
+    return { count: null, error: { message: err instanceof Error ? err.message : String(err) } };
   }
 }
 
@@ -112,22 +129,74 @@ export async function checkPrepaidGate(
   eventSlug: string = NEXT_EVENT.slug,
   now: number = Date.now()
 ): Promise<PrepaidGate> {
+  const rawToken = process.env.PREPAID_ACCESS_TOKEN;
+  const rawExpiry = process.env.PREPAID_LINK_EXPIRES_AT;
+  const rawMax = process.env.PREPAID_MAX_REGISTRATIONS;
+
   const expires = expiresAtMs();
   const max = maxRegistrations();
 
   const base: PrepaidGate = { open: false, reason: null, used: 0, max, expiresAtMs: expires };
 
-  if (!isPrepaidConfigured()) return { ...base, reason: 'unconfigured' };
-  if (expires !== null && now >= expires) return { ...base, reason: 'expired' };
+  /**
+   * TEMPORARY DIAGNOSTIC. Remove once the link is confirmed working.
+   *
+   * Search the Vercel runtime logs for the string below. Every decision this
+   * function makes is reported, so the closing gate is readable without
+   * guessing. The token itself is never logged, only whether one is set and how
+   * long it is.
+   */
+  const diag: Record<string, unknown> = {
+    eventSlug,
+    tokenSet: Boolean(rawToken),
+    tokenLength: rawToken ? rawToken.length : 0,
+    rawExpiry: rawExpiry ?? '(not set)',
+    parsedExpiryMs: expires,
+    parsedExpiryISO:
+      expires === null ? '(none)' : expires === 0 ? '(unparseable, treated as expired)' : new Date(expires).toISOString(),
+    nowMs: now,
+    nowISO: new Date(now).toISOString(),
+    expiryHasPassed: expires !== null && now >= expires,
+    rawMax: rawMax ?? '(not set)',
+    parsedMax: max,
+    supabaseConfigured: isSupabaseConfigured(),
+  };
 
-  if (max === null) return { ...base, open: true };
+  const report = (gate: PrepaidGate, extra: Record<string, unknown> = {}) => {
+    console.log(
+      '[prepaid-gate]',
+      JSON.stringify({ ...diag, ...extra, decision: gate.open ? 'OPEN' : 'CLOSED', reason: gate.reason })
+    );
+    return gate;
+  };
 
-  const used = await countOffline(eventSlug);
-  if (used === null) {
+  if (!isPrepaidConfigured()) return report({ ...base, reason: 'unconfigured' });
+  if (expires !== null && now >= expires) return report({ ...base, reason: 'expired' });
+
+  if (max === null) return report({ ...base, open: true });
+
+  const { count, error } = await countOffline(eventSlug);
+
+  if (count === null) {
     // The cap cannot be verified, so nothing is accepted. Letting registrations
     // through unchecked could quietly overshoot the number of spots that exist.
-    return { ...base, reason: 'unavailable' };
+    //
+    // The usual cause is that supabase/schema.sql has not been re-run, so the
+    // payment_method column this counts on does not exist yet. Postgres reports
+    // that as 42703.
+    return report(
+      { ...base, reason: 'unavailable' },
+      {
+        countQueryError: error,
+        likelyCause:
+          error?.code === '42703' || /payment_method/i.test(error?.message ?? '')
+            ? 'vendor_applications.payment_method is missing. Re-run supabase/schema.sql.'
+            : 'the offline registration count query failed, see countQueryError',
+      }
+    );
   }
 
-  return { ...base, open: used < max, reason: used < max ? null : 'full', used };
+  return report({ ...base, open: count < max, reason: count < max ? null : 'full', used: count }, {
+    offlineCount: count,
+  });
 }

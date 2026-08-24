@@ -1,9 +1,11 @@
 import Brand from './Brand';
 import StringLights from './StringLights';
 import { ADDRESS, PRICING, SITE } from '@/lib/seo';
+import { supportEmail } from '@/lib/support';
 
 export default function Footer() {
   const year = 2026;
+  const email = supportEmail();
 
   return (
     <footer className="footer">
@@ -12,7 +14,7 @@ export default function Footer() {
       <div className="shell footer__grid">
         <div>
           <div className="footer__brand">
-            <Brand size={144} />
+            <Brand size={144} eager={false} />
           </div>
           <p style={{ maxWidth: '34ch' }}>
             Outdoor food truck park at {ADDRESS.street} in {ADDRESS.city}, {ADDRESS.state}. We
@@ -45,7 +47,7 @@ export default function Footer() {
           <h3>Get in touch</h3>
           <ul>
             <li>
-              <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
+              <a href={`mailto:${email}`}>{email}</a>
             </li>
             <li>
               <a href={SITE.facebook} target="_blank" rel="noopener noreferrer">

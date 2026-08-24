@@ -16,14 +16,27 @@ export const SITE = {
   legalName: 'Coyoteville',
   tagline: 'Food Truck Park and Live Music',
   url: SITE_URL,
-  email: 'ceo@36west.org',
+  /**
+   * Public contact address. Server code should call supportEmail() from
+   * lib/support so SUPPORT_EMAIL is honoured; this is the fallback and the
+   * value client components get unless one is passed to them.
+   */
+  email: 'support@coyoteville.com',
+  /**
+   * Where new vendor alerts go. Internal only, never rendered on the site.
+   */
+  ownerEmail: 'ceo@36west.org',
   facebook: 'https://facebook.com/coyoteville',
+  /** E.164 for structured data, and a readable form for display. */
+  telephone: '+15404479432',
+  telephoneDisplay: '540 447 9432',
   /**
    * Structured data and social cards take the raster. Crawlers and the social
    * scrapers do not render SVG, so logo/ogImage must stay PNG.
    */
   logo: `${SITE_URL}/logo.png`,
-  ogImage: `${SITE_URL}/logo.png`,
+  /** Purpose built 1.91:1 social card. The badge itself is 3:2 and would be cropped. */
+  ogImage: `${SITE_URL}/og.png`,
   /** In-page brand mark. Vector, so it stays crisp at any nav or footer size. */
   logoSvg: '/logo.svg',
   /** Square mark for the favicon and the apple touch icon. */
@@ -31,14 +44,14 @@ export const SITE = {
 } as const;
 
 /**
- * Real pixel size of public/logo.png. The badge is 3:2, not the 1.91:1 social
- * platforms prefer, so these are declared honestly rather than stretched to fit.
- * Facebook, LinkedIn and X letterbox or centre-crop it; they do not distort it.
+ * The social card. public/og.png is generated at exactly 1200x630, the ratio
+ * every platform crops to, with the badge centred on the brand field rather
+ * than the 3:2 badge stretched to fit.
  */
 export const OG_IMAGE = {
   url: SITE.ogImage,
   width: 1200,
-  height: 800,
+  height: 630,
 } as const;
 
 export const ADDRESS = {
@@ -266,7 +279,7 @@ const geoCoordinates = {
   longitude: GEO.longitude,
 };
 
-export function organizationSchema() {
+export function organizationSchema(email: string = SITE.email) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -281,7 +294,8 @@ export function organizationSchema() {
     },
     image: SITE.ogImage,
     description: `${SITE.name} is an outdoor food truck park at ${ADDRESS.street} in ${ADDRESS.city}, ${ADDRESS.state}, across from the stadium. Admission is free.`,
-    email: SITE.email,
+    email,
+    telephone: SITE.telephone,
     address: postalAddress,
     sameAs: [SITE.facebook],
     areaServed: [
@@ -304,7 +318,7 @@ export function websiteSchema() {
   };
 }
 
-export function localBusinessSchema() {
+export function localBusinessSchema(email: string = SITE.email) {
   return {
     '@context': 'https://schema.org',
     '@type': ['FoodEstablishment', 'EntertainmentBusiness'],
@@ -317,7 +331,22 @@ export function localBusinessSchema() {
     url: SITE_URL,
     image: SITE.ogImage,
     logo: SITE.logo,
-    email: SITE.email,
+    email,
+    telephone: SITE.telephone,
+    /**
+     * Gates open at 4:00 PM on event Fridays and we run to 10:00 PM. Stated as
+     * an openingHoursSpecification as well as the plain string, because Google
+     * reads the structured form and the string is the human fallback.
+     */
+    openingHours: 'Fr 16:00-22:00',
+    openingHoursSpecification: [
+      {
+        '@type': 'OpeningHoursSpecification',
+        dayOfWeek: 'https://schema.org/Friday',
+        opens: '16:00',
+        closes: '22:00',
+      },
+    ],
     priceRange: '$',
     currenciesAccepted: 'USD',
     paymentAccepted: 'Cash, Credit Card, Debit Card',
@@ -434,11 +463,11 @@ export function breadcrumbSchema() {
   };
 }
 
-export function homeSchemaGraph() {
+export function homeSchemaGraph(email: string = SITE.email) {
   return [
-    organizationSchema(),
+    organizationSchema(email),
     websiteSchema(),
-    localBusinessSchema(),
+    localBusinessSchema(email),
     eventSchema(),
     faqSchema(),
     breadcrumbSchema(),

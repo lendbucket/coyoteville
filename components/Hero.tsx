@@ -10,8 +10,24 @@ import { ADDRESS, NEXT_EVENT } from '@/lib/seo';
  * between the headline and the fold.
  */
 export default function Hero() {
+  const hero = SITE_PHOTOS.hero;
+  const heroSrcSet = hero.widths.map((w) => `/photos/${hero.file}-${w}.webp ${w}w`).join(', ');
+
   return (
     <section className="hero" aria-labelledby="hero-title">
+      {/* Starts the LCP image during head parsing rather than waiting for the
+          img tag to be reached. The candidate list matches Photo's own, so the
+          browser picks the same file it would have anyway. */}
+      <link
+        rel="preload"
+        as="image"
+        // eslint-disable-next-line @next/next/no-img-element
+        href={`/photos/${hero.file}-${hero.widths[hero.widths.length - 1]}.jpg`}
+        imageSrcSet={heroSrcSet}
+        imageSizes="100vw"
+        fetchPriority="high"
+      />
+
       <div className="hero__bg">
         <Photo photo={SITE_PHOTOS.hero} sizes="100vw" priority cover />
       </div>

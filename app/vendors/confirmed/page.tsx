@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import StringLights from '@/components/StringLights';
-import { NEXT_EVENT, SITE } from '@/lib/seo';
+import { NEXT_EVENT } from '@/lib/seo';
+import { supportEmail } from '@/lib/support';
 
 export const metadata: Metadata = {
   title: 'Vendor spot confirmed',
@@ -16,6 +17,8 @@ export const metadata: Metadata = {
 };
 
 export default function ConfirmedPage() {
+  const email = supportEmail();
+
   return (
     <>
       <Nav />
@@ -53,7 +56,7 @@ export default function ConfirmedPage() {
           </ul>
 
           <p className="muted">
-            To change anything, email <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.
+            To change anything, email <a href={`mailto:${email}`}>{email}</a>.
           </p>
 
           <p style={{ marginTop: '1.6rem' }}>

@@ -4,7 +4,8 @@ import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import VendorForm from '@/components/VendorForm';
 import { checkPrepaidGate, tokenMatches } from '@/lib/prepaid';
-import { EVENT_TIMEZONE, NEXT_EVENT, SITE } from '@/lib/seo';
+import { EVENT_TIMEZONE, NEXT_EVENT } from '@/lib/seo';
+import { supportEmail } from '@/lib/support';
 
 /**
  * Hidden prepaid vendor registration.
@@ -21,6 +22,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Vendor registration',
+  description: 'Private registration link for vendors who have already paid for a Coyoteville spot.',
   robots: {
     index: false,
     follow: false,
@@ -42,23 +44,24 @@ export default async function PrepaidPage({ params }: { params: { token: string 
   if (!tokenMatches(params.token)) notFound();
 
   const gate = await checkPrepaidGate(NEXT_EVENT.slug);
+  const email = supportEmail();
 
   const closedBody =
     gate.reason === 'expired' ? (
       <>
         This registration link expired
         {gate.expiresAtMs ? ` on ${formatDeadline(gate.expiresAtMs)} Central` : ''}. Email{' '}
-        <a href={`mailto:${SITE.email}`}>{SITE.email}</a> and we will sort your spot out directly.
+        <a href={`mailto:${email}`}>{email}</a> and we will sort your spot out directly.
       </>
     ) : gate.reason === 'full' ? (
       <>
         Every prepaid spot for {NEXT_EVENT.name} has been registered. Email{' '}
-        <a href={`mailto:${SITE.email}`}>{SITE.email}</a> if you believe this is wrong.
+        <a href={`mailto:${email}`}>{email}</a> if you believe this is wrong.
       </>
     ) : (
       <>
         This registration link is not available right now. Email{' '}
-        <a href={`mailto:${SITE.email}`}>{SITE.email}</a> and we will get you registered.
+        <a href={`mailto:${email}`}>{email}</a> and we will get you registered.
       </>
     );
 
@@ -72,6 +75,7 @@ export default async function PrepaidPage({ params }: { params: { token: string 
           prepaid
           token={params.token}
           signupClosed={!gate.open}
+          supportEmail={email}
           closedTitle={
             gate.reason === 'expired'
               ? 'This registration link has expired'

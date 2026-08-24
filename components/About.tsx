@@ -1,6 +1,9 @@
-import { ADDRESS, NEXT_EVENT, PRICING, SITE } from '@/lib/seo';
+import { ADDRESS, NEXT_EVENT, PRICING } from '@/lib/seo';
+import { supportEmail } from '@/lib/support';
 
 export default function About() {
+  const email = supportEmail();
+
   return (
     <section className="section section--char" id="about" aria-labelledby="about-title">
       <div className="shell about__grid">
@@ -56,7 +59,7 @@ export default function About() {
             <li>
               <span className="factlist__label">Questions</span>
               <span className="factlist__value">
-                <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
+                <a href={`mailto:${email}`}>{email}</a>
               </span>
             </li>
           </ul>

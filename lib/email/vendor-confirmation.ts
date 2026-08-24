@@ -37,7 +37,6 @@ const DISPLAY = "Impact, 'Arial Black', 'Helvetica Neue', Helvetica, Arial, sans
 const BODY = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 const PHONE = '540 447 9432';
-const SUPPORT = 'support@coyoteville.com';
 
 function esc(v: string): string {
   return v
@@ -74,7 +73,11 @@ function heading(text: string): string {
   return `<tr><td style="padding:0 0 12px;font-family:${DISPLAY};font-size:22px;line-height:26px;letter-spacing:0.5px;text-transform:uppercase;color:${CREAM};">${esc(text)}</td></tr>`;
 }
 
-export function renderVendorConfirmation(r: RegistrationEmail): {
+export function renderVendorConfirmation(
+  r: RegistrationEmail,
+  /** Public contact address, injected by the caller from SUPPORT_EMAIL. */
+  SUPPORT: string
+): {
   subject: string;
   html: string;
   text: string;

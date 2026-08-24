@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Countdown, { pad } from './Countdown';
 
 /**
@@ -25,10 +25,43 @@ export default function DeadlineBar({
   initiallyClosed: boolean;
 }) {
   const [closed, setClosed] = useState(initiallyClosed);
+  const barRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Publish the bar's real height as --deadline-h.
+   *
+   * The nav parks below this bar and anchor scrolling has to clear both, and
+   * the bar's height changes with how its contents wrap. The CSS defaults are
+   * deliberately the tallest value in each band so nothing can be hidden before
+   * this runs; this then makes it exact, and keeps it exact through a rotate or
+   * a resize.
+   */
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+
+    const apply = () => {
+      document.documentElement.style.setProperty(
+        '--deadline-h',
+        `${Math.round(el.getBoundingClientRect().height)}px`
+      );
+    };
+
+    apply();
+
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    window.addEventListener('resize', apply);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', apply);
+    };
+  }, [closed]);
 
   if (closed) {
     return (
-      <div className="deadline deadline--closed" role="status">
+      <div className="deadline deadline--closed" role="status" ref={barRef}>
         <div className="shell deadline__inner">
           <span className="deadline__label">Vendor signup is closed for this event</span>
           <span className="deadline__note">
@@ -43,7 +76,7 @@ export default function DeadlineBar({
   }
 
   return (
-    <div className="deadline">
+    <div className="deadline" ref={barRef}>
       <div className="shell deadline__inner">
         <span className="deadline__label">Vendor signup closes in</span>
 

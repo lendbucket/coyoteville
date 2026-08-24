@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Anton, Barlow_Condensed, Karla, Yellowtail } from 'next/font/google';
 import { SITE, SITE_URL, ADDRESS, GEO, KEYWORDS, OG_IMAGE } from '@/lib/seo';
+import { supportEmail } from '@/lib/support';
 import DeadlineBarMount from '@/components/DeadlineBarMount';
 import './globals.css';
 
@@ -38,8 +39,12 @@ const yellowtail = Yellowtail({
 });
 
 const TITLE = 'Food Truck Park in Alice TX | Coyoteville Live Music';
+/**
+ * Kept between 140 and 160 characters. Google renders about 155 and truncates
+ * the rest, and the previous one was 296.
+ */
 const DESCRIPTION =
-  'Coyoteville is an outdoor food truck park at 150 N. Stadium Road in Alice, TX, across from the stadium. We open at 4:00 PM before home games. Admission is free. Parking on the lot opens at kickoff for $10 per vehicle and shuttles run to the stadium. Vendor booths are $25 and truck spots are $50.';
+  'Coyoteville is an outdoor food truck park in Alice, TX, across from the stadium. Local food trucks, live music, free admission. Gates 4 PM Fridays.';
 
 export const viewport: Viewport = {
   themeColor: '#0B0B0C',
@@ -97,14 +102,17 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
+  manifest: '/manifest.webmanifest',
   icons: {
     // SVG first for browsers that take it, PNG as the fallback. Safari does not
-    // accept an SVG apple touch icon, so that one is always the square raster.
+    // accept an SVG apple touch icon, so that one is always the square raster,
+    // and it is a real 180x180 file rather than a 512 declared as 180.
     icon: [
       { url: SITE.logoSvg, type: 'image/svg+xml' },
+      { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
       { url: SITE.icon, type: 'image/png', sizes: '512x512' },
     ],
-    apple: [{ url: SITE.icon, sizes: '180x180' }],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   formatDetection: {
     telephone: false,
@@ -122,7 +130,7 @@ export const metadata: Metadata = {
     'business:contact_data:region': ADDRESS.state,
     'business:contact_data:postal_code': ADDRESS.zip,
     'business:contact_data:country_name': 'United States',
-    'business:contact_data:email': SITE.email,
+    'business:contact_data:email': supportEmail(),
   },
 };
 

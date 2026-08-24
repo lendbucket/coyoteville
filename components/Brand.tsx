@@ -15,11 +15,14 @@ export default function Brand({
   href = '/',
   size = 100,
   showName = false,
+  eager = true,
 }: {
   href?: string;
   /** Rendered height of the badge in px. Width follows the 3:2 ratio. */
   size?: number;
   showName?: boolean;
+  /** The nav mark is above the fold; the footer one is not. */
+  eager?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
 
@@ -38,6 +41,8 @@ export default function Brand({
           width={Math.round(size * 1.5)}
           height={size}
           style={{ '--brand-h': `${size}px` } as React.CSSProperties}
+          loading={eager ? 'eager' : 'lazy'}
+          decoding={eager ? 'sync' : 'async'}
           onError={() => setFailed(true)}
         />
       )}

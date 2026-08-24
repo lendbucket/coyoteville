@@ -42,6 +42,11 @@
   --shell: 1140px;
   --gutter: clamp(1.15rem, 4vw, 2.5rem);
   --nav-h: 128px;
+  /* Height of the sticky deadline bar. The nav parks below it and anchor
+     scrolling has to clear both, so it is a variable rather than a guess in
+     two places. Measured, not estimated: the bar wraps to a taller stack under
+     640px where the label takes its own line. */
+  --deadline-h: 73px;
   --radius: 14px;
   --radius-sm: 9px;
 
@@ -57,7 +62,9 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: calc(var(--nav-h) + 12px);
+  /* Both sticky bars, not just the nav. With only the nav counted an anchor
+     landed 152px of content underneath the deadline bar on a phone. */
+  scroll-padding-top: calc(var(--deadline-h) + var(--nav-h) + 12px);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -2004,9 +2011,11 @@ p {
   color: var(--black);
 }
 
-/* The nav sits directly under the bar rather than at the viewport top. */
+/* The nav parks below the deadline bar instead of sliding underneath it. Both
+   were pinned at top:0, and with the bar at a higher stacking level the nav was
+   completely hidden the moment the page scrolled. */
 .nav {
-  top: 0;
+  top: var(--deadline-h);
 }
 
 @media (max-width: 640px) {
@@ -2842,6 +2851,22 @@ p {
   }
 }
 
+/* The bar wraps differently at each width, so these defaults are the tallest
+   the bar gets in each band. Erring tall leaves a small gap; erring short
+   would hide the nav behind the bar. DeadlineBar measures the real height on
+   mount and overwrites this with the exact value. */
+@media (max-width: 767px) {
+  :root {
+    --deadline-h: 130px;
+  }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --deadline-h: 152px;
+  }
+}
+
 /* ------------------------------------------------------------ mission */
 
 /* Single column now. The summary pills that used to sit alongside repeated
@@ -3032,4 +3057,167 @@ p {
 .tag--web {
   background: rgba(243, 238, 229, 0.14);
   color: var(--cream);
+}
+
+/* --------------------------------------------- started but not paid */
+
+.abandoned {
+  background: rgba(139, 90, 0, 0.16);
+  border: 1px solid rgba(240, 169, 75, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.abandoned__title {
+  font-size: 1.15rem;
+  margin: 0 0 0.3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.abandoned__count {
+  font-family: var(--font-condensed);
+  font-size: 0.85rem;
+  background: var(--ember);
+  color: var(--black);
+  padding: 0.12rem 0.5rem;
+  border-radius: 100px;
+}
+
+.abandoned__note {
+  margin: 0 0 0.9rem;
+  font-size: 0.88rem;
+  color: #cdc4b4;
+  max-width: 62ch;
+}
+
+.abandoned__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.abandoned__row {
+  background: rgba(11, 11, 12, 0.5);
+  border: 1px solid rgba(243, 238, 229, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 0.8rem 0.9rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+@media (min-width: 760px) {
+  .abandoned__row {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+}
+
+.abandoned__who b {
+  display: block;
+  font-size: 1.02rem;
+  color: var(--cream);
+}
+
+.abandoned__who span {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--dust);
+  margin-top: 0.15rem;
+}
+
+.abandoned__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.abandoned__error {
+  margin: 0;
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+  color: #ff9a7a;
+}
+
+/* ------------------------------------------------- vendor spotlight */
+
+.spotlight {
+  position: relative;
+  background: var(--black);
+  color: var(--cream);
+  padding-block: clamp(3rem, 7vw, 5rem) 0;
+}
+
+.spotlight .string-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+
+.spotlight__head {
+  position: relative;
+  z-index: 3;
+  margin-bottom: clamp(1.4rem, 3vw, 2rem);
+}
+
+.spotlight__head h2 {
+  font-size: clamp(1.9rem, 4.4vw, 3.2rem);
+  margin-bottom: 0.5rem;
+}
+
+.spotlight__head p {
+  color: #b9b2a6;
+  max-width: 56ch;
+  margin: 0;
+}
+
+/* Full bleed. The photographs run edge to edge with no gutter, because a
+   padded tile turns candid photography into a product grid. */
+.spotlight__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0;
+}
+
+@media (min-width: 980px) {
+  .spotlight__grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* One square for every tile, whatever shape the source was, so a portrait next
+   to a panorama cannot make the row ragged. */
+.spotlight__cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: var(--char);
+}
+
+.spotlight__cell img {
+  transition: transform 0.5s var(--ease);
+}
+
+@media (hover: hover) {
+  .spotlight__cell:hover img {
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spotlight__cell img {
+    transition: none;
+  }
+  .spotlight__cell:hover img {
+    transform: none;
+  }
 }

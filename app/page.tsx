@@ -9,6 +9,7 @@ import GameNight from '@/components/GameNight';
 import Stats from '@/components/Stats';
 import About from '@/components/About';
 import Gallery from '@/components/Gallery';
+import VendorSpotlight from '@/components/VendorSpotlight';
 import Pricing from '@/components/Pricing';
 import HowItWorks from '@/components/HowItWorks';
 import EventCountdownSection from '@/components/EventCountdownSection';
@@ -20,6 +21,7 @@ import Visit from '@/components/Visit';
 import Footer from '@/components/Footer';
 import JsonLd from '@/components/JsonLd';
 import { homeSchemaGraph, isSignupClosed } from '@/lib/seo';
+import { supportEmail } from '@/lib/support';
 
 /**
  * Revalidated on an interval so the live spot counts stay fresh without a
@@ -35,7 +37,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <>
-      <JsonLd schemas={homeSchemaGraph()} />
+      <JsonLd schemas={homeSchemaGraph(supportEmail())} />
       <Nav />
 
       <main id="main">
@@ -47,12 +49,13 @@ export default function HomePage() {
         <GameNight />
         <Stats />
         <About />
+        <VendorSpotlight />
         <Gallery />
         <Pricing />
         <HowItWorks />
         <EventCountdownSection />
         <PastVendors />
-        <VendorForm signupClosed={isSignupClosed()} />
+        <VendorForm signupClosed={isSignupClosed()} supportEmail={supportEmail()} />
         <Faq />
         <EmailCapture />
         <Visit />

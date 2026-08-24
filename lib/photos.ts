@@ -66,6 +66,65 @@ export type GallerySlot = {
   photo: ResponsivePhoto | null;
 };
 
+
+/**
+ * Vendor spotlight.
+ *
+ * Candid photography of the vendors and Alice organizations who set up with us,
+ * not logos, so the tiles are full bleed and cropped to fill with no caption.
+ * Add one by adding a line here; nothing in the layout needs touching.
+ *
+ * Alt text describes what is actually in the frame and ends with the place,
+ * because that is what a screen reader user and an image search both need.
+ *
+ * `widths` lists only the variants that exist on disk. A source narrower than
+ * 640 gets one variant at its own size rather than being upscaled.
+ */
+export const VENDOR_SPOTLIGHT: ResponsivePhoto[] = [
+  {
+    file: 'shaved-ice-truck',
+    width: 1170,
+    height: 1595,
+    widths: [640, 960],
+    alt: 'A shaved ice truck lit up at night with its serving window open and string lights overhead, at Coyoteville in Alice, Texas',
+  },
+  {
+    file: 'kettle-corn-booth',
+    width: 1080,
+    height: 792,
+    widths: [640, 960],
+    alt: 'Bags of kettle corn lined up on a red Amazing Kettle Corn table under a canopy, at Coyoteville in Alice, Texas',
+  },
+  {
+    file: 'shaved-ice-cups',
+    width: 1022,
+    height: 1834,
+    widths: [640, 960],
+    alt: 'A girl holding a tray of red, green and blue shaved ice cups, at Coyoteville in Alice, Texas',
+  },
+  {
+    file: 'grilled-meat-tray',
+    width: 433,
+    height: 577,
+    widths: [433],
+    alt: 'A foil tray of grilled meat ready to serve, at Coyoteville in Alice, Texas',
+  },
+  {
+    file: 'vipers-softball',
+    width: 960,
+    height: 720,
+    widths: [640, 960],
+    alt: 'A youth softball team in green and white Vipers uniforms together in the dugout, an Alice organization that sets up at Coyoteville in Alice, Texas',
+  },
+  {
+    file: 'youth-group-stage',
+    width: 1571,
+    height: 640,
+    widths: [640, 960, 1280],
+    alt: 'A youth group on stage with flags behind them, an Alice organization that sets up at Coyoteville in Alice, Texas',
+  },
+];
+
 /**
  * The gallery grid renders straight off this array. Add, remove or reorder
  * entries and the layout follows. No layout code to touch.

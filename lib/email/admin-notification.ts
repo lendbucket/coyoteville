@@ -41,13 +41,24 @@ function when(iso: string | null): string {
   }).format(new Date(iso));
 }
 
-export function renderAdminNotification(r: RegistrationEmail): {
+/**
+ * 'started' fires the moment the form is submitted, before checkout, so every
+ * attempt is visible. 'confirmed' fires when the money actually lands.
+ */
+export type NotificationStage = 'started' | 'confirmed';
+
+export function renderAdminNotification(
+  r: RegistrationEmail,
+  stage: NotificationStage = 'confirmed'
+): {
   subject: string;
   html: string;
   text: string;
 } {
-  const path =
-    r.payment_method === 'offline'
+  const started = stage === 'started';
+  const path = started
+    ? 'Website, sent to Square checkout, NOT PAID YET'
+    : r.payment_method === 'offline'
       ? 'Prepaid link, paid outside the website'
       : r.payment_status === 'not_required'
         ? 'Website, Alice organization, no charge'
@@ -60,6 +71,7 @@ export function renderAdminNotification(r: RegistrationEmail): {
       : 'Not required';
 
   const rows: Array<[string, string, boolean?]> = [
+    ['Status', started ? 'Awaiting payment' : 'Confirmed', started],
     ['Business', r.business_name],
     ['Contact', r.contact_name],
     ['Phone', r.phone],
@@ -93,7 +105,12 @@ export function renderAdminNotification(r: RegistrationEmail): {
 
 <!--[if mso]><table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;background-color:#FFFFFF;border:1px solid #DDDDE0;">
-  <tr><td style="padding:20px 22px 6px;">
+  <tr><td style="padding:0;">
+    <div style="background-color:${started ? '#8A5A00' : '#1E6B3C'};color:#FFFFFF;font-family:${BODY};font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:10px 22px;">
+      ${started ? 'Started signup &middot; awaiting payment' : 'Payment received'}
+    </div>
+  </td></tr>
+  <tr><td style="padding:18px 22px 6px;">
     <div style="font-family:${BODY};font-size:19px;font-weight:bold;color:#111111;">${esc(r.business_name)}</div>
     <div style="font-family:${BODY};font-size:14px;color:#666666;padding-top:3px;">
       ${esc(spotLabel(r.spot_type))} &middot; ${esc(r.event_name)}
@@ -125,10 +142,16 @@ export function renderAdminNotification(r: RegistrationEmail): {
 </html>`;
 
   const text =
-    rows.map(([k, v]) => `${k}: ${v}`).join('\n') + `\n\nOpen in the tracker: ${adminUrl}\n`;
+    (started
+      ? 'STARTED SIGNUP, AWAITING PAYMENT.\nThey have been sent to Square checkout and have not paid yet.\n\n'
+      : 'PAYMENT RECEIVED.\n\n') +
+    rows.map(([k, v]) => `${k}: ${v}`).join('\n') +
+    `\n\nOpen in the tracker: ${adminUrl}\n`;
 
   return {
-    subject: `New vendor, ${r.business_name}, ${spotLabel(r.spot_type)}, ${r.event_name}`,
+    subject: started
+      ? `Vendor started signup, ${r.business_name}, ${spotLabel(r.spot_type)}, awaiting payment`
+      : `Vendor PAID, ${r.business_name}, ${spotLabel(r.spot_type)}`,
     html,
     text,
   };

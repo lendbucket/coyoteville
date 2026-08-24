@@ -13,7 +13,7 @@ import {
   type ValidatedUpload,
 } from '@/lib/uploads';
 import { invalidateSpots } from '@/lib/spots';
-import { notifyRegistration } from '@/lib/notify';
+import { notifyRegistration, notifyRegistrationStarted } from '@/lib/notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -421,6 +421,32 @@ export async function POST(request: Request) {
 
 
   const spotLabel = value.spot_type === 'truck' ? PRICING.truck.label : PRICING.booth.label;
+
+  // The owner is told the moment the form is submitted, before checkout, so
+  // every attempt is visible and an abandoned one is not silent. The vendor
+  // deliberately gets nothing here; their confirmation waits for the payment to
+  // actually land, because telling someone their spot is confirmed before they
+  // have paid would be wrong.
+  await notifyRegistrationStarted({
+    id: inserted.id,
+    business_name: value.business_name,
+    contact_name: value.contact_name,
+    phone: value.phone,
+    email: value.email,
+    spot_type: value.spot_type,
+    event_slug: value.event_slug,
+    event_name: event.name,
+    sells: value.sells,
+    notes: value.notes,
+    serves_food: value.serves_food,
+    permit_uploaded: Boolean(paths.permit_path),
+    signature_name: value.signature_name,
+    signed_at: new Date().toISOString(),
+    agreement_version: AGREEMENT_VERSION,
+    amount_cents: amountCents,
+    payment_status: 'unpaid',
+    payment_method: 'online',
+  });
 
   try {
     const square = getSquare();

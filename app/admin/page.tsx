@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import AdminRowControls from '@/components/AdminRowControls';
+import AdminAbandoned from '@/components/AdminAbandoned';
+import { getAbandoned, howLongAgo } from '@/lib/abandoned';
 import { isAdminConfigured, isAdminRequest } from '@/lib/admin-auth';
 import { getAdminView, normaliseFilters } from '@/lib/admin-data';
 import { EVENTS, PRICING } from '@/lib/seo';
@@ -8,6 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Vendor tracker',
+  description: 'Staff only. Vendor applications, payment status and spot numbers for Coyoteville events.',
   robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
 };
 
@@ -89,7 +92,10 @@ export default async function AdminPage({
   /* ------------------------------------------------------------ tracker */
 
   const filters = normaliseFilters(searchParams);
-  const view = await getAdminView(filters);
+  const [view, abandoned] = await Promise.all([
+    getAdminView(filters),
+    getAbandoned(filters.event),
+  ]);
 
   const exportHref = `/api/admin/export?event=${encodeURIComponent(filters.event)}${
     filters.status ? `&status=${encodeURIComponent(filters.status)}` : ''
@@ -169,6 +175,19 @@ export default async function AdminPage({
           </div>
         </form>
       </header>
+
+      <AdminAbandoned
+        rows={abandoned.map((r) => ({
+          id: r.id,
+          business_name: r.business_name,
+          contact_name: r.contact_name,
+          phone: r.phone,
+          email: r.email,
+          spot_type: r.spot_type,
+          started: howLongAgo(r.minutesAgo),
+          reminderSent: r.reminderSent,
+        }))}
+      />
 
       {!view.available ? (
         <p className="formnote formnote--error">
