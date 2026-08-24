@@ -158,6 +158,7 @@ export async function POST(request: Request) {
       note,
       eventName: event.name,
       eventDate: event.displayDate,
+      eventDateISO: event.date,
       downscaled: packed.downscaled,
       part: i + 1,
       totalParts,
