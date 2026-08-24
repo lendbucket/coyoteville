@@ -28,7 +28,7 @@ export default function VendorSpotlight() {
           <li className="spotlight__cell" key={photo.file}>
             <Photo
               photo={photo}
-              sizes="(max-width: 640px) 50vw, (max-width: 980px) 33vw, 25vw"
+              sizes="(max-width: 980px) 50vw, 33vw"
               cover
             />
           </li>

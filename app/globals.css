@@ -3087,9 +3087,12 @@ p {
   gap: 0;
 }
 
+/* Three across, not four. Six photos fill two rows exactly; four across left
+   two empty cells at the end of a full bleed strip, which read as a hole
+   rather than as spacing. */
 @media (min-width: 980px) {
   .spotlight__grid {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
