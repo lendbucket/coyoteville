@@ -5,16 +5,29 @@ import { VendorAgreement, AGREEMENT_VERSION } from './VendorAgreement';
 import StringLights from './StringLights';
 import { EVENTS, PRICING, SITE } from '@/lib/seo';
 
+/** Kept in step with ALLOWED_LABEL in lib/uploads.ts. */
+const ALLOWED_HINT = 'JPG, PNG, WEBP, HEIC or PDF.';
+
 type Status = 'idle' | 'sending' | 'error' | 'done';
 
-export default function VendorForm() {
+/** Mirrors the server side rules in lib/uploads.ts. The server is the gate. */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_PHOTOS = 3;
+const ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,application/pdf';
+
+export default function VendorForm({ signupClosed = false }: { signupClosed?: boolean }) {
   const uid = useId();
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
   const [spot, setSpot] = useState<'booth' | 'truck' | 'free'>('booth');
+  const [servesFood, setServesFood] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [permitsConfirmed, setPermitsConfirmed] = useState(false);
   const [signature, setSignature] = useState('');
+
+  // A food handler permit is required for any truck, and for any booth whose
+  // vendor says they serve food. Checked again on the server.
+  const permitRequired = spot === 'truck' || servesFood;
 
   // Filled on the client so the server render and the client render agree.
   const [signedISO, setSignedISO] = useState('');
@@ -41,30 +54,47 @@ export default function VendorForm() {
     setStatus('sending');
     setMessage('');
 
+    // Sent as multipart so the uploads travel with the application. The field
+    // names are unchanged; the server reads them the same way it always did.
+    // No agreement_version is sent on purpose: the server stamps the version it
+    // actually served, so a client cannot claim to have signed a different one.
     const form = new FormData(e.currentTarget);
-    const payload = {
-      business_name: String(form.get('business_name') || '').trim(),
-      contact_name: String(form.get('contact_name') || '').trim(),
-      phone: String(form.get('phone') || '').trim(),
-      email: String(form.get('email') || '').trim(),
-      spot_type: String(form.get('spot_type') || ''),
-      event_slug: String(form.get('event_slug') || ''),
-      sells: String(form.get('sells') || '').trim(),
-      notes: String(form.get('notes') || '').trim(),
-      waiver_accepted: agreementAccepted,
-      permits_confirmed: permitsConfirmed,
-      signature_name: signature.trim(),
-      signed_date: signedISO,
-      // No agreement_version here on purpose. The server stamps the version it
-      // actually served from AGREEMENT_VERSION, so a client cannot claim to
-      // have signed a different one.
-    };
+    form.set('waiver_accepted', String(agreementAccepted));
+    form.set('permits_confirmed', String(permitsConfirmed));
+    form.set('serves_food', String(servesFood));
+    form.set('signature_name', signature.trim());
+    form.set('signed_date', signedISO);
+    form.delete('signed_date_display');
+
+    // Drop empty file inputs so the server does not see zero byte parts.
+    for (const key of ['logo', 'permit']) {
+      const value = form.get(key);
+      if (value instanceof File && value.size === 0) form.delete(key);
+    }
+    const photos = form.getAll('photos').filter((p) => p instanceof File && p.size > 0);
+    form.delete('photos');
+    for (const photo of photos.slice(0, MAX_PHOTOS)) form.append('photos', photo);
+
+    // Client side courtesy checks. lib/uploads.ts is the real gate.
+    const tooBig = [form.get('logo'), form.get('permit'), ...photos].find(
+      (f) => f instanceof File && f.size > MAX_UPLOAD_BYTES
+    );
+    if (tooBig instanceof File) {
+      setStatus('error');
+      setMessage(`${tooBig.name} is over the 10MB limit. Shrink it and try again.`);
+      return;
+    }
+
+    if (permitRequired && !(form.get('permit') instanceof File)) {
+      setStatus('error');
+      setMessage('A food handler permit is required for food trucks and anyone serving food.');
+      return;
+    }
 
     try {
       const res = await fetch('/api/vendor-application', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: form,
       });
 
       const data = (await res.json().catch(() => ({}))) as {
@@ -104,6 +134,28 @@ export default function VendorForm() {
           <p className="lede">{message}</p>
           <p className="hint">
             Questions in the meantime, email <a href={`mailto:${SITE.email}`}>{SITE.email}</a>.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  // Signup is shut. The API route rejects late applications regardless, so this
+  // is the visible half of a rule that is enforced on the server.
+  if (signupClosed) {
+    return (
+      <section className="section apply" id="apply" aria-labelledby="apply-title">
+        <StringLights tone="dark" variant="top" swags={5} sag={30} id="apply-lights-closed" />
+        <div className="shell">
+          <p className="eyebrow">Vendor application</p>
+          <h2 id="apply-title">Signup is closed for this event</h2>
+          <p className="lede muted">
+            The cutoff for {EVENTS[0].name} was {EVENTS[0].signupClosesDisplay} Central. We close
+            it so we can lay the lot out and get everyone a spot number before event day.
+          </p>
+          <p className="hint">
+            Email <a href={`mailto:${SITE.email}`}>{SITE.email}</a> and we will put you on the
+            list for the next one.
           </p>
         </div>
       </section>
@@ -253,6 +305,81 @@ export default function VendorForm() {
               placeholder="Trailer length, where you would like to be, anything else."
             />
           </div>
+
+          <label className="check">
+            <input
+              type="checkbox"
+              name="serves_food_box"
+              checked={servesFood}
+              onChange={(e) => setServesFood(e.target.checked)}
+            />
+            <span>
+              I prepare, sample, serve or sell food or drinks. Food trucks are always counted as
+              serving food.
+            </span>
+          </label>
+
+          {/* ------------------------------------------------- uploads */}
+
+          <fieldset className="uploads">
+            <legend className="label">Photos and permits</legend>
+            <p className="hint uploads__intro">
+              {ALLOWED_HINT} Up to 10MB each. Your logo and photos get used to spotlight you on
+              our socials. Permits are stored privately and are only visible to us.
+            </p>
+
+            <div className="field">
+              <label className="label" htmlFor={`${uid}-logo`}>
+                Business logo
+              </label>
+              <input
+                className="file"
+                id={`${uid}-logo`}
+                name="logo"
+                type="file"
+                accept={ACCEPT}
+              />
+              <span className="hint">Optional, but it is what we post with your name.</span>
+            </div>
+
+            <div className="field">
+              <label className="label" htmlFor={`${uid}-photos`}>
+                Business or food photos
+              </label>
+              <input
+                className="file"
+                id={`${uid}-photos`}
+                name="photos"
+                type="file"
+                accept={ACCEPT}
+                multiple
+              />
+              <span className="hint">
+                Up to {MAX_PHOTOS}. Pick the ones you would want people to see first.
+              </span>
+            </div>
+
+            <div className="field">
+              <label className="label" htmlFor={`${uid}-permit`}>
+                Food handler permit{' '}
+                {permitRequired ? <span className="req">*</span> : <span>(if you serve food)</span>}
+              </label>
+              <input
+                className="file"
+                id={`${uid}-permit`}
+                name="permit"
+                type="file"
+                accept={ACCEPT}
+                required={permitRequired}
+                aria-describedby={`${uid}-permit-hint`}
+              />
+              <span className="hint" id={`${uid}-permit-hint`}>
+                {permitRequired
+                  ? 'Required for your spot type. A clear photo or a PDF of the certificate is fine.'
+                  : 'Required as soon as you tick the food box above or pick a food truck spot.'}
+              </span>
+            </div>
+          </fieldset>
 
           {/* --------------------------------------------- agreement */}
 

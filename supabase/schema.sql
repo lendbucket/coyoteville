@@ -25,9 +25,29 @@ create table if not exists public.events (
   blurb         text,
   location_name text        not null default 'Coyoteville',
   is_published  boolean     not null default true,
+
+  -- How many of each spot exist for this event. The live spots meter counts
+  -- claimed rows against these. Null means capacity is not set yet, and the
+  -- site says so rather than showing a made up percentage.
+  booth_capacity integer,
+  truck_capacity integer,
+
   created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
+  updated_at    timestamptz not null default now(),
+
+  constraint events_booth_capacity_check check (booth_capacity is null or booth_capacity >= 0),
+  constraint events_truck_capacity_check check (truck_capacity is null or truck_capacity >= 0)
 );
+
+-- Capacity columns were added after the first release. Add them in place on a
+-- database that already ran the original schema.
+alter table public.events add column if not exists booth_capacity integer;
+alter table public.events add column if not exists truck_capacity integer;
+
+comment on column public.events.booth_capacity is
+  'Number of vendor booth spots for this event. Null means not set, and the site shows a neutral state instead of a percentage.';
+comment on column public.events.truck_capacity is
+  'Number of food truck spots for this event. Null means not set.';
 
 comment on table public.events is 'Event calendar. The slug is what the application form submits.';
 
@@ -58,6 +78,13 @@ create table if not exists public.vendor_applications (
   agreement_version     text        not null,
   signer_ip             text,
   signer_user_agent     text,
+
+  -- uploads. These are storage object paths, never public URLs. The admin
+  -- view mints a short lived signed URL when someone actually looks at one.
+  logo_path             text,
+  photo_paths           text[]      not null default '{}',
+  permit_path           text,
+  serves_food           boolean     not null default false,
 
   -- money
   amount_cents          integer     not null default 0,
@@ -127,8 +154,23 @@ begin
   end if;
 end $$;
 
+-- Upload columns were added after the first release.
+alter table public.vendor_applications add column if not exists logo_path    text;
+alter table public.vendor_applications add column if not exists photo_paths  text[] not null default '{}';
+alter table public.vendor_applications add column if not exists permit_path  text;
+alter table public.vendor_applications add column if not exists serves_food  boolean not null default false;
+
+comment on column public.vendor_applications.permit_path is
+  'Storage path of the food handler permit in the private coyoteville-permits bucket. Never expose this directly, mint a signed URL.';
+comment on column public.vendor_applications.photo_paths is
+  'Storage paths of business photos used for social spotlights.';
+
 create index if not exists vendor_applications_event_idx
   on public.vendor_applications (event_slug, created_at desc);
+
+-- Counting claimed spots per type is the hot query behind the live meter.
+create index if not exists vendor_applications_spot_count_idx
+  on public.vendor_applications (event_slug, spot_type, payment_status);
 
 create index if not exists vendor_applications_payment_idx
   on public.vendor_applications (payment_status);
@@ -285,3 +327,49 @@ on conflict (slug) do update
       display_date = excluded.display_date,
       display_time = excluded.display_time,
       blurb        = excluded.blurb;
+
+-- -------------------------------------------------------------- storage ---
+-- Two buckets, both private.
+--
+--   coyoteville-permits  food handler permits. Sensitive. Never public.
+--   coyoteville-media    business logos and spotlight photos.
+--
+-- Neither is marked public, so the only way to read an object is a signed URL
+-- minted server side by the service role. The admin view does that on demand
+-- with a short expiry. If you later want logos to be shareable straight from a
+-- link, flip coyoteville-media to public here; leave the permits bucket alone.
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  (
+    'coyoteville-permits',
+    'coyoteville-permits',
+    false,
+    10485760,
+    array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf']
+  ),
+  (
+    'coyoteville-media',
+    'coyoteville-media',
+    false,
+    10485760,
+    array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf']
+  )
+on conflict (id) do update
+  set public             = excluded.public,
+      file_size_limit    = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+-- No storage policies for anon or authenticated on purpose. Uploads go through
+-- the API route using the service role key, which bypasses RLS, and reads go
+-- through signed URLs. An anonymous client cannot list, read or write either
+-- bucket. Drop any policy an earlier run may have left behind.
+drop policy if exists "coyoteville media public read" on storage.objects;
+drop policy if exists "coyoteville anon upload"       on storage.objects;
+
+-- Backfill capacity for the seeded event so the meter has something real to
+-- count against. Change these numbers per event, or edit the row directly.
+update public.events
+   set booth_capacity = coalesce(booth_capacity, 30),
+       truck_capacity = coalesce(truck_capacity, 10)
+ where slug = 'tailgate-kickoff-2026-08-28';

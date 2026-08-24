@@ -4,7 +4,15 @@ import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { getSquare, getSquareLocationId, isSquareConfigured } from '@/lib/square';
 import { getClientIp, rateLimit } from '@/lib/rate-limit';
 import { AGREEMENT_VERSION } from '@/components/VendorAgreement';
-import { EVENTS, PRICING, SITE_URL, priceForSpot } from '@/lib/seo';
+import { EVENTS, PRICING, SITE_URL, priceForSpot, isSignupClosed } from '@/lib/seo';
+import {
+  MAX_PHOTOS,
+  UploadError,
+  storeUpload,
+  validateUpload,
+  type ValidatedUpload,
+} from '@/lib/uploads';
+import { invalidateSpots } from '@/lib/spots';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,6 +47,7 @@ function validate(body: Payload) {
 
   const waiver_accepted = body.waiver_accepted === true;
   const permits_confirmed = body.permits_confirmed === true;
+  const serves_food = body.serves_food === true;
 
   if (business_name.length < 2 || business_name.length > 120) {
     errors.push('Give us your business name.');
@@ -99,8 +108,66 @@ function validate(body: Payload) {
       signed_date,
       waiver_accepted,
       permits_confirmed,
+      serves_food,
     },
   };
+}
+
+/**
+ * Pull the text fields out of a multipart body into the shape validate() has
+ * always taken. Files are handled separately; checkbox fields arrive as the
+ * strings "true" and "false" and are coerced back to booleans here.
+ */
+const BOOLEAN_FIELDS = new Set(['waiver_accepted', 'permits_confirmed', 'serves_food']);
+
+function fieldsFromFormData(form: FormData): Payload {
+  const body: Payload = {};
+
+  for (const [key, value] of form.entries()) {
+    if (typeof value !== 'string') continue;
+    body[key] = BOOLEAN_FIELDS.has(key) ? value === 'true' : value;
+  }
+
+  return body;
+}
+
+/**
+ * Validate every upload before anything is written. A permit is required for a
+ * food truck, and for any vendor who says they serve food. That rule is checked
+ * here rather than trusted from the form.
+ */
+async function collectUploads(
+  form: FormData,
+  spotType: string,
+  servesFood: boolean
+): Promise<ValidatedUpload[]> {
+  const uploads: ValidatedUpload[] = [];
+
+  const logo = form.get('logo');
+  if (logo instanceof File && logo.size > 0) {
+    uploads.push(await validateUpload(logo, 'logo', 'Your logo'));
+  }
+
+  const photos = form.getAll('photos').filter((p): p is File => p instanceof File && p.size > 0);
+  if (photos.length > MAX_PHOTOS) {
+    throw new UploadError(`Pick at most ${MAX_PHOTOS} photos.`);
+  }
+  for (const [i, photo] of photos.entries()) {
+    uploads.push(await validateUpload(photo, 'photo', `Photo ${i + 1}`));
+  }
+
+  const permit = form.get('permit');
+  const permitRequired = spotType === 'truck' || servesFood;
+
+  if (permit instanceof File && permit.size > 0) {
+    uploads.push(await validateUpload(permit, 'permit', 'Your food handler permit'));
+  } else if (permitRequired) {
+    throw new UploadError(
+      'A food handler permit is required for food trucks and for anyone serving food.'
+    );
+  }
+
+  return uploads;
 }
 
 /** Trust the browser date only if it is sane. Otherwise stamp it here. */
@@ -130,9 +197,20 @@ export async function POST(request: Request) {
     );
   }
 
+  // The form posts multipart so the uploads travel with it. JSON is still
+  // accepted so anything already integrated against this route keeps working.
   let body: Payload;
+  let form: FormData | null = null;
+
+  const contentType = request.headers.get('content-type') || '';
+
   try {
-    body = (await request.json()) as Payload;
+    if (contentType.includes('multipart/form-data')) {
+      form = await request.formData();
+      body = fieldsFromFormData(form);
+    } else {
+      body = (await request.json()) as Payload;
+    }
   } catch {
     return bad('We could not read that submission.');
   }
@@ -140,6 +218,37 @@ export async function POST(request: Request) {
   const { errors, value } = validate(body);
   if (errors.length) {
     return bad(errors[0]);
+  }
+
+  // Signup cutoff. Enforced here, not just hidden in the UI, so a stale page or
+  // a direct post cannot slip in after the deadline.
+  const event = EVENTS.find((e) => e.slug === value.event_slug);
+  if (!event) {
+    return bad('Pick an event.');
+  }
+  if (isSignupClosed(event)) {
+    return bad(
+      `Signup for ${event.name} closed on ${event.signupClosesDisplay} Central. Email us and we will get you on the next one.`,
+      409
+    );
+  }
+
+  // Validate uploads before writing anything, so a bad file does not leave a
+  // half finished application behind.
+  let uploads: ValidatedUpload[] = [];
+  if (form) {
+    try {
+      uploads = await collectUploads(form, value.spot_type, value.serves_food);
+    } catch (err) {
+      if (err instanceof UploadError) return bad(err.message, 422);
+      console.error('upload validation failed', err);
+      return bad('We could not read one of your files. Try again.', 400);
+    }
+  } else if (value.spot_type === 'truck' || value.serves_food) {
+    return bad(
+      'A food handler permit is required for food trucks and for anyone serving food.',
+      422
+    );
   }
 
   if (!isSupabaseConfigured()) {
@@ -177,6 +286,7 @@ export async function POST(request: Request) {
       agreement_version: AGREEMENT_VERSION,
       signer_ip: ip,
       signer_user_agent: userAgent,
+      serves_food: value.serves_food,
 
       amount_cents: amountCents,
       payment_status: isFree ? 'not_required' : 'unpaid',
@@ -190,6 +300,43 @@ export async function POST(request: Request) {
     return bad('We could not save that. Try again in a minute.', 500);
   }
 
+  // The counts on the front page changed.
+  invalidateSpots(value.event_slug);
+
+  // Store the files under the application id, then record the paths. Uploading
+  // after the insert keeps the keys tied to a real row rather than leaving
+  // orphaned objects behind if the insert had failed.
+  if (uploads.length) {
+    try {
+      let photoIndex = 0;
+      const paths: { logo_path?: string; permit_path?: string; photo_paths?: string[] } = {};
+      const photoPaths: string[] = [];
+
+      for (const upload of uploads) {
+        const path = await storeUpload(upload, inserted.id, photoIndex);
+        if (upload.kind === 'logo') paths.logo_path = path;
+        else if (upload.kind === 'permit') paths.permit_path = path;
+        else {
+          photoPaths.push(path);
+          photoIndex += 1;
+        }
+      }
+
+      if (photoPaths.length) paths.photo_paths = photoPaths;
+
+      const { error: pathError } = await supabase
+        .from('vendor_applications')
+        .update(paths)
+        .eq('id', inserted.id);
+
+      if (pathError) throw pathError;
+    } catch (err) {
+      // The application itself is saved and the vendor should not be sent back
+      // to the start over a file. Log it; the admin view shows the gap.
+      console.error('vendor upload storage failed', err);
+    }
+  }
+
   // Free spots for Coyote groups, booster clubs and nonprofits skip checkout.
   if (isFree) {
     return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl: null });
@@ -199,7 +346,7 @@ export async function POST(request: Request) {
     return bad('Payment is not connected yet. Email us and we will get you set.', 503);
   }
 
-  const event = EVENTS.find((e) => e.slug === value.event_slug);
+
   const spotLabel = value.spot_type === 'truck' ? PRICING.truck.label : PRICING.booth.label;
 
   try {

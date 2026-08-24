@@ -4,6 +4,10 @@
  * from here so the copy and the schema never drift apart.
  */
 
+import { EVENT_TIMEZONE, parseZonedWallClock, zoneAbbreviation } from './time';
+
+export { EVENT_TIMEZONE };
+
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') || 'https://coyoteville.com';
 
@@ -81,7 +85,15 @@ export function priceForSpot(spot: string): number | null {
   return null;
 }
 
-/** Upcoming events. The first entry drives the event bar and the Event schema. */
+/**
+ * Upcoming events. The first entry drives the ticker, the countdowns and the
+ * Event schema.
+ *
+ * `signupClosesLocal` and `gatesOpenLocal` are wall clock times in
+ * EVENT_TIMEZONE (America/Chicago), not offsets. Change them here to move a
+ * deadline. Nothing in a component hardcodes a date, and the daylight saving
+ * offset is worked out from the zone, so a winter event gets CST on its own.
+ */
 export const EVENTS = [
   {
     slug: 'tailgate-kickoff-2026-08-28',
@@ -92,10 +104,44 @@ export const EVENTS = [
     displayDate: 'Friday, August 28, 2026',
     displayTime: '4:00 PM',
     blurb: 'First home game of the season. We open at 4:00 PM.',
+
+    /** Vendor signup cutoff. After this the form closes, server side. */
+    signupClosesLocal: '2026-08-26T23:59:59',
+    signupClosesDisplay: 'Tuesday, August 26, 2026 at 11:59 PM',
+
+    /** Gates open. Drives the event countdown section. */
+    gatesOpenLocal: '2026-08-28T16:00:00',
   },
 ] as const;
 
 export const NEXT_EVENT = EVENTS[0];
+
+export type EventConfig = (typeof EVENTS)[number];
+
+/** UTC instant of an event's signup cutoff, resolved from its wall clock time. */
+export function signupClosesAt(event: EventConfig = NEXT_EVENT): number {
+  return parseZonedWallClock(event.signupClosesLocal, EVENT_TIMEZONE);
+}
+
+/** UTC instant an event's gates open. */
+export function gatesOpenAt(event: EventConfig = NEXT_EVENT): number {
+  return parseZonedWallClock(event.gatesOpenLocal, EVENT_TIMEZONE);
+}
+
+/**
+ * Whether vendor signup is shut for an event.
+ *
+ * The API route calls this before it will accept an application, so closing is
+ * enforced on the server and not just hidden in the UI.
+ */
+export function isSignupClosed(event: EventConfig = NEXT_EVENT, now: number = Date.now()): boolean {
+  return now >= signupClosesAt(event);
+}
+
+/** Zone label for the cutoff, eg "CDT". Rendered next to the deadline. */
+export function signupClosesZone(event: EventConfig = NEXT_EVENT): string {
+  return zoneAbbreviation(signupClosesAt(event), EVENT_TIMEZONE);
+}
 
 export const PAST_VENDORS = [
   'MuddyWaterz Food Truck',

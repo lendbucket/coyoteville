@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Anton, Barlow_Condensed, Karla, Yellowtail } from 'next/font/google';
 import { SITE, SITE_URL, ADDRESS, GEO, KEYWORDS, OG_IMAGE } from '@/lib/seo';
+import DeadlineBarMount from '@/components/DeadlineBarMount';
 import './globals.css';
 
 /** Display type. Condensed, heavy, reads like painted lot signage. */
@@ -135,6 +136,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a className="skip" href="#main">
           Skip to content
         </a>
+        <DeadlineBarMount />
         {children}
       </body>
     </html>
