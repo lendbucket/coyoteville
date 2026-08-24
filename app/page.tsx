@@ -1,8 +1,11 @@
 import type { Metadata } from 'next';
 import Nav from '@/components/Nav';
 import Hero from '@/components/Hero';
-import EventBar from '@/components/EventBar';
+import Ticker from '@/components/Ticker';
+import Split from '@/components/Split';
+import Stats from '@/components/Stats';
 import About from '@/components/About';
+import Gallery from '@/components/Gallery';
 import Pricing from '@/components/Pricing';
 import PastVendors from '@/components/PastVendors';
 import VendorForm from '@/components/VendorForm';
@@ -10,7 +13,6 @@ import Faq from '@/components/Faq';
 import EmailCapture from '@/components/EmailCapture';
 import Visit from '@/components/Visit';
 import Footer from '@/components/Footer';
-import StringLights from '@/components/StringLights';
 import JsonLd from '@/components/JsonLd';
 import { homeSchemaGraph } from '@/lib/seo';
 
@@ -26,11 +28,11 @@ export default function HomePage() {
 
       <main id="main">
         <Hero />
-        <EventBar />
+        <Ticker />
+        <Split />
+        <Stats />
         <About />
-
-        <StringLights tone="light" variant="divider" swags={4} sag={30} bulbsPerSwag={8} id="divider-one" />
-
+        <Gallery />
         <Pricing />
         <PastVendors />
         <VendorForm />

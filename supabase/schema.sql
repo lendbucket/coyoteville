@@ -7,7 +7,7 @@
 -- Security model: row level security is on for every table and there are no
 -- anonymous insert, update or delete policies. Every write goes through a
 -- Next.js route handler using the service role key, which bypasses RLS. The
--- anon key can never reach signed waiver records or subscriber emails.
+-- anon key can never reach signed agreement records or subscriber emails.
 -- ============================================================================
 
 create extension if not exists "pgcrypto";
@@ -49,13 +49,13 @@ create table if not exists public.vendor_applications (
   sells                 text        not null,
   notes                 text,
 
-  -- the signed waiver record, this is the auditable part
+  -- the signed agreement record, this is the auditable part
   waiver_accepted       boolean     not null default false,
   permits_confirmed     boolean     not null default false,
   signature_name        text        not null,
   signed_date           date        not null,
   signed_at             timestamptz not null default now(),
-  waiver_version        text        not null,
+  agreement_version     text        not null,
   signer_ip             text,
   signer_user_agent     text,
 
@@ -93,15 +93,39 @@ create table if not exists public.vendor_applications (
 );
 
 comment on table public.vendor_applications is
-  'Vendor applications with the signed waiver record attached. Never delete rows here, cancel them instead.';
-comment on column public.vendor_applications.waiver_version is
-  'Version string of the waiver text the vendor actually agreed to. Matches WAIVER_VERSION in components/Waiver.tsx.';
+  'Vendor applications with the signed Vendor Participation Agreement record attached. Never delete rows here, cancel them instead.';
+comment on column public.vendor_applications.agreement_version is
+  'Version string of the Vendor Participation Agreement the vendor actually agreed to. Matches AGREEMENT_VERSION in components/VendorAgreement.tsx. Stamped server side, never accepted from the client.';
 comment on column public.vendor_applications.signer_ip is
   'Captured at signing to support the electronic signature record under Texas UETA.';
 comment on column public.vendor_applications.square_order_id is
   'Square order id. The order carries reference_id = this row id, which is how the webhook maps a completed payment back here.';
 comment on column public.vendor_applications.square_payment_link_id is
   'Square payment link id, kept so a link can be looked up or voided later.';
+
+-- Migration from the v1 waiver to the v2 Vendor Participation Agreement.
+-- The column above is created as agreement_version on a fresh database. On a
+-- database that already ran the v1 schema the column exists as waiver_version,
+-- so rename it in place. Signed rows keep their original version string, which
+-- is the point: an old signature still points at the language it was given.
+-- Renaming carries the column through the event_roster view automatically.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name   = 'vendor_applications'
+      and column_name  = 'waiver_version'
+  ) and not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public'
+      and table_name   = 'vendor_applications'
+      and column_name  = 'agreement_version'
+  ) then
+    alter table public.vendor_applications
+      rename column waiver_version to agreement_version;
+  end if;
+end $$;
 
 create index if not exists vendor_applications_event_idx
   on public.vendor_applications (event_slug, created_at desc);
@@ -196,7 +220,7 @@ select
   a.paid_at,
   a.signature_name,
   a.signed_date,
-  a.waiver_version,
+  a.agreement_version,
   a.created_at          as applied_at
 from public.events e
 join public.vendor_applications a
@@ -235,7 +259,7 @@ create policy "events public read published"
   using (is_published is true);
 
 -- Deliberately no insert, update or delete policies on any table, and no
--- select policy at all on vendor_applications or subscribers. Signed waivers,
+-- select policy at all on vendor_applications or subscribers. Signed agreements,
 -- phone numbers and email addresses stay server side.
 
 revoke all on public.vendor_applications from anon, authenticated;

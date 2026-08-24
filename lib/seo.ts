@@ -14,8 +14,27 @@ export const SITE = {
   url: SITE_URL,
   email: 'ceo@36west.org',
   facebook: 'https://facebook.com/coyoteville',
+  /**
+   * Structured data and social cards take the raster. Crawlers and the social
+   * scrapers do not render SVG, so logo/ogImage must stay PNG.
+   */
   logo: `${SITE_URL}/logo.png`,
   ogImage: `${SITE_URL}/logo.png`,
+  /** In-page brand mark. Vector, so it stays crisp at any nav or footer size. */
+  logoSvg: '/logo.svg',
+  /** Square mark for the favicon and the apple touch icon. */
+  icon: '/icon.png',
+} as const;
+
+/**
+ * Real pixel size of public/logo.png. The badge is 3:2, not the 1.91:1 social
+ * platforms prefer, so these are declared honestly rather than stretched to fit.
+ * Facebook, LinkedIn and X letterbox or centre-crop it; they do not distort it.
+ */
+export const OG_IMAGE = {
+  url: SITE.ogImage,
+  width: 1200,
+  height: 800,
 } as const;
 
 export const ADDRESS = {
@@ -148,7 +167,7 @@ export const FAQ = [
   },
   {
     q: 'How do I hold my spot?',
-    a: 'Fill out the application, sign the waiver and pay. Your spot is not reserved until the fee is paid. Space assignment is up to us so we can keep the layout safe and the traffic moving.',
+    a: 'Fill out the application, sign the Vendor Participation Agreement and pay. Your spot is not reserved until the fee is paid. Space assignment is up to us so we can keep the layout safe and the traffic moving.',
   },
 ] as const;
 

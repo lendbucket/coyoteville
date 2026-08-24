@@ -2,7 +2,7 @@ import { FAQ } from '@/lib/seo';
 
 export default function Faq() {
   return (
-    <section className="section section--cream" id="faq" aria-labelledby="faq-title">
+    <section className="section section--char" id="faq" aria-labelledby="faq-title">
       <div className="shell">
         <p className="eyebrow">Questions</p>
         <h2 id="faq-title">Things people ask us</h2>

@@ -4,15 +4,25 @@
    ============================================================ */
 
 :root {
-  /* palette */
-  --cream: #f7f0e2;
-  --cream-deep: #efe5d2;
-  --ink: #151210;
-  --night: #12100e;
+  /* palette
+     Dark base with rust and ember carried over from v1. --night is the base
+     surface; --ink is kept as the darkest step for type on light panels. */
+  --black: #0b0b0c;
+  --char: #141416;
+  --char-2: #1c1c1f;
+  --cream: #f3eee5;
+  --cream-deep: #e4dccd;
+  --ink: #0b0b0c;
+  --night: #0b0b0c;
   --rust: #c4552b;
+  --rust-bright: #e06a38;
   --rust-dark: #9c3f1d;
-  --amber: #e8a13c;
+  --ember: #f0a94b;
+  /* --amber is the v1 name for the accent. Kept as an alias so existing rules
+     keep working; new rules should use --ember. */
+  --amber: var(--ember);
   --tan: #b79b72;
+  --dust: #8a8175;
 
   /* derived */
   --ink-70: rgba(21, 18, 16, 0.7);
@@ -23,14 +33,15 @@
   --hairline-light: rgba(21, 18, 16, 0.12);
 
   /* type */
-  --font-display: var(--font-ultra), Georgia, "Times New Roman", serif;
+  --font-display: var(--font-anton), Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  --font-condensed: var(--font-barlow), "Arial Narrow", system-ui, sans-serif;
   --font-body: var(--font-karla), system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-script: var(--font-yellowtail), "Brush Script MT", cursive;
 
   /* layout */
   --shell: 1140px;
   --gutter: clamp(1.15rem, 4vw, 2.5rem);
-  --nav-h: 68px;
+  --nav-h: 80px;
   --radius: 14px;
   --radius-sm: 9px;
 
@@ -52,13 +63,33 @@ html {
 
 body {
   margin: 0;
-  background: var(--cream);
-  color: var(--ink);
+  background: var(--black);
+  color: var(--cream);
   font-family: var(--font-body);
   font-size: 17px;
-  line-height: 1.68;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+}
+
+/* Fine film grain across the whole page. Perfectly flat colour is the tell
+   that gives a generated layout away, so this sits over everything at about
+   5% and breaks the flatness up. Fixed, so it does not scroll with content,
+   and pointer-events:none so it never eats a click. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@media print {
+  body::after {
+    display: none;
+  }
 }
 
 img,
@@ -73,14 +104,23 @@ a {
 
 h1,
 h2,
-h3,
-h4 {
+h3 {
   font-family: var(--font-display);
   font-weight: 400;
-  line-height: 1.06;
-  letter-spacing: -0.005em;
-  margin: 0 0 0.6em;
+  /* Anton is a condensed display face. It wants tight leading and uppercase,
+     which is what makes it read as signage rather than as a webfont. */
+  line-height: 0.94;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
+  margin: 0 0 0.5em;
   text-wrap: balance;
+}
+
+h4 {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 0.6em;
 }
 
 h1 {
@@ -123,32 +163,110 @@ p {
   color: var(--cream);
 }
 
+/* These set colour as well as background. The page base is dark now, so a
+   light panel that only set a background would inherit light type onto it. */
 .section--cream {
   background: var(--cream);
+  color: var(--ink);
 }
 
 .section--cream-deep {
   background: var(--cream-deep);
+  color: var(--ink);
+}
+
+.section--cream h1,
+.section--cream h2,
+.section--cream h3,
+.section--cream-deep h1,
+.section--cream-deep h2,
+.section--cream-deep h3 {
+  color: var(--ink);
+}
+
+/* Charcoal panel. The v2 base is dark, so most sections sit on this and the
+   cream panels are the deliberate exception rather than the default. */
+.section--char {
+  background: var(--char);
+  color: var(--cream);
+}
+
+.section--char + .section--char {
+  border-top: 1px solid rgba(243, 238, 229, 0.08);
 }
 
 .section--night h1,
 .section--night h2,
-.section--night h3 {
+.section--night h3,
+.section--char h1,
+.section--char h2,
+.section--char h3 {
   color: var(--cream);
 }
 
+.section--char .muted,
+.section--char .lede {
+  color: #b9b2a6;
+}
+
+/* Panels and cards inside a dark section flip from cream to charcoal. */
+.section--char .factcard {
+  background: rgba(243, 238, 229, 0.04);
+  border-color: rgba(243, 238, 229, 0.12);
+}
+
+.section--char .faq__item {
+  background: rgba(243, 238, 229, 0.04);
+  border-color: rgba(243, 238, 229, 0.12);
+}
+
+.section--char .faq__item[open] {
+  border-color: var(--rust-bright);
+}
+
+.section--char .faq__item summary::after {
+  border-right-color: var(--ember);
+  border-bottom-color: var(--ember);
+}
+
+.section--char .faq__answer {
+  color: #b9b2a6;
+}
+
+.section--char .factlist__label {
+  color: var(--ember);
+}
+
+/* Inline links only. Buttons carry their own colour and must not be recoloured
+   by a descendant selector that outranks the .btn modifiers. */
+.section--char a:not(.btn) {
+  color: var(--ember);
+}
+
+.section--char .chip {
+  background: rgba(243, 238, 229, 0.06);
+  border-color: rgba(243, 238, 229, 0.2);
+  color: #c9c2b6;
+}
+
 .eyebrow {
-  font-family: var(--font-body);
-  font-size: 0.76rem;
+  font-family: var(--font-condensed);
+  font-size: 0.86rem;
   font-weight: 700;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: var(--rust);
+  color: var(--rust-bright);
   margin: 0 0 0.85rem;
 }
 
-.section--night .eyebrow {
-  color: var(--amber);
+.section--cream .eyebrow,
+.section--cream-deep .eyebrow {
+  color: var(--rust);
+}
+
+.section--night .eyebrow,
+.section--char .eyebrow {
+  color: var(--ember);
 }
 
 .lede {
@@ -156,12 +274,15 @@ p {
   max-width: 60ch;
 }
 
+/* The base surface is dark, so muted defaults to muted-on-dark. Light panels
+   override it back to ink. */
 .muted {
-  color: var(--ink-70);
+  color: #b9b2a6;
 }
 
-.section--night .muted {
-  color: var(--cream-70);
+.section--cream .muted,
+.section--cream-deep .muted {
+  color: var(--ink-70);
 }
 
 /* ------------------------------------------------------------ buttons */
@@ -171,13 +292,13 @@ p {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-family: var(--font-body);
+  font-family: var(--font-condensed);
   font-weight: 700;
-  font-size: 0.95rem;
-  letter-spacing: 0.04em;
+  font-size: 1.05rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   text-decoration: none;
-  padding: 0.92rem 1.6rem;
+  padding: 0.9rem 1.75rem;
   border-radius: var(--radius-sm);
   border: 2px solid transparent;
   cursor: pointer;
@@ -211,18 +332,36 @@ p {
   background: #f2b258;
 }
 
+.btn--rust {
+  background: var(--rust);
+  color: #fff;
+}
+
+.btn--rust:hover {
+  background: var(--rust-bright);
+}
+
 .btn--ghost {
-  border-color: currentColor;
+  border-color: rgba(243, 238, 229, 0.45);
   background: transparent;
 }
 
-.section--night .btn--ghost {
+.section--night .btn--ghost,
+.section--char .btn--ghost,
+.hero .btn--ghost {
   color: var(--cream);
 }
 
-.btn--ghost:hover {
-  background: rgba(196, 85, 43, 0.14);
+.section--cream .btn--ghost,
+.section--cream-deep .btn--ghost {
+  border-color: currentColor;
 }
+
+.btn--ghost:hover {
+  border-color: var(--ember);
+  color: var(--ember);
+}
+
 
 .btn[disabled],
 .btn[aria-disabled='true'] {
@@ -286,7 +425,7 @@ p {
   position: sticky;
   top: 0;
   z-index: 60;
-  background: rgba(18, 16, 14, 0.94);
+  background: rgba(11, 11, 12, 0.9);
   backdrop-filter: blur(9px);
   border-bottom: 1px solid var(--hairline-dark);
   color: var(--cream);
@@ -309,12 +448,16 @@ p {
   min-width: 0;
 }
 
+/* The badge is 3:2 and carries its own plate, so it is not cropped to a circle
+   and gets no backdrop of its own.
+   Height comes from an inline style driven by the `size` prop. Width stays auto
+   and is resolved from the aspect ratio implied by the width and height
+   attributes. Do not set a width here: an author `width` beats the HTML
+   attributes, and the optimised SVG carries no intrinsic size to fall back on,
+   so the mark would collapse. */
 .brand__mark {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  object-fit: contain;
-  background: var(--night);
+  width: auto;
+  display: block;
   flex: none;
 }
 
@@ -346,28 +489,30 @@ p {
 
 .nav__links a {
   text-decoration: none;
-  font-size: 0.88rem;
+  font-family: var(--font-condensed);
+  font-size: 1rem;
   font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--cream-70);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #c9c2b6;
   transition: color 0.15s var(--ease);
 }
 
 .nav__links a:hover {
-  color: var(--amber);
+  color: var(--ember);
 }
 
 .nav__cta {
   background: var(--rust);
-  color: var(--cream) !important;
-  padding: 0.55rem 1.05rem;
+  color: #fff !important;
+  padding: 0.6rem 1.15rem;
   border-radius: var(--radius-sm);
   font-weight: 700;
 }
 
 .nav__cta:hover {
-  background: var(--rust-dark);
-  color: var(--cream) !important;
+  background: var(--rust-bright);
+  color: #fff !important;
 }
 
 @media (max-width: 780px) {
@@ -376,121 +521,431 @@ p {
   }
 }
 
-/* ------------------------------------------------------------ hero */
+/* ------------------------------------------------------------ photo utils */
 
-.hero {
-  position: relative;
-  background: var(--night);
-  color: var(--cream);
-  overflow: hidden;
-  padding-bottom: clamp(3rem, 7vw, 5rem);
-}
-
-.hero::after {
-  content: '';
+/* Fills a positioned parent and crops instead of letterboxing. */
+.photo--cover {
   position: absolute;
   inset: 0;
-  background: radial-gradient(
-      120% 78% at 50% 0%,
-      rgba(232, 161, 60, 0.14) 0%,
-      rgba(232, 161, 60, 0) 62%
-    ),
-    radial-gradient(90% 60% at 50% 108%, rgba(196, 85, 43, 0.22) 0%, rgba(196, 85, 43, 0) 70%);
-  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo {
+  width: 100%;
+  height: auto;
+}
+
+/* ------------------------------------------------------------ hero */
+
+/* Full bleed photographic hero. The type sits low and left on the image
+   rather than centred in empty space. */
+.hero {
+  position: relative;
+  min-height: 88vh;
+  display: flex;
+  align-items: flex-end;
+  background: var(--black);
+  color: var(--cream);
+  overflow: hidden;
+}
+
+.hero__bg {
+  position: absolute;
+  inset: 0;
+}
+
+.hero__bg img {
+  filter: brightness(0.42) saturate(0.85) contrast(1.1);
+}
+
+/* Vertical scrim. Dark at the top so the sticky nav stays legible, dark again
+   at the bottom so the headline has something to sit on. */
+.hero__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(11, 11, 12, 0.72) 0%,
+    rgba(11, 11, 12, 0.16) 35%,
+    rgba(11, 11, 12, 0.93) 100%
+  );
+}
+
+/* Warm bloom under the headline corner, so the left side is not flat black. */
+.hero__tint {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(900px 500px at 20% 85%, rgba(196, 85, 43, 0.36), transparent 70%);
+}
+
+.hero .string-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
 }
 
 .hero__body {
   position: relative;
-  z-index: 3;
-  text-align: center;
-  padding-top: clamp(1.5rem, 4vw, 2.75rem);
+  z-index: 4;
+  text-align: left;
+  padding-block: clamp(4rem, 10vw, 6.5rem) clamp(2.6rem, 5vw, 4.25rem);
+}
+
+.hero__tagline {
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 0.94rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--ember);
+  margin: 0 0 1.1rem;
 }
 
 .hero h1 {
-  margin-bottom: 0.45em;
+  font-size: clamp(3.25rem, 10.5vw, 8.25rem);
+  max-width: 14ch;
+  margin: 0;
 }
 
-.hero__script {
-  font-family: var(--font-script);
-  font-size: clamp(1.6rem, 4.2vw, 2.6rem);
-  color: var(--amber);
-  line-height: 1.25;
-  margin: 0 0 0.5rem;
+.hero__line2 {
+  display: block;
+  color: var(--ember);
+}
+
+.hero__under {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1.5rem 2.4rem;
+  margin-top: 1.9rem;
 }
 
 .hero__lede {
-  max-width: 46ch;
-  margin: 0 auto 2rem;
-  color: var(--cream-70);
-  font-size: clamp(1.03rem, 1.9vw, 1.22rem);
+  max-width: 40ch;
+  margin: 0;
+  color: #cfc8bc;
+  font-size: clamp(1rem, 1.7vw, 1.13rem);
 }
 
 .hero__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.85rem;
-  justify-content: center;
+  gap: 0.75rem;
 }
 
 .hero__meta {
-  margin-top: 2.4rem;
+  margin: 2.1rem 0 0;
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.6rem 1.6rem;
-  font-size: 0.87rem;
-  letter-spacing: 0.06em;
+  gap: 0.5rem 1.6rem;
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 0.88rem;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--tan);
+  color: var(--dust);
 }
 
-/* ------------------------------------------------------------ event bar */
+/* ------------------------------------------------------------ ticker */
 
-.eventbar {
-  background: var(--rust);
-  color: var(--cream);
+.ticker {
+  background: var(--ember);
+  color: var(--black);
   position: relative;
-  z-index: 4;
+  z-index: 5;
+  overflow: hidden;
 }
 
-.eventbar__inner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem 1rem;
-  padding-block: 0.95rem;
-  text-align: center;
+/* The visible strip is decorative and duplicated for the loop, so the same
+   facts are carried once here for assistive tech. */
+.ticker__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
-.eventbar__tag {
-  font-size: 0.72rem;
+.ticker__track {
+  white-space: nowrap;
+  padding-block: 0.7rem;
+}
+
+.ticker__run {
+  display: inline-block;
+  animation: ticker-scroll 34s linear infinite;
+  will-change: transform;
+}
+
+.ticker__item {
+  font-family: var(--font-condensed);
   font-weight: 700;
+  font-size: 1.05rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  background: rgba(18, 16, 14, 0.28);
-  padding: 0.28rem 0.66rem;
-  border-radius: 100px;
+  padding-inline: 1.3rem;
 }
 
-.eventbar__name {
+.ticker__sep {
+  color: var(--rust);
+  padding-left: 2.6rem;
+  font-weight: 400;
+}
+
+/* The run holds the item list three times, so shifting by exactly one third
+   lands on an identical frame and the loop has no visible seam. Keep this
+   fraction and the copy count in Ticker.tsx in step. */
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-33.3333%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker__run {
+    animation: none;
+  }
+
+  .ticker__track {
+    overflow-x: auto;
+  }
+}
+
+/* ------------------------------------------------------------ split */
+
+/* Asymmetric on purpose. The photo column is the wider one and runs the full
+   height of the row. */
+.split {
+  display: grid;
+  grid-template-columns: 1fr;
+  background: var(--char);
+}
+
+@media (min-width: 900px) {
+  .split {
+    grid-template-columns: 1.05fr 0.95fr;
+    min-height: 560px;
+  }
+}
+
+.split__photo {
+  position: relative;
+  overflow: hidden;
+  min-height: 300px;
+}
+
+@media (min-width: 900px) {
+  .split__photo {
+    min-height: 100%;
+  }
+}
+
+.split__photo img {
+  filter: brightness(0.82) saturate(0.9);
+}
+
+.split__photo .string-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+
+.split__text {
+  padding: clamp(2.8rem, 6vw, 4.75rem) clamp(1.4rem, 4vw, 3.75rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--char);
+  color: var(--cream);
+}
+
+.split__text h2 {
+  font-size: clamp(2rem, 4.6vw, 3.6rem);
+  margin-bottom: 1rem;
+}
+
+.split__text p {
+  color: #b9b2a6;
+  max-width: 48ch;
+}
+
+.split__text p:last-child {
+  margin-bottom: 0;
+}
+
+/* ------------------------------------------------------------ stats */
+
+/* Stat strip over a photograph rather than a solid colour block. */
+.stats {
+  position: relative;
+  overflow: hidden;
+}
+
+.stats__bg {
+  position: absolute;
+  inset: 0;
+}
+
+.stats__bg img {
+  filter: brightness(0.3) saturate(0.7);
+}
+
+/* The 1px gap plus a light background is what draws the hairline rules between
+   cells, so there is no border to keep in sync. */
+.stats__inner {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: rgba(243, 238, 229, 0.14);
+}
+
+@media (min-width: 820px) {
+  .stats__inner {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.stat {
+  background: rgba(11, 11, 12, 0.86);
+  padding: clamp(1.75rem, 3.6vw, 2.6rem) clamp(1rem, 2vw, 1.65rem);
+}
+
+.stat__value {
+  display: block;
   font-family: var(--font-display);
-  font-size: clamp(1.05rem, 2.4vw, 1.4rem);
+  font-weight: 400;
+  font-size: clamp(2rem, 4.4vw, 3.4rem);
+  line-height: 1;
+  color: var(--ember);
 }
 
-.eventbar__when {
+.stat__label {
+  display: block;
+  font-family: var(--font-condensed);
   font-weight: 600;
-  font-size: 0.98rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dust);
+  margin-top: 0.65rem;
 }
 
-.eventbar__link {
-  font-weight: 700;
-  font-size: 0.87rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  text-decoration: underline;
-  text-underline-offset: 4px;
+/* ------------------------------------------------------------ gallery */
+
+.gallery {
+  position: relative;
+  background: var(--black);
+  color: var(--cream);
+  padding-block: clamp(3.6rem, 8vw, 6rem);
 }
+
+.gallery .string-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+
+.gallery .shell {
+  position: relative;
+  z-index: 3;
+}
+
+.gallery__grid {
+  list-style: none;
+  margin: 2.2rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (min-width: 900px) {
+  .gallery__grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.gallery__cell {
+  aspect-ratio: 4 / 5;
+}
+
+.gallery__figure {
+  position: relative;
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.gallery__caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 1.6rem 0.9rem 0.75rem;
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 0.92rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cream);
+  background: linear-gradient(to top, rgba(11, 11, 12, 0.85), transparent);
+}
+
+/* A slot with no photo yet. Keeps the grid intact while shots are collected. */
+.gallery__empty {
+  height: 100%;
+  border: 2px dashed rgba(240, 169, 75, 0.4);
+  background: rgba(240, 169, 75, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1.25rem;
+  gap: 0.4rem;
+}
+
+.gallery__num {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  line-height: 1;
+  color: rgba(240, 169, 75, 0.5);
+}
+
+.gallery__title {
+  font-family: var(--font-condensed);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.gallery__note {
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--dust);
+}
+
 
 /* ------------------------------------------------------------ about */
 
@@ -788,32 +1243,75 @@ p {
   color: var(--cream-50);
 }
 
-/* waiver box */
+/* ============================================================
+   Vendor Participation Agreement
+   ============================================================ */
 
-.waiver-box {
-  max-height: 320px;
+/* The wrapper carries the bottom fade. It has to sit outside the scrolling
+   element, otherwise the fade scrolls away with the text. */
+.agreement-scrollwrap {
+  position: relative;
+}
+
+.agreement-scroll {
+  max-height: 400px;
   overflow-y: auto;
   overscroll-behavior: contain;
   background: rgba(247, 240, 226, 0.05);
   border: 1px solid rgba(247, 240, 226, 0.2);
   border-radius: var(--radius-sm);
-  padding: 1.35rem 1.45rem;
+  padding: 1.35rem 1.45rem 2.4rem;
   font-size: 0.93rem;
   line-height: 1.62;
   color: rgba(247, 240, 226, 0.85);
-  scrollbar-color: var(--tan) transparent;
+  scrollbar-width: auto;
+  scrollbar-color: var(--tan) rgba(247, 240, 226, 0.08);
 }
 
-.waiver-box::-webkit-scrollbar {
-  width: 10px;
+/* A permanently visible track, so the bar reads as "there is more here"
+   rather than appearing only once the vendor already started scrolling. */
+.agreement-scroll::-webkit-scrollbar {
+  width: 12px;
 }
 
-.waiver-box::-webkit-scrollbar-thumb {
-  background: rgba(183, 155, 114, 0.5);
+.agreement-scroll::-webkit-scrollbar-track {
+  background: rgba(247, 240, 226, 0.08);
   border-radius: 100px;
+  margin: 4px;
 }
 
-.waiver-doc h4 {
+.agreement-scroll::-webkit-scrollbar-thumb {
+  background: var(--tan);
+  border-radius: 100px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* Fade the last line into the panel so it is obvious the text continues.
+   Inset on the right to clear the scrollbar, and non interactive. */
+.agreement-scrollwrap::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 14px;
+  bottom: 1px;
+  height: 68px;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  background: linear-gradient(to top, var(--night) 8%, rgba(18, 16, 14, 0));
+  pointer-events: none;
+}
+
+.hint--scroll::before {
+  content: '\2193\00a0';
+  color: var(--amber);
+  font-weight: 700;
+}
+
+.agreement__intro {
+  color: var(--cream);
+}
+
+.agreement h4 {
   font-family: var(--font-body);
   font-size: 0.8rem;
   font-weight: 700;
@@ -823,31 +1321,114 @@ p {
   margin: 1.5rem 0 0.4rem;
 }
 
-.waiver-doc p {
+.agreement p {
   margin: 0 0 0.85rem;
 }
 
-.waiver-head {
-  font-family: var(--font-display);
-  font-size: 1.05rem;
+.agreement ol {
+  margin: 0 0 0.95rem;
+  padding-left: 1.35rem;
+}
+
+.agreement ol li {
+  margin-bottom: 0.5rem;
+}
+
+.agreement strong {
   color: var(--cream);
-  line-height: 1.25;
-  margin-bottom: 0.3rem !important;
+  font-weight: 700;
 }
 
-.waiver-meta {
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--tan);
-}
-
-.waiver-close {
-  margin-top: 1.4rem;
+.agreement__exec {
+  margin-top: 1.5rem;
   padding-top: 1.1rem;
   border-top: 1px solid rgba(247, 240, 226, 0.16);
   color: var(--cream);
-  font-weight: 600;
+}
+
+/* ------------------------------------------------------------
+   Conspicuous provisions.
+
+   This is a legal requirement, not styling. Texas law will not enforce an
+   indemnity that shifts a party's own negligence unless it is conspicuous,
+   meaning a reasonable person against whom it operates ought to have noticed
+   it. See Dresser Industries v. Page Petroleum, 853 S.W.2d 505 (Tex. 1993),
+   read with the express negligence doctrine from Ethyl Corp. v. Daniel
+   Construction, 725 S.W.2d 705 (Tex. 1987), and the definition of conspicuous
+   in Tex. Bus. & Com. Code section 1.201(b)(10): larger type, contrasting
+   colour, and capitals all count.
+
+   So this block deliberately runs bold, uppercase, larger than the body copy
+   around it, on a contrasting field inside a heavy border. Do not soften it
+   for aesthetic reasons. If the surrounding font size changes, this one has to
+   stay visibly bigger than it.
+   ------------------------------------------------------------ */
+
+.agreement__box {
+  margin: 1.15rem 0 1.6rem;
+  padding: 1.15rem 1.25rem 1.2rem;
+  border: 3px solid var(--amber);
+  border-radius: var(--radius-sm);
+  background: rgba(232, 161, 60, 0.15);
+  color: #fff7ea;
+  /* Body copy in the scroller is 0.93rem. This has to read as larger. */
+  font-size: 1.04rem;
+  line-height: 1.5;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.015em;
+}
+
+.agreement__box p {
+  margin: 0 0 0.8rem;
+  font-weight: 700;
+}
+
+.agreement__box p:last-child {
+  margin-bottom: 0;
+}
+
+.agreement__box strong {
+  color: #fff7ea;
+}
+
+.agreement__boxhd {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  letter-spacing: 0.16em;
+  color: var(--amber);
+  margin-bottom: 0.7rem !important;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid rgba(232, 161, 60, 0.45);
+}
+
+/* Vendors print this. Keep it conspicuous on paper, where the dark palette
+   and the scroll container both disappear. */
+@media print {
+  .agreement-scroll {
+    max-height: none;
+    overflow: visible;
+    color: #000;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+
+  .agreement-scrollwrap::after {
+    display: none;
+  }
+
+  .agreement h4,
+  .agreement__boxhd {
+    color: #000;
+  }
+
+  .agreement__box {
+    border: 3px solid #000;
+    background: none;
+    color: #000;
+    break-inside: avoid;
+  }
 }
 
 /* checkboxes */
@@ -1139,12 +1720,8 @@ p {
   color: var(--amber);
 }
 
-.footer__script {
-  font-family: var(--font-script);
-  font-size: 1.7rem;
-  color: var(--amber);
-  line-height: 1.3;
-  margin: 0.2rem 0 0.7rem;
+.footer__brand {
+  margin: 0.2rem 0 0.9rem;
 }
 
 .footer__bottom {

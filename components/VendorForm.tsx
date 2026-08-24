@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
-import Waiver, { WAIVER_VERSION } from './Waiver';
+import { VendorAgreement, AGREEMENT_VERSION } from './VendorAgreement';
 import StringLights from './StringLights';
 import { EVENTS, PRICING, SITE } from '@/lib/seo';
 
@@ -12,7 +12,7 @@ export default function VendorForm() {
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
   const [spot, setSpot] = useState<'booth' | 'truck' | 'free'>('booth');
-  const [waiverAccepted, setWaiverAccepted] = useState(false);
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [permitsConfirmed, setPermitsConfirmed] = useState(false);
   const [signature, setSignature] = useState('');
 
@@ -51,11 +51,13 @@ export default function VendorForm() {
       event_slug: String(form.get('event_slug') || ''),
       sells: String(form.get('sells') || '').trim(),
       notes: String(form.get('notes') || '').trim(),
-      waiver_accepted: waiverAccepted,
+      waiver_accepted: agreementAccepted,
       permits_confirmed: permitsConfirmed,
       signature_name: signature.trim(),
       signed_date: signedISO,
-      waiver_version: WAIVER_VERSION,
+      // No agreement_version here on purpose. The server stamps the version it
+      // actually served from AGREEMENT_VERSION, so a client cannot claim to
+      // have signed a different one.
     };
 
     try {
@@ -84,7 +86,7 @@ export default function VendorForm() {
 
       setStatus('done');
       setMessage(
-        'You are on the list. We got your application and your signed waiver. Watch your email for the spot number.'
+        'You are on the list. We got your application and your signed agreement. Watch your email for the spot number.'
       );
     } catch {
       setStatus('error');
@@ -116,7 +118,7 @@ export default function VendorForm() {
         <p className="eyebrow">Vendor application</p>
         <h2 id="apply-title">Get your spot</h2>
         <p className="lede muted">
-          Fill this out, read the waiver, sign it and pay. That is the whole process. Booths are{' '}
+          Fill this out, read the agreement, sign it and pay. That is the whole process. Booths are{' '}
           {PRICING.booth.price}, truck spots are {PRICING.truck.price}, and Coyote groups,
           booster clubs and nonprofits are free.
         </p>
@@ -252,20 +254,23 @@ export default function VendorForm() {
             />
           </div>
 
-          {/* ------------------------------------------------ waiver */}
+          {/* --------------------------------------------- agreement */}
 
           <div className="field">
-            <span className="label">Vendor waiver, read it all</span>
-            <div
-              className="waiver-box"
-              tabIndex={0}
-              role="region"
-              aria-label="Coyoteville vendor waiver"
-            >
-              <Waiver />
+            <span className="label">Vendor Participation Agreement, read all 18 sections</span>
+            <div className="agreement-scrollwrap">
+              <div
+                className="agreement-scroll"
+                tabIndex={0}
+                role="region"
+                aria-label="Coyoteville Vendor Participation Agreement, scrollable"
+              >
+                <VendorAgreement />
+              </div>
             </div>
-            <span className="hint">
-              Version {WAIVER_VERSION}. This exact version gets saved with your signature.
+            <span className="hint hint--scroll">
+              Scroll inside the box to read all 18 sections. Version {AGREEMENT_VERSION}. This
+              exact version gets saved with your signature.
             </span>
           </div>
 
@@ -273,13 +278,14 @@ export default function VendorForm() {
             <input
               type="checkbox"
               name="waiver_accepted"
-              checked={waiverAccepted}
-              onChange={(e) => setWaiverAccepted(e.target.checked)}
+              checked={agreementAccepted}
+              onChange={(e) => setAgreementAccepted(e.target.checked)}
               required
             />
             <span>
-              I have read the Coyoteville vendor waiver above and I agree to all of it, including
-              the release, the indemnification and the assumption of risk.{' '}
+              I have read the Coyoteville Vendor Participation Agreement above and I agree to all
+              of it, including the release of liability, the indemnification covering the Released
+              Parties own negligence, and the assumption of risk.{' '}
               <span className="req">*</span>
             </span>
           </label>

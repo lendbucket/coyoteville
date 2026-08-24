@@ -28,7 +28,7 @@ export default function ConfirmedPage() {
           <h1 style={{ fontSize: 'clamp(1.9rem, 4.5vw, 2.9rem)' }}>Your spot is paid</h1>
 
           <p className="muted">
-            We got your payment and your signed waiver. Your spot at {NEXT_EVENT.name} on{' '}
+            We got your payment and your signed agreement. Your spot at {NEXT_EVENT.name} on{' '}
             {NEXT_EVENT.displayDate} is locked in. Check your email for the Square receipt.
           </p>
 

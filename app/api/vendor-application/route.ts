@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { getSquare, getSquareLocationId, isSquareConfigured } from '@/lib/square';
 import { getClientIp, rateLimit } from '@/lib/rate-limit';
-import { WAIVER_VERSION } from '@/components/Waiver';
+import { AGREEMENT_VERSION } from '@/components/VendorAgreement';
 import { EVENTS, PRICING, SITE_URL, priceForSpot } from '@/lib/seo';
 
 export const runtime = 'nodejs';
@@ -73,7 +73,7 @@ function validate(body: Payload) {
   }
 
   if (!waiver_accepted) {
-    errors.push('You have to agree to the vendor waiver before we can take your application.');
+    errors.push('You have to agree to the Vendor Participation Agreement before we can take your application.');
   }
 
   if (!permits_confirmed) {
@@ -167,13 +167,14 @@ export async function POST(request: Request) {
       sells: value.sells,
       notes: value.notes,
 
-      // Signed waiver record. Version is stamped server side, never from the client.
+      // Signed agreement record. Version is stamped server side from the constant
+      // this deployment actually rendered, never from the client payload.
       waiver_accepted: true,
       permits_confirmed: true,
       signature_name: value.signature_name,
       signed_date: signedDate,
       signed_at: new Date().toISOString(),
-      waiver_version: WAIVER_VERSION,
+      agreement_version: AGREEMENT_VERSION,
       signer_ip: ip,
       signer_user_agent: userAgent,
 

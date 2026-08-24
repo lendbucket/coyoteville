@@ -1,3 +1,4 @@
+import Brand from './Brand';
 import StringLights from './StringLights';
 import { ADDRESS, PRICING, SITE } from '@/lib/seo';
 
@@ -10,7 +11,9 @@ export default function Footer() {
 
       <div className="shell footer__grid">
         <div>
-          <p className="footer__script">Coyoteville</p>
+          <div className="footer__brand">
+            <Brand size={72} />
+          </div>
           <p style={{ maxWidth: '34ch' }}>
             {SITE.tagline} in {ADDRESS.city}, {ADDRESS.state}. Pull up on North Stadium Road and
             stay a while.

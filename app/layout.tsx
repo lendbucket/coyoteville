@@ -1,14 +1,24 @@
 import type { Metadata, Viewport } from 'next';
-import { Ultra, Karla, Yellowtail } from 'next/font/google';
-import { SITE, SITE_URL, ADDRESS, GEO, KEYWORDS } from '@/lib/seo';
+import { Anton, Barlow_Condensed, Karla, Yellowtail } from 'next/font/google';
+import { SITE, SITE_URL, ADDRESS, GEO, KEYWORDS, OG_IMAGE } from '@/lib/seo';
 import './globals.css';
 
-const ultra = Ultra({
+/** Display type. Condensed, heavy, reads like painted lot signage. */
+const anton = Anton({
   weight: '400',
   subsets: ['latin'],
   display: 'swap',
-  variable: '--font-ultra',
-  fallback: ['Georgia', 'Times New Roman', 'serif'],
+  variable: '--font-anton',
+  fallback: ['Impact', 'Haettenschweiler', 'Arial Narrow Bold', 'sans-serif'],
+});
+
+/** Labels, eyebrows and buttons. Scoreboard lettering. */
+const barlowCondensed = Barlow_Condensed({
+  weight: ['500', '600', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-barlow',
+  fallback: ['Arial Narrow', 'system-ui', 'sans-serif'],
 });
 
 const karla = Karla({
@@ -31,7 +41,7 @@ const DESCRIPTION =
   'Coyoteville is a food truck park in Alice TX with live music, local food trucks and vendor booths on North Stadium Road. Booths are $25, truck spots are $50, flat rate with no commission.';
 
 export const viewport: Viewport = {
-  themeColor: '#12100E',
+  themeColor: '#0B0B0C',
   width: 'device-width',
   initialScale: 1,
   colorScheme: 'dark light',
@@ -62,9 +72,9 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     images: [
       {
-        url: SITE.ogImage,
-        width: 1200,
-        height: 630,
+        url: OG_IMAGE.url,
+        width: OG_IMAGE.width,
+        height: OG_IMAGE.height,
         alt: `${SITE.name}, a food truck park in ${ADDRESS.city}, ${ADDRESS.stateCode}`,
       },
     ],
@@ -87,8 +97,13 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
+    // SVG first for browsers that take it, PNG as the fallback. Safari does not
+    // accept an SVG apple touch icon, so that one is always the square raster.
+    icon: [
+      { url: SITE.logoSvg, type: 'image/svg+xml' },
+      { url: SITE.icon, type: 'image/png', sizes: '512x512' },
+    ],
+    apple: [{ url: SITE.icon, sizes: '180x180' }],
   },
   formatDetection: {
     telephone: false,
@@ -112,7 +127,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${ultra.variable} ${karla.variable} ${yellowtail.variable}`}>
+    <html
+      lang="en"
+      className={`${anton.variable} ${barlowCondensed.variable} ${karla.variable} ${yellowtail.variable}`}
+    >
       <body>
         <a className="skip" href="#main">
           Skip to content

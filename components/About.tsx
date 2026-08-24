@@ -2,7 +2,7 @@ import { ADDRESS, NEXT_EVENT, SITE } from '@/lib/seo';
 
 export default function About() {
   return (
-    <section className="section section--cream" id="about" aria-labelledby="about-title">
+    <section className="section section--char" id="about" aria-labelledby="about-title">
       <div className="shell about__grid">
         <div>
           <p className="eyebrow">About the park</p>

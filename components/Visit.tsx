@@ -2,7 +2,7 @@ import { ADDRESS, MAPS_URL, NEXT_EVENT, SITE } from '@/lib/seo';
 
 export default function Visit() {
   return (
-    <section className="section section--cream-deep" id="visit" aria-labelledby="visit-title">
+    <section className="section section--char" id="visit" aria-labelledby="visit-title">
       <div className="shell visit__grid">
         <div>
           <p className="eyebrow">Come see us</p>

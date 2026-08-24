@@ -4,11 +4,23 @@ import { useState } from 'react';
 import { SITE } from '@/lib/seo';
 
 /**
- * Nav brand mark. Points at /logo.png. If that file is not there yet the
- * image errors out and we fall back to a rust colored initial, so the nav
- * never renders a broken image icon.
+ * Brand mark. Points at /logo.svg so the badge stays crisp at any size. If that
+ * file is not there yet the image errors out and we fall back to a rust colored
+ * initial, so the nav never renders a broken image icon.
+ *
+ * The badge is 3:2, so width and height are set to that ratio to reserve the
+ * right amount of layout space and avoid a shift while the asset loads.
  */
-export default function Brand({ href = '/' }: { href?: string }) {
+export default function Brand({
+  href = '/',
+  size = 52,
+  showName = false,
+}: {
+  href?: string;
+  /** Rendered height of the badge in px. Width follows the 3:2 ratio. */
+  size?: number;
+  showName?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
 
   return (
@@ -21,14 +33,15 @@ export default function Brand({ href = '/' }: { href?: string }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           className="brand__mark"
-          src="/logo.png"
+          src={SITE.logoSvg}
           alt=""
-          width={38}
-          height={38}
+          width={Math.round(size * 1.5)}
+          height={size}
+          style={{ height: size }}
           onError={() => setFailed(true)}
         />
       )}
-      <span className="brand__name">{SITE.name}</span>
+      {showName && <span className="brand__name">{SITE.name}</span>}
     </a>
   );
 }

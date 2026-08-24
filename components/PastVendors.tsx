@@ -2,7 +2,7 @@ import { PAST_VENDORS } from '@/lib/seo';
 
 export default function PastVendors() {
   return (
-    <section className="section section--cream" aria-labelledby="past-title">
+    <section className="section section--char" aria-labelledby="past-title">
       <div className="shell">
         <p className="eyebrow">Who has been out here</p>
         <h2 id="past-title">Trucks and booths that set up with us</h2>
