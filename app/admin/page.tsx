@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import AdminRowControls from '@/components/AdminRowControls';
 import AdminAbandoned from '@/components/AdminAbandoned';
-import { getAbandoned, howLongAgo } from '@/lib/abandoned';
+import AdminReminderButton from '@/components/AdminReminderButton';
+import { getAbandoned, howLongAgo, lastReminderFrom } from '@/lib/abandoned';
 import { isAdminConfigured, isAdminRequest } from '@/lib/admin-auth';
 import { getAdminView, normaliseFilters } from '@/lib/admin-data';
 import { EVENTS, PRICING } from '@/lib/seo';
@@ -183,9 +184,16 @@ export default async function AdminPage({
           contact_name: r.contact_name,
           phone: r.phone,
           email: r.email,
-          spot_type: r.spot_type,
+          spot_type:
+            r.spot_type === 'truck'
+              ? PRICING.truck.label
+              : r.spot_type === 'booth'
+                ? PRICING.booth.label
+                : PRICING.free.label,
+          amount: money(r.amount_cents),
           started: howLongAgo(r.minutesAgo),
-          reminderSent: r.reminderSent,
+          lastReminderAt: r.lastReminderAt,
+          canRemind: Boolean(r.square_payment_link_id),
         }))}
       />
 
@@ -328,6 +336,16 @@ export default async function AdminPage({
                 ) : null}
 
                 {r.notes ? <p className="arow__notes">{r.notes}</p> : null}
+
+                {r.payment_status === 'unpaid' ? (
+                  <div className="arow__remind">
+                    <AdminReminderButton
+                      id={r.id}
+                      lastReminderAt={lastReminderFrom(r.admin_notes)}
+                      canRemind={Boolean(r.square_payment_link_id)}
+                    />
+                  </div>
+                ) : null}
 
                 <AdminRowControls
                   id={r.id}

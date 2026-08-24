@@ -3244,3 +3244,57 @@ p {
 .select[aria-invalid='true'] {
   border-color: #ff9a7a;
 }
+
+/* --------------------------------------------------- payment reminder */
+
+.remind {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+}
+
+.remind__sent {
+  font-family: var(--font-condensed);
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dust);
+  white-space: nowrap;
+}
+
+.remind__error {
+  flex-basis: 100%;
+  font-size: 0.84rem;
+  color: #ff9a7a;
+}
+
+.remind__none {
+  font-size: 0.84rem;
+  color: var(--dust);
+}
+
+.arow__remind {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(243, 238, 229, 0.12);
+}
+
+/* At the gate this is used one handed, so the row stacks and both controls are
+   full width targets rather than something to aim at. */
+@media (max-width: 620px) {
+  .abandoned__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .abandoned__actions > .btn,
+  .remind {
+    width: 100%;
+  }
+
+  .remind .btn {
+    width: 100%;
+  }
+}

@@ -27,6 +27,8 @@ export type AdminApplication = {
   payment_method: string | null;
   approval_status: string;
   spot_number: string | null;
+  admin_notes: string | null;
+  square_payment_link_id: string | null;
   created_at: string;
 };
 
@@ -66,6 +68,8 @@ const COLUMNS = [
   'payment_method',
   'approval_status',
   'spot_number',
+  'admin_notes',
+  'square_payment_link_id',
   'created_at',
 ].join(', ');
 

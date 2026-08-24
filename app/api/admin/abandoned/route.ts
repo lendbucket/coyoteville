@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
-import { getAbandoned, howLongAgo, reminderAlreadySent, reminderNote } from '@/lib/abandoned';
+import { getAbandoned, howLongAgo, lastReminderFrom, reminderNote } from '@/lib/abandoned';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { getSquare, isSquareConfigured } from '@/lib/square';
 import { renderReminder } from '@/lib/email/reminder';
@@ -10,8 +10,6 @@ import { EVENTS, SITE_URL } from '@/lib/seo';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-const PHONE = '540 447 9432';
 
 function resolveEvent(slug: string | null): string {
   return EVENTS.some((e) => e.slug === slug) ? (slug as string) : EVENTS[0].slug;
@@ -37,9 +35,11 @@ export async function GET(request: Request) {
       phone: r.phone,
       email: r.email,
       spot_type: r.spot_type,
+      amount_cents: r.amount_cents,
       started: howLongAgo(r.minutesAgo),
       minutesAgo: r.minutesAgo,
-      reminderSent: r.reminderSent,
+      lastReminderAt: r.lastReminderAt,
+      canRemind: Boolean(r.square_payment_link_id),
     })),
   });
 }
@@ -70,7 +70,9 @@ export async function POST(request: Request) {
   const supabase = getSupabaseAdmin();
   const { data: row, error } = await supabase
     .from('vendor_applications')
-    .select('id, business_name, email, payment_status, admin_notes, square_payment_link_id')
+    .select(
+      'id, business_name, email, spot_type, amount_cents, payment_status, admin_notes, square_payment_link_id'
+    )
     .eq('id', id)
     .maybeSingle();
 
@@ -85,31 +87,45 @@ export async function POST(request: Request) {
     );
   }
 
-  if (reminderAlreadySent(row.admin_notes)) {
+  // The vendor's original payment link, looked up by the id stored at checkout.
+  // A new link would mean a new order with a different referenceId, and the
+  // webhook would settle the payment against the wrong application, so this
+  // refuses rather than falling back to a generic link.
+  if (!row.square_payment_link_id) {
     return NextResponse.json(
-      { ok: false, error: 'A reminder was already sent to this vendor.' },
+      { ok: false, error: 'No Square payment link on this application, so there is nothing to resend.' },
       { status: 409 }
     );
   }
 
-  // Prefer the vendor's real Square checkout link. It is not stored, so it is
-  // looked up by id. If Square cannot be reached the application section on the
-  // site is a working fallback rather than a dead end.
-  let finishUrl = `${SITE_URL}/#apply`;
-  if (row.square_payment_link_id && isSquareConfigured()) {
-    try {
-      const link = await getSquare().checkout.paymentLinks.get({ id: row.square_payment_link_id });
-      finishUrl = link.paymentLink?.url || link.paymentLink?.longUrl || finishUrl;
-    } catch (err) {
-      console.error('could not resolve Square payment link for reminder', row.id, err);
-    }
+  if (!isSquareConfigured()) {
+    return NextResponse.json(
+      { ok: false, error: 'Square is not connected, so the payment link cannot be looked up.' },
+      { status: 503 }
+    );
+  }
+
+  let finishUrl: string | null = null;
+  try {
+    const link = await getSquare().checkout.paymentLinks.get({ id: row.square_payment_link_id });
+    finishUrl = link.paymentLink?.url || link.paymentLink?.longUrl || null;
+  } catch (err) {
+    console.error('could not resolve Square payment link for reminder', row.id, err);
+  }
+
+  if (!finishUrl) {
+    return NextResponse.json(
+      { ok: false, error: 'Could not read the payment link from Square. Nothing was sent.' },
+      { status: 502 }
+    );
   }
 
   const message = renderReminder({
     businessName: row.business_name,
+    spotType: row.spot_type,
+    amountCents: row.amount_cents ?? 0,
     finishUrl,
     supportEmail: supportEmail(),
-    phone: PHONE,
   });
 
   const sent = await sendReminderEmail(row.email, message);
@@ -121,7 +137,10 @@ export async function POST(request: Request) {
   }
 
   // Only logged once the send actually succeeded, so a failure can be retried.
-  const note = [row.admin_notes, reminderNote()].filter(Boolean).join(' · ');
+  // Appended rather than replaced, so the row keeps the whole history.
+  const stamp = reminderNote();
+  const note = [row.admin_notes, stamp].filter(Boolean).join(' · ');
+
   const { error: noteError } = await supabase
     .from('vendor_applications')
     .update({ admin_notes: note, updated_at: new Date().toISOString() })
@@ -129,5 +148,5 @@ export async function POST(request: Request) {
 
   if (noteError) console.error('reminder sent but not logged', id, noteError);
 
-  return NextResponse.json({ ok: true, id, loggedAt: note });
+  return NextResponse.json({ ok: true, id, lastReminderAt: lastReminderFrom(stamp) });
 }

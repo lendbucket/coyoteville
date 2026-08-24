@@ -1,47 +1,91 @@
-import { NEXT_EVENT } from '../seo';
+import { NEXT_EVENT, PRICING } from '../seo';
 
 /**
- * Checkout reminder.
+ * Payment reminder.
  *
- * Short and plain. The one thing it has to land is that the spot is not held
- * until the payment goes through, because that is the part people assume.
+ * Short and plain. The line that has to land is that the spot is not held until
+ * the payment goes through, because that is the part people assume.
+ *
+ * The link handed in here is always the vendor's original Square payment link.
+ * A new order would carry a different referenceId and the webhook would settle
+ * it against the wrong application.
  */
 const BODY = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+const PHONE = '540 447 9432';
 
 function esc(v: string): string {
   return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function spotLabel(spot: string): string {
+  if (spot === 'truck') return PRICING.truck.label;
+  if (spot === 'booth') return PRICING.booth.label;
+  return PRICING.free.label;
+}
+
+function money(cents: number): string {
+  return `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
+}
+
 export function renderReminder(opts: {
   businessName: string;
+  spotType: string;
+  amountCents: number;
   finishUrl: string;
   supportEmail: string;
-  phone: string;
 }): { subject: string; html: string; text: string } {
-  const { businessName, finishUrl, supportEmail, phone } = opts;
+  const { businessName, spotType, amountCents, finishUrl, supportEmail } = opts;
+
+  const spot = spotLabel(spotType);
+  const amount = money(amountCents);
 
   const html = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Finish your Coyoteville signup</title></head>
+<title>Finish your Coyoteville payment</title></head>
 <body style="margin:0;padding:0;background-color:#F4F4F5;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F4F4F5;">
 <tr><td align="center" style="padding:20px 12px;">
 <!--[if mso]><table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;background-color:#FFFFFF;border:1px solid #DDDDE0;">
   <tr><td style="padding:24px 22px;font-family:${BODY};font-size:15px;line-height:24px;color:#111111;">
-    <p style="margin:0 0 14px;">We saw you started signing up ${esc(businessName)} for ${esc(NEXT_EVENT.name)} on ${esc(NEXT_EVENT.displayDate)}.</p>
-    <p style="margin:0 0 14px;"><strong>Your spot is not held until the payment goes through.</strong> Spots are first come, first paid.</p>
-    <p style="margin:0 0 22px;">Here is the link to finish:</p>
-    <p style="margin:0 0 22px;">
-      <a href="${finishUrl}" style="display:inline-block;background-color:#C4552B;color:#FFFFFF;font-family:${BODY};font-size:15px;font-weight:bold;text-decoration:none;padding:12px 22px;border-radius:4px;">Finish signing up</a>
+
+    <p style="margin:0 0 14px;">
+      We got your application and your signed agreement for Coyoteville on
+      ${esc(NEXT_EVENT.displayDate)}.
     </p>
-    <p style="margin:0;color:#555555;font-size:14px;">
-      If you have changed your mind that is fine, no need to reply. Questions, call ${esc(phone)} or email
+
+    <p style="margin:0 0 16px;">
+      <strong>Your spot is not held until the payment goes through.</strong>
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;">
+      <tr>
+        <td style="padding:4px 14px 4px 0;color:#666666;font-family:${BODY};font-size:14px;">Spot</td>
+        <td style="padding:4px 0;font-family:${BODY};font-size:14px;"><strong>${esc(spot)}</strong></td>
+      </tr>
+      <tr>
+        <td style="padding:4px 14px 4px 0;color:#666666;font-family:${BODY};font-size:14px;">Amount due</td>
+        <td style="padding:4px 0;font-family:${BODY};font-size:14px;"><strong>${esc(amount)}</strong></td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 20px;">
+      <a href="${finishUrl}" style="display:inline-block;background-color:#C4552B;color:#FFFFFF;font-family:${BODY};font-size:15px;font-weight:bold;text-decoration:none;padding:13px 24px;border-radius:4px;">Finish your payment</a>
+    </p>
+
+    <p style="margin:0 0 16px;">
+      Setup opens at 8:00 AM Friday morning and gates open to the public at 4:00 PM.
+    </p>
+
+    <p style="margin:0 0 18px;color:#555555;font-size:14px;">
+      Questions, call or text ${esc(PHONE)} or email
       <a href="mailto:${esc(supportEmail)}" style="color:#C4552B;">${esc(supportEmail)}</a>.
     </p>
-    <p style="margin:18px 0 0;color:#555555;font-size:14px;">Coyoteville<br />${esc(phone)}</p>
+
+    <p style="margin:0;color:#555555;font-size:14px;">Coyoteville<br />${esc(PHONE)}</p>
+
   </td></tr>
 </table>
 <!--[if mso]></td></tr></table><![endif]-->
@@ -49,18 +93,27 @@ export function renderReminder(opts: {
 </body></html>`;
 
   const text = [
-    `We saw you started signing up ${businessName} for ${NEXT_EVENT.name} on ${NEXT_EVENT.displayDate}.`,
+    `We got your application and your signed agreement for Coyoteville on ${NEXT_EVENT.displayDate}.`,
     '',
-    'Your spot is not held until the payment goes through. Spots are first come, first paid.',
+    'Your spot is not held until the payment goes through.',
     '',
-    'Here is the link to finish:',
+    `Spot:       ${spot}`,
+    `Amount due: ${amount}`,
+    '',
+    'Finish your payment here:',
     finishUrl,
     '',
-    `If you have changed your mind that is fine, no need to reply. Questions, call ${phone} or email ${supportEmail}.`,
+    'Setup opens at 8:00 AM Friday morning and gates open to the public at 4:00 PM.',
+    '',
+    `Questions, call or text ${PHONE} or email ${supportEmail}.`,
     '',
     'Coyoteville',
-    phone,
+    PHONE,
   ].join('\n');
 
-  return { subject: `Finish signing up ${businessName} for ${NEXT_EVENT.name}`, html, text };
+  return {
+    subject: `Finish your payment for ${businessName}, ${NEXT_EVENT.name}`,
+    html,
+    text,
+  };
 }
