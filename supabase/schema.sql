@@ -44,6 +44,20 @@ create table if not exists public.events (
 alter table public.events add column if not exists booth_capacity integer;
 alter table public.events add column if not exists truck_capacity integer;
 
+do $
+begin
+  if not exists (select 1 from pg_constraint where conname = 'events_booth_capacity_check') then
+    alter table public.events
+      add constraint events_booth_capacity_check
+      check (booth_capacity is null or booth_capacity >= 0);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'events_truck_capacity_check') then
+    alter table public.events
+      add constraint events_truck_capacity_check
+      check (truck_capacity is null or truck_capacity >= 0);
+  end if;
+end $;
+
 comment on column public.events.booth_capacity is
   'Number of vendor booth spots for this event. Null means not set, and the site shows a neutral state instead of a percentage.';
 comment on column public.events.truck_capacity is
@@ -350,14 +364,14 @@ values
     'coyoteville-permits',
     false,
     10485760,
-    array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf']
+    array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf']
   ),
   (
     'coyoteville-media',
     'coyoteville-media',
     false,
     10485760,
-    array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf']
+    array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf']
   )
 on conflict (id) do update
   set public             = excluded.public,

@@ -46,7 +46,24 @@ export type ValidatedUpload = {
   kind: UploadKind;
   file: File;
   extension: string;
+  /** Canonical type, from sniffing. Never the browser's claim. */
+  contentType: string;
 };
+
+/**
+ * Collapse the aliases onto one type per format.
+ *
+ * image/pjpeg is an old alias for JPEG. HEIF and HEIC are the same ISO base
+ * media container and the byte signature cannot tell them apart, so both
+ * resolve to image/heic. Everything downstream, including what is handed to
+ * storage, uses the canonical value.
+ */
+function canonicalType(type: string): string {
+  const t = (type || '').toLowerCase();
+  if (t === 'image/pjpeg') return 'image/jpeg';
+  if (t === 'image/heif') return 'image/heic';
+  return t;
+}
 
 /**
  * Magic-number check. A browser sets the MIME type from the file extension, so
@@ -109,15 +126,14 @@ export async function validateUpload(
     throw new UploadError(`We could not read ${label}. Save it as ${ALLOWED_LABEL} and try again.`);
   }
 
-  // jpeg has two common type strings; treat them as one.
-  const normalise = (t: string) => (t === 'image/pjpeg' ? 'image/jpeg' : t);
-  if (normalise(actual) !== normalise(claimed)) {
+  const contentType = canonicalType(actual);
+  if (contentType !== canonicalType(claimed)) {
     throw new UploadError(
       `${label} does not look like a ${claimed.split('/')[1]?.toUpperCase()} file. Re-save it and try again.`
     );
   }
 
-  return { kind, file, extension: ALLOWED[normalise(actual)] };
+  return { kind, file, extension: ALLOWED[contentType], contentType };
 }
 
 /**
@@ -140,7 +156,9 @@ export async function storeUpload(
   const { error } = await supabase.storage
     .from(bucket)
     .upload(path, upload.file, {
-      contentType: upload.file.type,
+      // The sniffed type, not the browser's claim, so the value always matches
+      // what the bucket allows.
+      contentType: upload.contentType,
       upsert: true,
       cacheControl: '3600',
     });
