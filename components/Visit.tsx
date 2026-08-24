@@ -1,0 +1,65 @@
+import { ADDRESS, MAPS_URL, NEXT_EVENT, SITE } from '@/lib/seo';
+
+export default function Visit() {
+  return (
+    <section className="section section--cream-deep" id="visit" aria-labelledby="visit-title">
+      <div className="shell visit__grid">
+        <div>
+          <p className="eyebrow">Come see us</p>
+          <h2 id="visit-title">Find the park</h2>
+
+          <address className="address">
+            <strong>{SITE.name}</strong>
+            {ADDRESS.street}
+            <br />
+            {ADDRESS.city}, {ADDRESS.state} {ADDRESS.zip}
+            <br />
+            {ADDRESS.county}
+          </address>
+
+          <p style={{ marginTop: '1.2rem' }}>{ADDRESS.landmark}</p>
+
+          <a className="btn btn--primary" href={MAPS_URL} target="_blank" rel="noopener noreferrer">
+            Get directions
+          </a>
+        </div>
+
+        <div className="factcard">
+          <h3>Before you head out</h3>
+          <ul className="factlist">
+            <li>
+              <span className="factlist__label">Next event</span>
+              <span className="factlist__value">
+                {NEXT_EVENT.name}, {NEXT_EVENT.displayDate} at {NEXT_EVENT.displayTime}
+              </span>
+            </li>
+            <li>
+              <span className="factlist__label">Parking</span>
+              <span className="factlist__value">Free, right at the lot.</span>
+            </li>
+            <li>
+              <span className="factlist__label">Bring</span>
+              <span className="factlist__value">
+                Chairs if you want to sit a while. Cash and cards both work at most trucks.
+              </span>
+            </li>
+            <li>
+              <span className="factlist__label">Weather</span>
+              <span className="factlist__value">
+                We run rain or shine. Check Facebook the day of if it looks rough.
+              </span>
+            </li>
+            <li>
+              <span className="factlist__label">Follow along</span>
+              <span className="factlist__value">
+                <a href={SITE.facebook} target="_blank" rel="noopener noreferrer">
+                  facebook.com/coyoteville
+                </a>
+              </span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
