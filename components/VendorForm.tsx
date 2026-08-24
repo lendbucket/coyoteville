@@ -56,7 +56,13 @@ export default function VendorForm({
   const uid = useId();
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
-  const [spot, setSpot] = useState<'booth' | 'truck' | 'free'>('booth');
+  /**
+   * No default on purpose. Booth and truck carry different fees and different
+   * permit rules, and a pre-selected booth meant people submitted without ever
+   * reading the field. Empty until they actually choose.
+   */
+  const [spot, setSpot] = useState<'' | 'booth' | 'truck' | 'free'>('');
+  const [spotError, setSpotError] = useState(false);
   const [servesFood, setServesFood] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [permitsConfirmed, setPermitsConfirmed] = useState(false);
@@ -82,7 +88,26 @@ export default function VendorForm({
   }, []);
 
   const fee =
-    spot === 'truck' ? PRICING.truck.price : spot === 'booth' ? PRICING.booth.price : 'Free';
+    spot === 'truck'
+      ? PRICING.truck.price
+      : spot === 'booth'
+        ? PRICING.booth.price
+        : spot === 'free'
+          ? PRICING.free.price
+          : null;
+
+  /**
+   * What each spot type actually costs and requires, shown the moment it is
+   * picked rather than left further down the page.
+   */
+  const spotNote =
+    spot === 'truck'
+      ? `${PRICING.truck.price} per event. Food handler and health permits are required on site.`
+      : spot === 'booth'
+        ? `${PRICING.booth.price} per event. No cooking or open flame in a booth space.`
+        : spot === 'free'
+          ? 'Free. Alice organizations set up at no charge.'
+          : null;
 
   const heading = prepaid ? 'Register your spot' : 'Get your spot';
 
@@ -114,6 +139,13 @@ export default function VendorForm({
     const photos = form.getAll('photos').filter((p) => p instanceof File && p.size > 0);
     form.delete('photos');
     for (const photo of photos.slice(0, MAX_PHOTOS)) form.append('photos', photo);
+
+    if (!spot) {
+      setStatus('error');
+      setSpotError(true);
+      setMessage('Pick a spot type before submitting.');
+      return;
+    }
 
     // Client side courtesy checks. lib/uploads.ts is the real gate.
     const tooBig = [form.get('logo'), form.get('permit'), ...photos].find(
@@ -312,13 +344,42 @@ export default function VendorForm({
                 name="spot_type"
                 required
                 value={spot}
-                onChange={(e) => setSpot(e.target.value as 'booth' | 'truck' | 'free')}
+                aria-invalid={spotError || undefined}
+                aria-describedby={spotError ? `${uid}-spot-error` : `${uid}-spot-note`}
+                onChange={(e) => {
+                  setSpot(e.target.value as 'booth' | 'truck' | 'free');
+                  setSpotError(false);
+                }}
+                onInvalid={(e) => {
+                  // Native validation still blocks the submit. This suppresses
+                  // the browser's own bubble so the message can be shown inline
+                  // where the rest of the form's errors appear.
+                  e.preventDefault();
+                  setSpotError(true);
+                }}
               >
+                <option value="" disabled>
+                  Choose one
+                </option>
                 <option value="booth">{PRICING.booth.label}, {PRICING.booth.price}</option>
                 <option value="truck">{PRICING.truck.label}, {PRICING.truck.price}</option>
                 <option value="free">{PRICING.free.label}, free</option>
               </select>
-              <span className="hint">Your fee: {fee}</span>
+
+              {spotError ? (
+                <span className="fielderror" id={`${uid}-spot-error`} role="alert">
+                  Pick a spot type. Booths and food trucks have different fees and different
+                  permit rules.
+                </span>
+              ) : spotNote ? (
+                <span className="fieldnote" id={`${uid}-spot-note`}>
+                  {spotNote}
+                </span>
+              ) : (
+                <span className="hint" id={`${uid}-spot-note`}>
+                  Pick one to see the fee and what is required.
+                </span>
+              )}
             </div>
 
             <div className="field">
@@ -549,14 +610,18 @@ export default function VendorForm({
                   ? 'Register my spot'
                   : spot === 'free'
                     ? 'Submit application'
-                    : `Sign and pay ${fee}`}
+                    : fee
+                      ? `Sign and pay ${fee}`
+                      : 'Sign and pay'}
             </button>
             <span className="hint">
               {prepaid
                 ? 'No payment is taken here. Your fee is already settled.'
                 : spot === 'free'
                   ? 'Alice organizations set up at no charge, so there is no payment step.'
-                  : 'Checkout runs through Square.'}
+                  : fee
+                    ? `You will be charged ${fee} at Square checkout. Nothing is taken before that.`
+                    : 'Pick a spot type above to see your fee.'}
             </span>
           </div>
         </form>

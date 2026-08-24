@@ -3213,3 +3213,34 @@ p {
   color: var(--cream);
   font-weight: 600;
 }
+
+/* --------------------------------------------- spot type field states */
+
+/* The fee and the requirements for the chosen spot type, shown at the moment
+   of choosing rather than left further down the page. */
+.fieldnote {
+  display: block;
+  margin-top: 0.4rem;
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid var(--ember);
+  background: rgba(240, 169, 75, 0.09);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--cream);
+}
+
+.fielderror {
+  display: block;
+  margin-top: 0.4rem;
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid #ff9a7a;
+  background: rgba(255, 154, 122, 0.1);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #ffb9a1;
+  font-weight: 600;
+}
+
+.select[aria-invalid='true'] {
+  border-color: #ff9a7a;
+}
