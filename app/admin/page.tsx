@@ -337,6 +337,13 @@ export default async function AdminPage({
 
                 {r.notes ? <p className="arow__notes">{r.notes}</p> : null}
 
+                {r.upload_issues ? (
+                  <p className="arow__uploadissue">
+                    Upload problem: {r.upload_issues}. The application went through anyway, so
+                    chase the file if you need it.
+                  </p>
+                ) : null}
+
                 {r.payment_status === 'unpaid' ? (
                   <div className="arow__remind">
                     <AdminReminderButton

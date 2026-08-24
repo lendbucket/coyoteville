@@ -18,8 +18,133 @@ type Status = 'idle' | 'sending' | 'error' | 'done';
 
 /** Mirrors the server side rules in lib/uploads.ts. The server is the gate. */
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_TOTAL_UPLOAD_BYTES = 8 * 1024 * 1024;
 const MAX_PHOTOS = 3;
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,application/pdf';
+
+/** Longest edge and quality images are resized to before sending. */
+const IMAGE_MAX_EDGE = 1600;
+const IMAGE_QUALITY = 0.82;
+
+/**
+ * Shrink an image in the browser before it is uploaded.
+ *
+ * A phone photo is commonly 3 to 6MB, and a logo, three photos and a permit
+ * straight off a camera roll comes to around 20MB. That is several times what a
+ * serverless request body comfortably takes and over a minute of uploading on a
+ * phone connection, which is what a submission failing part way through looks
+ * like. Resizing to 1600px on the long edge takes a typical photo to a few
+ * hundred kilobytes and is still far more resolution than the site or a social
+ * post needs.
+ *
+ * PDFs and anything the browser cannot decode are passed through untouched, and
+ * a result that somehow came out larger is discarded in favour of the original.
+ */
+async function compressImage(file: File): Promise<File> {
+  if (!file.type.startsWith('image/') || file.type === 'image/heic' || file.type === 'image/heif') {
+    // HEIC cannot be decoded by most browsers. It goes as-is and the server
+    // accepts it; iOS usually converts to JPEG on pick anyway.
+    return file;
+  }
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, IMAGE_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+
+    // Already small enough and already modest in size: leave it alone.
+    if (scale === 1 && file.size <= 900 * 1024) {
+      bitmap.close();
+      return file;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      bitmap.close();
+      return file;
+    }
+
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, 'image/jpeg', IMAGE_QUALITY)
+    );
+
+    if (!blob || blob.size >= file.size) return file;
+
+    return new File([blob], file.name.replace(/.[^.]+$/, '') + '.jpg', {
+      type: 'image/jpeg',
+      lastModified: file.lastModified,
+    });
+  } catch {
+    // Anything unreadable goes as it came. The server validates either way.
+    return file;
+  }
+}
+
+function mb(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+type SubmitResponse = { ok?: boolean; error?: string; checkoutUrl?: string | null };
+
+/**
+ * Post the form and report upload progress.
+ *
+ * fetch cannot report how much of a request body has gone out, and on a phone
+ * connection this upload can take a minute, so XMLHttpRequest is used purely
+ * for upload.onprogress. Failures become messages that name what happened
+ * rather than a generic apology.
+ */
+function postWithProgress(
+  url: string,
+  body: FormData,
+  onProgress: (percent: number) => void
+): Promise<SubmitResponse> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    xhr.timeout = 120_000;
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+
+    const tooLarge =
+      'Your files were too large for one submission. Remove a photo and try again.';
+
+    xhr.onload = () => {
+      if (xhr.status === 413) {
+        reject(new Error(tooLarge));
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(xhr.responseText) as SubmitResponse);
+      } catch {
+        // A non JSON body means the request never reached the handler, which is
+        // usually a gateway rejecting it before we ever see it.
+        reject(new Error('The server sent back something we could not read. Try again in a minute.'));
+      }
+    };
+
+    xhr.ontimeout = () =>
+      reject(
+        new Error(
+          'That took too long to upload, so nothing was submitted and nothing was charged. Try again on a stronger connection, or with fewer photos.'
+        )
+      );
+
+    xhr.onerror = () =>
+      reject(new Error('We could not reach the server. Check your connection and try again.'));
+
+    xhr.send(body);
+  });
+}
 
 /**
  * The vendor application.
@@ -63,6 +188,9 @@ export default function VendorForm({
    */
   const [spot, setSpot] = useState<'' | 'booth' | 'truck' | 'free'>('');
   const [spotError, setSpotError] = useState(false);
+  /** What the submit button is doing, so a slow upload does not look frozen. */
+  const [phase, setPhase] = useState<'' | 'preparing' | 'uploading' | 'finishing'>('');
+  const [progress, setProgress] = useState(0);
   const [servesFood, setServesFood] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [permitsConfirmed, setPermitsConfirmed] = useState(false);
@@ -111,6 +239,9 @@ export default function VendorForm({
 
   const heading = prepaid ? 'Register your spot' : 'Get your spot';
 
+  /** True for the whole submission, including the resize before the upload. */
+  const sending = status === 'sending';
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (status === 'sending') return;
@@ -131,15 +262,6 @@ export default function VendorForm({
     form.delete('signed_date_display');
     if (prepaid && token) form.set('prepaid_token', token);
 
-    // Drop empty file inputs so the server does not see zero byte parts.
-    for (const key of ['logo', 'permit']) {
-      const value = form.get(key);
-      if (value instanceof File && value.size === 0) form.delete(key);
-    }
-    const photos = form.getAll('photos').filter((p) => p instanceof File && p.size > 0);
-    form.delete('photos');
-    for (const photo of photos.slice(0, MAX_PHOTOS)) form.append('photos', photo);
-
     if (!spot) {
       setStatus('error');
       setSpotError(true);
@@ -147,36 +269,79 @@ export default function VendorForm({
       return;
     }
 
-    // Client side courtesy checks. lib/uploads.ts is the real gate.
-    const tooBig = [form.get('logo'), form.get('permit'), ...photos].find(
-      (f) => f instanceof File && f.size > MAX_UPLOAD_BYTES
-    );
-    if (tooBig instanceof File) {
-      setStatus('error');
-      setMessage(`${tooBig.name} is over the 10MB limit. Shrink it and try again.`);
-      return;
+    // Drop empty file inputs so the server does not see zero byte parts.
+    for (const key of ['logo', 'permit']) {
+      const value = form.get(key);
+      if (value instanceof File && value.size === 0) form.delete(key);
     }
+    const rawPhotos = form
+      .getAll('photos')
+      .filter((p): p is File => p instanceof File && p.size > 0);
+    form.delete('photos');
 
     if (permitRequired && !(form.get('permit') instanceof File)) {
       setStatus('error');
-      setMessage('A food handler permit is required for food trucks and anyone serving food.');
+      setMessage(
+        'A food handler permit is required for food trucks and anyone serving food. Add yours and submit again.'
+      );
+      return;
+    }
+
+    // Shrink the images before they go anywhere. This is what keeps a camera
+    // roll submission inside the request limit and inside a sane upload time.
+    setPhase('preparing');
+    try {
+      const logo = form.get('logo');
+      if (logo instanceof File) form.set('logo', await compressImage(logo));
+
+      const permit = form.get('permit');
+      if (permit instanceof File) form.set('permit', await compressImage(permit));
+
+      for (const photo of rawPhotos.slice(0, MAX_PHOTOS)) {
+        form.append('photos', await compressImage(photo));
+      }
+    } catch {
+      // Fall back to the originals rather than blocking the submission.
+      form.delete('photos');
+      for (const photo of rawPhotos.slice(0, MAX_PHOTOS)) form.append('photos', photo);
+    }
+
+    const files = [form.get('logo'), form.get('permit'), ...form.getAll('photos')].filter(
+      (x): x is File => x instanceof File
+    );
+
+    const oversize = files.find((x) => x.size > MAX_UPLOAD_BYTES);
+    if (oversize) {
+      setStatus('error');
+      setPhase('');
+      setMessage(
+        `${oversize.name} is ${mb(oversize.size)} and the limit for one file is 10MB. Pick a smaller one and submit again.`
+      );
+      return;
+    }
+
+    const total = files.reduce((n, x) => n + x.size, 0);
+    if (total > MAX_TOTAL_UPLOAD_BYTES) {
+      setStatus('error');
+      setPhase('');
+      setMessage(
+        `Your files still add up to ${mb(total)} after resizing, and the limit for one submission is 8MB. Remove a photo or two and submit again.`
+      );
       return;
     }
 
     try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        body: form,
+      setPhase('uploading');
+      setProgress(0);
+
+      const data = await postWithProgress(endpoint, form, (pct) => {
+        setProgress(pct);
+        if (pct >= 100) setPhase('finishing');
       });
 
-      const data = (await res.json().catch(() => ({}))) as {
-        ok?: boolean;
-        error?: string;
-        checkoutUrl?: string | null;
-      };
-
-      if (!res.ok || !data.ok) {
+      if (!data.ok) {
         setStatus('error');
+        setPhase('');
         setMessage(data.error || 'Something went wrong on our end. Try again in a minute.');
         return;
       }
@@ -192,9 +357,14 @@ export default function VendorForm({
           ? 'Your spot is registered and your agreement is signed. No payment is due, you already paid. We will email your spot number before the event.'
           : 'We have your application and your signed agreement. We will email you your spot number before the event.'
       );
-    } catch {
+    } catch (err) {
       setStatus('error');
-      setMessage('We could not reach the server. Check your connection and try again.');
+      setPhase('');
+      setMessage(
+        err instanceof Error && err.message
+          ? err.message
+          : 'We could not reach the server. Check your connection and try again.'
+      );
     }
   }
 
@@ -603,9 +773,15 @@ export default function VendorForm({
           ) : null}
 
           <div className="form__submit">
-            <button className="btn btn--amber" type="submit" disabled={status === 'sending'}>
-              {status === 'sending'
-                ? 'Working on it'
+            {/* Disabled for the whole submission, not just the network call, so
+                a slow upload cannot be double submitted by an impatient tap. */}
+            <button className="btn btn--amber" type="submit" disabled={sending}>
+              {sending
+                ? phase === 'preparing'
+                  ? 'Preparing your photos'
+                  : phase === 'finishing'
+                    ? 'Almost done'
+                    : `Uploading ${progress}%`
                 : prepaid
                   ? 'Register my spot'
                   : spot === 'free'
@@ -614,8 +790,27 @@ export default function VendorForm({
                       ? `Sign and pay ${fee}`
                       : 'Sign and pay'}
             </button>
+            {sending ? (
+              <span
+                className="uploadbar"
+                role="progressbar"
+                aria-valuenow={phase === 'uploading' ? progress : undefined}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Submitting your application"
+              >
+                <i style={{ width: phase === 'preparing' ? '6%' : `${Math.max(progress, 4)}%` }} />
+              </span>
+            ) : null}
+
             <span className="hint">
-              {prepaid
+              {sending
+                ? phase === 'preparing'
+                  ? 'Resizing your photos so they upload quickly. Do not close this page.'
+                  : phase === 'finishing'
+                    ? 'Files are up. Saving your application.'
+                    : 'Uploading. This can take a minute on a phone connection, so do not close this page.'
+                : prepaid
                 ? 'No payment is taken here. Your fee is already settled.'
                 : spot === 'free'
                   ? 'Alice organizations set up at no charge, so there is no payment step.'

@@ -118,6 +118,9 @@ create table if not exists public.vendor_applications (
   photo_paths           text[]      not null default '{}',
   permit_path           text,
   serves_food           boolean     not null default false,
+  -- Why a logo or photo is missing, when one failed but the application was
+  -- allowed through anyway. Null when everything uploaded cleanly.
+  upload_issues         text,
 
   -- money
   amount_cents          integer     not null default 0,
@@ -199,6 +202,7 @@ alter table public.vendor_applications add column if not exists photo_paths  tex
 alter table public.vendor_applications add column if not exists permit_path  text;
 alter table public.vendor_applications add column if not exists serves_food  boolean not null default false;
 alter table public.vendor_applications add column if not exists payment_method text;
+alter table public.vendor_applications add column if not exists upload_issues  text;
 
 do $$
 begin
@@ -218,6 +222,8 @@ comment on column public.vendor_applications.permit_path is
   'Storage path of the food handler permit in the private coyoteville-permits bucket. Never expose this directly, mint a signed URL.';
 comment on column public.vendor_applications.photo_paths is
   'Storage paths of business photos used for social spotlights.';
+comment on column public.vendor_applications.upload_issues is
+  'Set when a logo or photo failed to upload but the application was allowed through. A missing food handler permit blocks instead, so it never appears here.';
 
 create index if not exists vendor_applications_event_idx
   on public.vendor_applications (event_slug, created_at desc);

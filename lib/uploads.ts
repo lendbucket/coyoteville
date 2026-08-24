@@ -22,6 +22,22 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export const MAX_PHOTOS = 3;
 
 /**
+ * Ceiling on the whole request.
+ *
+ * A phone photo is commonly 3 to 6MB, so a logo, three photos and a permit
+ * straight off a camera roll is around 20MB. That is over four times the 4.5MB
+ * body limit a serverless function classically accepts, and 80 to 160 seconds
+ * of upload on a phone connection. The browser shrinks images before sending
+ * (see compressImage in VendorForm), and this is the backstop for anything that
+ * still arrives too large, including PDFs, which are not compressed.
+ */
+export const MAX_TOTAL_UPLOAD_BYTES = 8 * 1024 * 1024;
+
+/** Longest edge and JPEG quality the browser resizes photos down to. */
+export const IMAGE_MAX_EDGE = 1600;
+export const IMAGE_QUALITY = 0.82;
+
+/**
  * Allowed types, mapped to the extension we store them under. The extension is
  * derived from the type we verified, never from the filename the browser sent.
  */
@@ -123,7 +139,11 @@ export async function validateUpload(
 
   const actual = await sniff(file);
   if (!actual) {
-    throw new UploadError(`We could not read ${label}. Save it as ${ALLOWED_LABEL} and try again.`);
+    // Lowercased because the label leads its own sentences elsewhere but sits
+    // mid sentence here.
+    throw new UploadError(
+      `We could not read ${label.charAt(0).toLowerCase()}${label.slice(1)}. Save it as ${ALLOWED_LABEL} and try again.`
+    );
   }
 
   const contentType = canonicalType(actual);

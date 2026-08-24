@@ -22,6 +22,7 @@ export type AdminApplication = {
   logo_path: string | null;
   photo_paths: string[] | null;
   permit_path: string | null;
+  upload_issues: string | null;
   amount_cents: number;
   payment_status: string;
   payment_method: string | null;
@@ -63,6 +64,7 @@ const COLUMNS = [
   'logo_path',
   'photo_paths',
   'permit_path',
+  'upload_issues',
   'amount_cents',
   'payment_status',
   'payment_method',

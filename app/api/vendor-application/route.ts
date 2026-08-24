@@ -7,6 +7,7 @@ import { AGREEMENT_VERSION } from '@/components/VendorAgreement';
 import { EVENTS, PRICING, SITE_URL, priceForSpot, isSignupClosed } from '@/lib/seo';
 import {
   MAX_PHOTOS,
+  MAX_TOTAL_UPLOAD_BYTES,
   UploadError,
   storeUpload,
   validateUpload,
@@ -17,6 +18,69 @@ import { notifyRegistration, notifyRegistrationStarted } from '@/lib/notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+/**
+ * Uploads over a phone connection are slow. The default is comfortable now but
+ * stating it means a platform default change cannot silently start cutting
+ * submissions off part way through.
+ */
+export const maxDuration = 60;
+
+/**
+ * Structured failure logging.
+ *
+ * Every failure is written as one line beginning [vendor-application] with the
+ * stage it failed at, so a real submission problem can be found without
+ * guessing. Deliberately carries no personal data and no token: business name,
+ * contact details, signature and file contents are all left out. Sizes, counts,
+ * error codes and the stage are enough to diagnose it.
+ */
+type Stage =
+  | 'rate-limit'
+  | 'parse'
+  | 'validation'
+  | 'deadline'
+  | 'upload-validation'
+  | 'db-config'
+  | 'db-insert'
+  | 'upload-storage'
+  | 'upload-record'
+  | 'square';
+
+function logFailure(
+  stage: Stage,
+  detail: Record<string, unknown>,
+  err?: unknown
+): void {
+  const e = err as { message?: string; code?: string; name?: string; status?: number } | undefined;
+
+  console.error(
+    '[vendor-application]',
+    JSON.stringify({
+      stage,
+      ...detail,
+      errorName: e?.name,
+      errorMessage: e?.message,
+      errorCode: e?.code,
+      errorStatus: e?.status,
+    })
+  );
+}
+
+/** File count and total bytes in a request, for the log line. */
+function uploadShape(form: FormData | null): { fileCount: number; totalBytes: number } {
+  if (!form) return { fileCount: 0, totalBytes: 0 };
+
+  let fileCount = 0;
+  let totalBytes = 0;
+  for (const [, value] of form.entries()) {
+    if (value instanceof File && value.size > 0) {
+      fileCount += 1;
+      totalBytes += value.size;
+    }
+  }
+  return { fileCount, totalBytes };
+}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -133,42 +197,68 @@ function fieldsFromFormData(form: FormData): Payload {
 }
 
 /**
- * Validate every upload before anything is written. A permit is required for a
- * food truck, and for any vendor who says they serve food. That rule is checked
- * here rather than trusted from the form.
+ * Sort the uploads into the one that can block and the ones that cannot.
+ *
+ * The permit is a regulatory document, so a truck or a food vendor without a
+ * valid one is refused outright. A logo or a photo is promotional: if it is
+ * unreadable or too big, the reason is recorded and the application carries on
+ * without it. Losing a paying vendor because a photo failed is the wrong trade.
+ *
+ * Throws only for the permit and for a request that is too large overall.
  */
 async function collectUploads(
   form: FormData,
   spotType: string,
   servesFood: boolean
-): Promise<ValidatedUpload[]> {
-  const uploads: ValidatedUpload[] = [];
+): Promise<{ permit: ValidatedUpload | null; media: ValidatedUpload[]; issues: string[] }> {
+  const media: ValidatedUpload[] = [];
+  const issues: string[] = [];
 
-  const logo = form.get('logo');
-  if (logo instanceof File && logo.size > 0) {
-    uploads.push(await validateUpload(logo, 'logo', 'Your logo'));
-  }
-
-  const photos = form.getAll('photos').filter((p): p is File => p instanceof File && p.size > 0);
-  if (photos.length > MAX_PHOTOS) {
-    throw new UploadError(`Pick at most ${MAX_PHOTOS} photos.`);
-  }
-  for (const [i, photo] of photos.entries()) {
-    uploads.push(await validateUpload(photo, 'photo', `Photo ${i + 1}`));
-  }
-
-  const permit = form.get('permit');
-  const permitRequired = spotType === 'truck' || servesFood;
-
-  if (permit instanceof File && permit.size > 0) {
-    uploads.push(await validateUpload(permit, 'permit', 'Your food handler permit'));
-  } else if (permitRequired) {
+  const { totalBytes } = uploadShape(form);
+  if (totalBytes > MAX_TOTAL_UPLOAD_BYTES) {
+    const mb = (totalBytes / (1024 * 1024)).toFixed(1);
+    const cap = Math.round(MAX_TOTAL_UPLOAD_BYTES / (1024 * 1024));
     throw new UploadError(
-      'A food handler permit is required for food trucks and for anyone serving food.'
+      `Your files add up to ${mb}MB and the limit for one submission is ${cap}MB. Remove a photo or two and submit again.`
     );
   }
 
-  return uploads;
+  // Permit first, because it is the only one that can stop the submission.
+  const permit = form.get('permit');
+  const permitRequired = spotType === 'truck' || servesFood;
+  let validatedPermit: ValidatedUpload | null = null;
+
+  if (permit instanceof File && permit.size > 0) {
+    validatedPermit = await validateUpload(permit, 'permit', 'Your food handler permit');
+  } else if (permitRequired) {
+    throw new UploadError(
+      'A food handler permit is required for food trucks and for anyone serving food. Add yours and submit again.'
+    );
+  }
+
+  const logo = form.get('logo');
+  if (logo instanceof File && logo.size > 0) {
+    try {
+      media.push(await validateUpload(logo, 'logo', 'Your logo'));
+    } catch (err) {
+      issues.push(`logo rejected: ${err instanceof Error ? err.message : 'unreadable'}`);
+    }
+  }
+
+  const photos = form.getAll('photos').filter((p): p is File => p instanceof File && p.size > 0);
+  for (const [i, photo] of photos.slice(0, MAX_PHOTOS).entries()) {
+    try {
+      media.push(await validateUpload(photo, 'photo', `Photo ${i + 1}`));
+    } catch (err) {
+      issues.push(`photo ${i + 1} rejected: ${err instanceof Error ? err.message : 'unreadable'}`);
+    }
+  }
+
+  if (photos.length > MAX_PHOTOS) {
+    issues.push(`${photos.length} photos sent, only the first ${MAX_PHOTOS} were kept`);
+  }
+
+  return { permit: validatedPermit, media, issues };
 }
 
 /** Trust the browser date only if it is sane. Otherwise stamp it here. */
@@ -212,12 +302,21 @@ export async function POST(request: Request) {
     } else {
       body = (await request.json()) as Payload;
     }
-  } catch {
-    return bad('We could not read that submission.');
+  } catch (err) {
+    // A body that cannot be parsed is usually one that was cut off part way,
+    // which is what a slow upload on a phone looks like from here.
+    logFailure('parse', { contentType: contentType.split(';')[0] }, err);
+    return bad(
+      'Your submission did not arrive in full, which usually means the upload was cut off. Check your signal and try again.',
+      400
+    );
   }
+
+  const shape = uploadShape(form);
 
   const { errors, value } = validate(body);
   if (errors.length) {
+    logFailure('validation', { firstError: errors[0], errorCount: errors.length, ...shape });
     return bad(errors[0]);
   }
 
@@ -228,6 +327,7 @@ export async function POST(request: Request) {
     return bad('Pick an event.');
   }
   if (isSignupClosed(event)) {
+    logFailure('deadline', { eventSlug: event.slug });
     return bad(
       `Signup for ${event.name} closed on ${event.signupClosesDisplay} Central. Email us and we will get you on the next one.`,
       409
@@ -236,23 +336,34 @@ export async function POST(request: Request) {
 
   // Validate uploads before writing anything, so a bad file does not leave a
   // half finished application behind.
-  let uploads: ValidatedUpload[] = [];
+  let permitUpload: ValidatedUpload | null = null;
+  let mediaUploads: ValidatedUpload[] = [];
+  const uploadIssues: string[] = [];
+
   if (form) {
     try {
-      uploads = await collectUploads(form, value.spot_type, value.serves_food);
+      const collected = await collectUploads(form, value.spot_type, value.serves_food);
+      permitUpload = collected.permit;
+      mediaUploads = collected.media;
+      uploadIssues.push(...collected.issues);
     } catch (err) {
+      logFailure('upload-validation', { spotType: value.spot_type, ...shape }, err);
       if (err instanceof UploadError) return bad(err.message, 422);
-      console.error('upload validation failed', err);
-      return bad('We could not read one of your files. Try again.', 400);
+      return bad(
+        'We could not read one of your files. Try a different photo, or submit without it and email it to us.',
+        400
+      );
     }
   } else if (value.spot_type === 'truck' || value.serves_food) {
+    logFailure('upload-validation', { reason: 'no multipart body', spotType: value.spot_type });
     return bad(
-      'A food handler permit is required for food trucks and for anyone serving food.',
+      'A food handler permit is required for food trucks and for anyone serving food. Add yours and submit again.',
       422
     );
   }
 
   if (!isSupabaseConfigured()) {
+    logFailure('db-config', {});
     return bad('The application form is not connected yet. Email us and we will get you set.', 503);
   }
 
@@ -298,37 +409,40 @@ export async function POST(request: Request) {
     .single();
 
   if (insertError || !inserted) {
-    console.error('vendor_applications insert failed', insertError);
-    return bad('We could not save that. Try again in a minute.', 500);
+    logFailure('db-insert', shape, insertError);
+    return bad(
+      'We could not save your application. Nothing was charged. Try again, and email us if it happens twice.',
+      500
+    );
   }
 
   // The counts on the front page changed.
   invalidateSpots(value.event_slug);
 
-  // Store the files under the application id, then record the paths. Uploading
-  // after the insert keeps the keys tied to a real row rather than leaving
-  // orphaned objects behind if the insert had failed.
+  // Store the files under the application id. Uploading after the insert keeps
+  // the keys tied to a real row rather than leaving orphaned objects behind.
   //
   // The permit and the media are handled differently on purpose. A permit is a
   // regulatory document and the spot is not valid without it, so if it fails to
-  // store the vendor is told and checkout does not start. A logo or a photo is
-  // promotional, and losing one is not worth sending someone back to the start,
-  // so those failures are logged and the application carries on.
-  const paths: { logo_path?: string; permit_path?: string; photo_paths?: string[] } = {};
-
-  const permitUpload = uploads.find((u) => u.kind === 'permit');
+  // store the vendor is told and checkout does not start. Logos and photos are
+  // promotional: a failure is recorded on the row and the application, the
+  // signed agreement and the payment all still go through.
+  const paths: {
+    logo_path?: string;
+    permit_path?: string;
+    photo_paths?: string[];
+    upload_issues?: string | null;
+  } = {};
 
   if (permitUpload) {
     try {
       paths.permit_path = await storeUpload(permitUpload, inserted.id);
     } catch (err) {
-      console.error('permit storage failed', err);
+      logFailure('upload-storage', { file: 'permit', applicationId: inserted.id, ...shape }, err);
 
       // Leave a trail on the row rather than deleting it. The signature record
       // is auditable and the schema says never to delete these, so the
       // application stays visible in the tracker as unpaid with no permit.
-      // Returns an error object rather than throwing, and a failure to write
-      // the note must not mask the permit failure we are already reporting.
       const { error: noteError } = await supabase
         .from('vendor_applications')
         .update({
@@ -337,7 +451,7 @@ export async function POST(request: Request) {
         })
         .eq('id', inserted.id);
 
-      if (noteError) console.error('could not annotate failed permit row', noteError);
+      if (noteError) logFailure('upload-record', { applicationId: inserted.id }, noteError);
 
       return bad(
         'We could not save your food handler permit, so we did not take a payment. Try again in a minute, and email us if it keeps failing.',
@@ -346,25 +460,26 @@ export async function POST(request: Request) {
     }
   }
 
-  // Promotional media. Failures here are logged and do not stop the vendor.
-  try {
-    const photoPaths: string[] = [];
-    let photoIndex = 0;
+  // Promotional media. A failure here is recorded and never stops the vendor.
+  const photoPaths: string[] = [];
+  let photoIndex = 0;
 
-    for (const upload of uploads) {
-      if (upload.kind === 'permit') continue;
+  for (const upload of mediaUploads) {
+    try {
       const path = await storeUpload(upload, inserted.id, photoIndex);
       if (upload.kind === 'logo') paths.logo_path = path;
       else {
         photoPaths.push(path);
         photoIndex += 1;
       }
+    } catch (err) {
+      logFailure('upload-storage', { file: upload.kind, applicationId: inserted.id }, err);
+      uploadIssues.push(`${upload.kind} failed to store`);
     }
-
-    if (photoPaths.length) paths.photo_paths = photoPaths;
-  } catch (err) {
-    console.error('vendor media storage failed', err);
   }
+
+  if (photoPaths.length) paths.photo_paths = photoPaths;
+  if (uploadIssues.length) paths.upload_issues = uploadIssues.join('; ');
 
   if (Object.keys(paths).length) {
     const { error: pathError } = await supabase
@@ -375,7 +490,7 @@ export async function POST(request: Request) {
     // A permit that stored but whose path did not record is the same problem as
     // one that never stored, so it stops checkout too.
     if (pathError) {
-      console.error('recording upload paths failed', pathError);
+      logFailure('upload-record', { applicationId: inserted.id }, pathError);
       if (paths.permit_path) {
         return bad(
           'We could not save your food handler permit, so we did not take a payment. Try again in a minute, and email us if it keeps failing.',
@@ -501,10 +616,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl });
   } catch (err) {
-    console.error('square payment link creation failed', err);
+    logFailure('square', { applicationId: inserted.id, amountCents }, err);
     // The application is saved. Only the payment handoff failed.
     return bad(
-      'We saved your application but could not start checkout. Email us and we will send a payment link.',
+      'We saved your application and your signed agreement, but our payment provider did not respond. Nothing was charged. Email us and we will send you a payment link.',
       502
     );
   }

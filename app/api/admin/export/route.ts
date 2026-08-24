@@ -32,6 +32,7 @@ const HEADERS = [
   'Permit uploaded',
   'Logo uploaded',
   'Photos',
+  'Upload issues',
   'Applied at',
 ];
 
@@ -78,6 +79,7 @@ export async function GET(request: Request) {
         r.permit_path ? 'yes' : 'no',
         r.logo_path ? 'yes' : 'no',
         r.photo_paths?.length ?? 0,
+        r.upload_issues ?? '',
         r.created_at,
       ]
         .map(cell)
