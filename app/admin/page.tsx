@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import AdminRevenue from '@/components/AdminRevenue';
 import AdminRowControls from '@/components/AdminRowControls';
 import AdminAbandoned from '@/components/AdminAbandoned';
 import AdminReminderButton from '@/components/AdminReminderButton';
@@ -47,7 +48,7 @@ export default async function AdminPage({
 }) {
   /* ------------------------------------------------------------- login */
 
-  if (!isAdminRequest()) {
+  if (!(await isAdminRequest())) {
     const errorKey = Array.isArray(searchParams.e) ? searchParams.e[0] : searchParams.e;
     const error = errorKey ? LOGIN_ERRORS[errorKey] : null;
 
@@ -125,6 +126,8 @@ export default async function AdminPage({
             </button>
           </form>
         </div>
+
+        <AdminRevenue revenue={view.revenue} />
 
         <ul className="admin__counts">
           <li>

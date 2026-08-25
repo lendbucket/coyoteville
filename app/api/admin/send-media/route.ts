@@ -53,7 +53,7 @@ type Body = {
  * throws if a permit path reaches it.
  */
 export async function POST(request: Request) {
-  if (!isAdminRequest()) {
+  if (!(await isAdminRequest())) {
     return NextResponse.json({ ok: false, error: 'Not signed in.' }, { status: 401 });
   }
 

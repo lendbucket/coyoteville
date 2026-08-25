@@ -1,6 +1,8 @@
 import 'server-only';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { EVENTS } from './seo';
+import { getSpots } from './spots';
+import { summariseRevenue, type RevenueRow, type RevenueSummary } from './revenue';
 
 /** One row as the tracker needs it. */
 export type AdminApplication = {
@@ -43,7 +45,13 @@ export type AdminView = {
   available: boolean;
   rows: AdminApplication[];
   counts: { total: number; paid: number; unpaid: number };
+  /** Event wide, never the filtered slice. Null when the read failed. */
+  revenue: RevenueSummary | null;
 };
+
+/** Columns the revenue summary reads, on top of the ones the tracker shows. */
+const REVENUE_COLUMNS =
+  'spot_type, amount_cents, payment_status, payment_method, approval_status, square_order_id, created_at';
 
 const COLUMNS = [
   'id',
@@ -102,7 +110,7 @@ export function normaliseFilters(params: Record<string, string | string[] | unde
  */
 export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
   if (!isSupabaseConfigured()) {
-    return { available: false, rows: [], counts: { total: 0, paid: 0, unpaid: 0 } };
+    return { available: false, rows: [], counts: { total: 0, paid: 0, unpaid: 0 }, revenue: null };
   }
 
   try {
@@ -127,17 +135,21 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
 
     const rows = (data ?? []) as unknown as AdminApplication[];
 
-    // Counts come from a separate unfiltered read of the same event.
-    const { data: allRows, error: countError } = await supabase
-      .from('vendor_applications')
-      .select('payment_status')
-      .eq('event_slug', filters.event);
+    // Counts and money come from a separate unfiltered read of the same event,
+    // so the figures at the top of the page stay meaningful while you search.
+    // Capacity for the projection rides along from the cached spot snapshot.
+    const [countResult, spots] = await Promise.all([
+      supabase.from('vendor_applications').select(REVENUE_COLUMNS).eq('event_slug', filters.event),
+      getSpots(filters.event),
+    ]);
 
-    if (countError) throw countError;
+    if (countResult.error) throw countResult.error;
+
+    const allRows = (countResult.data ?? []) as unknown as RevenueRow[];
 
     let paid = 0;
     let unpaid = 0;
-    for (const row of allRows ?? []) {
+    for (const row of allRows) {
       if (row.payment_status === 'paid' || row.payment_status === 'not_required') paid += 1;
       else if (row.payment_status === 'unpaid') unpaid += 1;
     }
@@ -145,11 +157,15 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
     return {
       available: true,
       rows,
-      counts: { total: (allRows ?? []).length, paid, unpaid },
+      counts: { total: allRows.length, paid, unpaid },
+      revenue: summariseRevenue(allRows, {
+        truck: spots.truck.capacity,
+        booth: spots.booth.capacity,
+      }),
     };
   } catch (err) {
     console.error('admin view failed', err);
-    return { available: false, rows: [], counts: { total: 0, paid: 0, unpaid: 0 } };
+    return { available: false, rows: [], counts: { total: 0, paid: 0, unpaid: 0 }, revenue: null };
   }
 }
 

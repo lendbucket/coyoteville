@@ -10,7 +10,7 @@ const APPROVALS = ['pending', 'approved', 'waitlist', 'declined', 'cancelled'];
 
 /** Inline edits from the tracker: approval status and spot number. */
 export async function POST(request: Request) {
-  if (!isAdminRequest()) {
+  if (!(await isAdminRequest())) {
     return NextResponse.json({ ok: false, error: 'Not signed in.' }, { status: 401 });
   }
 

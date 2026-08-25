@@ -3466,3 +3466,136 @@ p {
     min-width: 200px;
   }
 }
+
+/* ---------------------------------------------------------- admin revenue */
+
+/* Money card at the top of the tracker. Phone first: one column, big total,
+   small label and value lines under it. Widens to two columns of groups only
+   when there is genuinely room. */
+.arev {
+  margin: 0.9rem 0;
+  padding: 0.9rem 1rem 1rem;
+  background: var(--char);
+  border: 1px solid rgba(243, 238, 229, 0.12);
+  border-left: 3px solid var(--ember);
+  border-radius: var(--radius-sm);
+}
+
+.arev--empty {
+  border-left-color: var(--dust);
+}
+
+.arev__headline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid rgba(243, 238, 229, 0.12);
+}
+
+.arev__eyebrow {
+  font-family: var(--font-condensed);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+.arev__total {
+  font-family: var(--font-display);
+  font-weight: 400;
+  /* Scales with the phone rather than wrapping when the number gets long. */
+  font-size: clamp(2rem, 11vw, 2.9rem);
+  line-height: 1;
+  color: var(--ember);
+}
+
+.arev__group {
+  padding-top: 0.7rem;
+}
+
+.arev__group + .arev__group {
+  margin-top: 0.55rem;
+  border-top: 1px solid rgba(243, 238, 229, 0.09);
+}
+
+.arev__grouplabel {
+  display: block;
+  font-family: var(--font-condensed);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dust);
+  padding-bottom: 0.3rem;
+}
+
+.arev__line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.2rem 0;
+}
+
+.arev__label {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  color: var(--cream);
+  /* Lets a long label wrap instead of shoving the figure off the edge. */
+  min-width: 0;
+}
+
+.arev__sub {
+  display: block;
+  font-family: var(--font-condensed);
+  font-style: normal;
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  color: var(--dust);
+}
+
+.arev__value {
+  font-family: var(--font-condensed);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--cream);
+  white-space: nowrap;
+}
+
+.arev__line--muted .arev__label,
+.arev__line--muted .arev__value {
+  color: var(--dust);
+}
+
+.arev__note {
+  margin: 0.25rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--dust);
+}
+
+@media (min-width: 760px) {
+  .arev {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 1.6rem;
+    align-items: start;
+  }
+
+  .arev__headline {
+    grid-column: 1 / -1;
+  }
+
+  /* The first group sits under the total; the rest fill the second column. */
+  .arev__group + .arev__group {
+    border-top: 0;
+    margin-top: 0;
+  }
+
+  .arev__group {
+    border-top: 1px solid rgba(243, 238, 229, 0.09);
+    margin-top: 0.55rem;
+  }
+}

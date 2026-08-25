@@ -17,7 +17,7 @@ function resolveEvent(slug: string | null): string {
 
 /** Started but not paid, for the current event. */
 export async function GET(request: Request) {
-  if (!isAdminRequest()) {
+  if (!(await isAdminRequest())) {
     return NextResponse.json({ ok: false, error: 'Not signed in.' }, { status: 401 });
   }
 
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
  * double tap or a second person looking at the tracker.
  */
 export async function POST(request: Request) {
-  if (!isAdminRequest()) {
+  if (!(await isAdminRequest())) {
     return NextResponse.json({ ok: false, error: 'Not signed in.' }, { status: 401 });
   }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
 import { getAdminView, normaliseFilters } from '@/lib/admin-data';
+import { dollarsRaw, type RevenueSummary } from '@/lib/revenue';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -36,9 +37,54 @@ const HEADERS = [
   'Applied at',
 ];
 
+/**
+ * Revenue block that leads the file.
+ *
+ * Three columns so it lines up under the row headers rather than sprawling:
+ * a line label, a count where one applies, and the amount. Amounts are written
+ * unformatted, "1250.00", so a spreadsheet reads them as numbers.
+ *
+ * These figures cover the whole event, not the filtered rows underneath, which
+ * the heading says out loud so nobody reconciles the two and finds a gap.
+ */
+function summaryLines(revenue: RevenueSummary | null, eventSlug: string): string[][] {
+  if (!revenue) return [['Revenue summary', '', 'unavailable']];
+
+  const { collected, bySource, outstanding, projected } = revenue;
+
+  const rows: string[][] = [
+    [`Revenue summary (whole event: ${eventSlug})`, '', ''],
+    ['Line', 'Count', 'Amount'],
+    ['Collected total', '', dollarsRaw(collected.cents)],
+    ['Collected, food trucks', String(collected.truck.count), dollarsRaw(collected.truck.cents)],
+    ['Collected, vendor booths', String(collected.booth.count), dollarsRaw(collected.booth.cents)],
+    ['Collected, Alice orgs', String(collected.free.count), dollarsRaw(collected.free.cents)],
+    ['Collected via Square', String(bySource.square.count), dollarsRaw(bySource.square.cents)],
+    ['Collected prepaid', String(bySource.prepaid.count), dollarsRaw(bySource.prepaid.cents)],
+    ['Outstanding, unpaid with a Square order', String(outstanding.count), dollarsRaw(outstanding.cents)],
+  ];
+
+  if (projected.cents === null) {
+    rows.push(['Projected at full capacity', '', 'no capacity set']);
+  } else {
+    rows.push([
+      projected.complete
+        ? 'Projected at full capacity'
+        : 'Projected at full capacity (partial: one side has no capacity set)',
+      '',
+      dollarsRaw(projected.cents),
+    ]);
+    if (projected.gapCents !== null) {
+      rows.push(['Gap to a full lot', '', dollarsRaw(projected.gapCents)]);
+    }
+  }
+
+  return rows;
+}
+
 /** CSV of the current filtered view. */
 export async function GET(request: Request) {
-  if (!isAdminRequest()) {
+  if (!(await isAdminRequest())) {
     return new NextResponse('Not signed in.', { status: 401 });
   }
 
@@ -55,7 +101,12 @@ export async function GET(request: Request) {
     return new NextResponse('Could not read applications.', { status: 503 });
   }
 
-  const lines = [HEADERS.map(cell).join(',')];
+  // Summary first, then a blank line, then the rows. Leading it means the
+  // numbers are on screen the moment the file opens, without scrolling past
+  // every application to find them.
+  const lines = summaryLines(view.revenue, filters.event).map((row) => row.map(cell).join(','));
+  lines.push('');
+  lines.push(HEADERS.map(cell).join(','));
 
   for (const r of view.rows) {
     lines.push(

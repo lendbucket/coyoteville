@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  * and a permit link is never a permanent public URL.
  */
 export async function GET(request: Request) {
-  if (!isAdminRequest()) {
+  if (!(await isAdminRequest())) {
     return new NextResponse('Not signed in.', { status: 401 });
   }
 

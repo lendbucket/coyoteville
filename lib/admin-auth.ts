@@ -70,9 +70,16 @@ export function verifyToken(token: string | undefined): boolean {
   return safeEqual(mac, sign(expiresAt));
 }
 
-/** True when the current request carries a valid admin session. */
-export function isAdminRequest(): boolean {
-  return verifyToken(cookies().get(ADMIN_COOKIE)?.value);
+/**
+ * True when the current request carries a valid admin session.
+ *
+ * cookies() returns a promise from Next 15 on, so this is async and every
+ * caller awaits it. Writes are unaffected: they go out through
+ * NextResponse.cookies on the login and logout routes.
+ */
+export async function isAdminRequest(): Promise<boolean> {
+  const jar = await cookies();
+  return verifyToken(jar.get(ADMIN_COOKIE)?.value);
 }
 
 export const COOKIE_OPTIONS = {
