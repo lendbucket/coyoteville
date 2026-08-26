@@ -9,7 +9,7 @@ import { getSupabaseAdmin } from './supabase';
  * size and type rules below are the real gate rather than a client side hint.
  *
  * Two buckets, both private:
- *   PERMIT_BUCKET  food handler permits. Sensitive, never public.
+ *   PERMIT_BUCKET  health permits. Sensitive, never public.
  *   MEDIA_BUCKET   logos and spotlight photos.
  *
  * Reads happen through short lived signed URLs minted by the service role.

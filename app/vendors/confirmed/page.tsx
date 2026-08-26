@@ -51,8 +51,8 @@ export default function ConfirmedPage({
               per space.
             </li>
             <li>
-              <strong>Keep your permits on site.</strong> Food handler and health permits have to
-              be with you at the event.
+              <strong>Keep your permits on site.</strong> Bring your Texas DSHS health permit and
+              food handler certificates to the event, not at home.
             </li>
             <li>
               <strong>Grease and gray water leave with you.</strong> Nothing is discharged on the

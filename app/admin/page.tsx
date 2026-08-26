@@ -292,7 +292,7 @@ export default async function AdminPage({
                     </dd>
                   </div>
                   <div>
-                    <dt>Food handler permit</dt>
+                    <dt>DSHS health permit</dt>
                     <dd>
                       {r.permit_path ? (
                         <a

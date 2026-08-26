@@ -7,7 +7,7 @@ const STEPS = [
   {
     n: '02',
     title: 'Upload your stuff',
-    body: 'Your logo and up to three photos. If you serve food, upload your food handler permit here too.',
+    body: 'Your logo and up to three photos. Food trucks upload their Texas DSHS health permit here too.',
   },
   {
     n: '03',

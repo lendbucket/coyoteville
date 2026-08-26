@@ -26,7 +26,7 @@ export const NEXT_STEPS_SHARED: readonly string[] = [
   'Pack out everything you bring in, including all trash.',
   'Nothing goes on the ground, no gray water and no grease.',
   'Admission is free and the whole town is invited, so expect a crowd.',
-  'Shuttles run to the stadium once the game starts, and lot parking opens at kickoff for ten dollars per vehicle.',
+  'Lot parking opens at kickoff for ten dollars per vehicle.',
 ] as const;
 
 export type NextStepsBlock = {
@@ -47,7 +47,7 @@ export const NEXT_STEPS_BY_SPOT: Record<SpotKind, NextStepsBlock> = {
   truck: {
     heading: 'If you are bringing a food truck',
     items: [
-      'Have your food handler certificate and health permit physically with you, not at home, since they may be checked on site.',
+      'Bring your Texas DSHS health permit and food handler certificates on site, not at home, since they may be checked.',
       'Bring a properly rated fire extinguisher for your cooking method, including Class K if you cook with oil.',
       'Bring your own generator, power, and water.',
       'Contain all gray water and grease and take it with you.',
@@ -59,7 +59,7 @@ export const NEXT_STEPS_BY_SPOT: Record<SpotKind, NextStepsBlock> = {
     items: [
       'Your space is free and you keep every dollar you raise.',
       'Bring your own table, chairs, and canopy.',
-      'If you are selling any food or drink, the same permit rules apply as food trucks.',
+      'If you are selling any food or drink, the same permit rules apply as food trucks, including a health permit.',
     ],
   },
 };

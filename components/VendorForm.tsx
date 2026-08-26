@@ -196,7 +196,7 @@ export default function VendorForm({
   const [permitsConfirmed, setPermitsConfirmed] = useState(false);
   const [signature, setSignature] = useState('');
 
-  // A food handler permit is required for any truck, and for any booth whose
+  // A health permit is required for any truck, and for any booth whose
   // vendor says they serve food. Checked again on the server.
   const permitRequired = spot === 'truck' || servesFood;
 
@@ -230,7 +230,7 @@ export default function VendorForm({
    */
   const spotNote =
     spot === 'truck'
-      ? `${PRICING.truck.price} per event. Food handler and health permits are required on site.`
+      ? `${PRICING.truck.price} per event. A Texas DSHS health permit is required, and food handler certificates on site.`
       : spot === 'booth'
         ? `${PRICING.booth.price} per event. No cooking or open flame in a booth space.`
         : spot === 'free'
@@ -282,7 +282,7 @@ export default function VendorForm({
     if (permitRequired && !(form.get('permit') instanceof File)) {
       setStatus('error');
       setMessage(
-        'A food handler permit is required for food trucks and anyone serving food. Add yours and submit again.'
+        'Food trucks must upload a Texas DSHS health permit, and anyone serving food must upload their permit. Add yours and submit again.'
       );
       return;
     }
@@ -422,14 +422,15 @@ export default function VendorForm({
         <p className="lede muted">
           {prepaid ? (
             <>
-              You have already paid, so there is no payment step. Fill this out, upload your permit
-              if you serve food, and sign the agreement to register your spot.
+              You have already paid, so there is no payment step. Fill this out, upload your DSHS
+              health permit if you are bringing a food truck, and sign the agreement to register
+              your spot.
             </>
           ) : (
             <>
               Booths are {PRICING.booth.price} per event and truck spots are {PRICING.truck.price}.
-              Alice organizations set up at no charge. Fill this out, upload your permit if you
-              serve food, sign the agreement and pay.
+              Alice organizations set up at no charge. Fill this out, upload your DSHS health
+              permit if you are bringing a food truck, sign the agreement and pay.
             </>
           )}
         </p>
@@ -649,7 +650,7 @@ export default function VendorForm({
 
             <div className="field">
               <label className="label" htmlFor={`${uid}-permit`}>
-                Food handler permit{' '}
+                DSHS health permit{' '}
                 {permitRequired ? <span className="req">*</span> : <span>(if you serve food)</span>}
               </label>
               <input
@@ -663,8 +664,10 @@ export default function VendorForm({
               />
               <span className="hint" id={`${uid}-permit-hint`}>
                 {permitRequired
-                  ? 'Required for your spot type. A photo or a PDF of the certificate works.'
-                  : 'Required if you tick the food box above or pick a food truck spot.'}
+                  ? spot === 'truck'
+                    ? 'Food trucks must upload a current Texas Department of State Health Services health permit. A photo or a PDF works.'
+                    : 'Required because you are serving food. A photo or a PDF of your health permit works.'
+                  : 'Required if you tick the food box above. Food trucks must upload a Texas DSHS health permit.'}
               </span>
             </div>
           </fieldset>

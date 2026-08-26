@@ -22,7 +22,7 @@ const BOOTH_POINTS = [
 
 const TRUCK_POINTS = [
   'A designated spot for your truck with room to serve a line.',
-  'All food trucks must have current food handler and health permits on site.',
+  'All food trucks must have a current Texas DSHS health permit and food handler certificates on site.',
   'One vehicle per space.',
 ];
 

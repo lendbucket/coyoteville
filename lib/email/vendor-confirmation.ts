@@ -103,7 +103,7 @@ export function renderVendorConfirmation(
       ? [
           '<strong style="color:' +
             EMBER +
-            ';">Food trucks and anyone serving food must have current food handler and health permits on site.</strong>',
+            ';">Food trucks must bring their Texas DSHS health permit and food handler certificates on site. Anyone else serving food must bring their permit.</strong>',
         ]
       : []),
   ];
@@ -192,7 +192,6 @@ ${preheader(`Your spot is confirmed for ${NEXT_EVENT.displayDate}. Setup opens a
             <tr><td>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 ${bullet('Admission is free and open to everyone.')}
-                ${bullet('Shuttles run to the stadium once the game starts.')}
                 ${bullet('Parking opens on the lot at kickoff for $10 per vehicle.')}
               </table>
             </td></tr>
@@ -305,12 +304,14 @@ ${preheader(`Your spot is confirmed for ${NEXT_EVENT.displayDate}. Setup opens a
     '- Your own table, chairs, canopy and decorations.',
     '- One vehicle per space.',
     ...(needsPermit
-      ? ['- Food trucks and anyone serving food must have current food handler and health permits on site.']
+      ? [
+          '- Food trucks must bring their Texas DSHS health permit and food handler certificates on site.',
+          '- Anyone else serving food must bring their permit.',
+        ]
       : []),
     '',
     'GAME NIGHT',
     '- Admission is free and open to everyone.',
-    '- Shuttles run to the stadium once the game starts.',
     '- Parking opens on the lot at kickoff for $10 per vehicle.',
     '',
     NEXT_STEPS_HEADING.toUpperCase(),

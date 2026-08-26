@@ -158,17 +158,13 @@ export function signupClosesZone(event: EventConfig = NEXT_EVENT): string {
 
 /**
  * Game night logistics. One source for the section, the FAQ and the FAQPage
- * schema, because the parking price and the shuttle are what people search for
+ * schema, because the admission and parking terms are what people search for
  * and the three places must not drift apart.
  */
 export const GAME_NIGHT = [
   {
     label: 'Admission is free',
     body: 'There is no cover and no ticket to walk in and eat.',
-  },
-  {
-    label: 'Shuttles to the stadium',
-    body: 'Shuttles run from Coyoteville to the stadium once the game starts, so you can eat with us and still make kickoff.',
   },
   {
     label: 'Parking',
@@ -225,10 +221,6 @@ export const FAQ = [
     a: 'Parking opens on the lot at kickoff for $10 per vehicle.',
   },
   {
-    q: 'Do you run a shuttle to the stadium?',
-    a: 'Yes. Shuttles run from Coyoteville to the stadium once the game starts, so you can eat with us and still make kickoff.',
-  },
-  {
     q: 'What does it cost to vend?',
     a: 'A vendor booth is $25 per event. A food truck spot is $50 per event. That is the whole fee. We do not take a percentage of your sales.',
   },
@@ -242,7 +234,7 @@ export const FAQ = [
   },
   {
     q: 'Do I need permits and insurance?',
-    a: 'Yes. All food trucks must have current food handler and health permits on site. Vendors handle their own licenses and health department approvals, and carry their own general liability insurance. We do not provide coverage.',
+    a: 'Yes. Every food truck must hold a current Texas Department of State Health Services health permit and upload it when registering, and must bring it along with food handler certificates to the event. Vendors handle their own licenses and health department approvals, and carry their own general liability insurance. We do not provide coverage.',
   },
   {
     q: 'What happens if it rains?',
@@ -326,7 +318,7 @@ export function localBusinessSchema(email: string = SITE.email) {
     name: SITE.name,
     alternateName: `${SITE.name} ${ADDRESS.city} ${ADDRESS.stateCode}`,
     description:
-      'Outdoor food truck park at 150 N. Stadium Road in Alice, Texas, directly across from the stadium. Local food trucks, vendor booths and live music before and after home games. Admission is free. Parking on the lot opens at kickoff for $10 per vehicle, and shuttles run to the stadium once the game starts.',
+      'Outdoor food truck park at 150 N. Stadium Road in Alice, Texas, directly across from the stadium. Local food trucks, vendor booths and live music before and after home games. Admission is free. Parking on the lot opens at kickoff for $10 per vehicle.',
     slogan: SITE.tagline,
     url: SITE_URL,
     image: SITE.ogImage,
@@ -390,7 +382,7 @@ export function eventSchema() {
     '@type': 'Event',
     '@id': `${SITE_URL}/#event-${e.slug}`,
     name: `${e.name} at ${SITE.name}`,
-    description: `${e.blurb} Food trucks, vendor booths and live music at ${SITE.name}, ${ADDRESS.street}, ${ADDRESS.city}, ${ADDRESS.state}. Admission is free. Parking on the lot opens at kickoff for $10 per vehicle, and shuttles run to the stadium once the game starts.`,
+    description: `${e.blurb} Food trucks, vendor booths and live music at ${SITE.name}, ${ADDRESS.street}, ${ADDRESS.city}, ${ADDRESS.state}. Admission is free. Parking on the lot opens at kickoff for $10 per vehicle.`,
     startDate: e.startISO,
     endDate: e.endISO,
     eventStatus: 'https://schema.org/EventScheduled',

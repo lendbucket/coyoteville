@@ -147,10 +147,10 @@ export async function POST(request: Request) {
 
     const permit = form.get('permit');
     if (permit instanceof File && permit.size > 0) {
-      uploads.push(await validateUpload(permit, 'permit', 'Your food handler permit'));
+      uploads.push(await validateUpload(permit, 'permit', 'Your health permit'));
     } else if (spot_type === 'truck' || serves_food) {
       throw new UploadError(
-        'A food handler permit is required for food trucks and for anyone serving food.'
+        'Food trucks must upload a Texas DSHS health permit, and anyone serving food must upload their permit.'
       );
     }
   } catch (err) {

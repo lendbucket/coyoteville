@@ -12,7 +12,7 @@ import { MEDIA_BUCKET, PERMIT_BUCKET } from './uploads';
  *
  * Two rules run through this whole file:
  *
- *   Permits are never included. A food handler permit is a private regulatory
+ *   Permits are never included. A health permit is a private regulatory
  *   document that happens to be an image, and it lives in a different bucket
  *   for exactly that reason. Nothing here reads that bucket, and there is a
  *   guard below that throws if a permit path ever reaches the attachment list.

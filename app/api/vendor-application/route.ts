@@ -229,10 +229,10 @@ async function collectUploads(
   let validatedPermit: ValidatedUpload | null = null;
 
   if (permit instanceof File && permit.size > 0) {
-    validatedPermit = await validateUpload(permit, 'permit', 'Your food handler permit');
+    validatedPermit = await validateUpload(permit, 'permit', 'Your health permit');
   } else if (permitRequired) {
     throw new UploadError(
-      'A food handler permit is required for food trucks and for anyone serving food. Add yours and submit again.'
+      'Food trucks must upload a Texas DSHS health permit, and anyone serving food must upload their permit. Add yours and submit again.'
     );
   }
 
@@ -376,7 +376,7 @@ export async function POST(request: Request) {
   } else if (value.spot_type === 'truck' || value.serves_food) {
     logFailure('upload-validation', { reason: 'no multipart body', spotType: value.spot_type });
     return bad(
-      'A food handler permit is required for food trucks and for anyone serving food. Add yours and submit again.',
+      'Food trucks must upload a Texas DSHS health permit, and anyone serving food must upload their permit. Add yours and submit again.',
       422
     );
   }
@@ -466,14 +466,14 @@ export async function POST(request: Request) {
         .from('vendor_applications')
         .update({
           admin_notes:
-            'Permit upload failed at submission. Vendor was told to try again. No payment was taken.',
+            'Health permit upload failed at submission. Vendor was told to try again. No payment was taken.',
         })
         .eq('id', inserted.id);
 
       if (noteError) logFailure('upload-record', { applicationId: inserted.id }, noteError);
 
       return bad(
-        'We could not save your food handler permit, so we did not take a payment. Try again in a minute, and email us if it keeps failing.',
+        'We could not save your health permit, so we did not take a payment. Try again in a minute, and email us if it keeps failing.',
         502
       );
     }
@@ -512,7 +512,7 @@ export async function POST(request: Request) {
       logFailure('upload-record', { applicationId: inserted.id }, pathError);
       if (paths.permit_path) {
         return bad(
-          'We could not save your food handler permit, so we did not take a payment. Try again in a minute, and email us if it keeps failing.',
+          'We could not save your health permit, so we did not take a payment. Try again in a minute, and email us if it keeps failing.',
           502
         );
       }

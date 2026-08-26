@@ -2420,10 +2420,10 @@ p {
   min-height: 100vh;
 }
 
+/* Not sticky. On a phone this header is tall enough that pinning it left no
+   room for the vendor list underneath, which is the thing you actually came to
+   read. It scrolls away like everything else. */
 .admin__top {
-  position: sticky;
-  top: 0;
-  z-index: 5;
   background: var(--black);
   padding-bottom: 0.9rem;
   margin-bottom: 1rem;
@@ -2476,10 +2476,23 @@ p {
   color: var(--dust);
 }
 
+/* Two up on a phone. Stacked, the three fields and the button row ran to about
+   300px, which on its own pushed the vendor list off the bottom of the screen.
+   The two selects are narrow enough to sit side by side; the search box and the
+   buttons keep the full width. */
 .admin__filters {
   display: grid;
   gap: 0.6rem;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Below the 760px breakpoint only. Above it the rule further down lays the row
+   out in four columns and these spans would fight it. */
+@media (max-width: 759px) {
+  .admin__filters .field:nth-child(3),
+  .admin__filters .admin__filteractions {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (min-width: 760px) {
@@ -3466,15 +3479,13 @@ p {
     min-width: 200px;
   }
 }
-
 /* ---------------------------------------------------------- admin revenue */
 
-/* Money card at the top of the tracker. Phone first: one column, big total,
-   small label and value lines under it. Widens to two columns of groups only
-   when there is genuinely room. */
+/* A two line strip, not a panel. Roughly 70px closed on a phone, so the vendor
+   list starts near the top of the screen. The rest of the figures sit inside a
+   closed <details>, which costs no height until it is tapped. */
 .arev {
-  margin: 0.9rem 0;
-  padding: 0.9rem 1rem 1rem;
+  margin: 0.75rem 0;
   background: var(--char);
   border: 1px solid rgba(243, 238, 229, 0.12);
   border-left: 3px solid var(--ember);
@@ -3482,120 +3493,114 @@ p {
 }
 
 .arev--empty {
+  display: block;
+  padding: 0.6rem 0.75rem;
   border-left-color: var(--dust);
-}
-
-.arev__headline {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding-bottom: 0.7rem;
-  border-bottom: 1px solid rgba(243, 238, 229, 0.12);
-}
-
-.arev__eyebrow {
-  font-family: var(--font-condensed);
-  font-size: 0.74rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
   color: var(--dust);
 }
 
-.arev__total {
-  font-family: var(--font-display);
-  font-weight: 400;
-  /* Scales with the phone rather than wrapping when the number gets long. */
-  font-size: clamp(2rem, 11vw, 2.9rem);
-  line-height: 1;
-  color: var(--ember);
+.arev__strip {
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  /* The default triangle would sit in the middle of the two line block. The
+     chevron below is drawn on the eyebrow instead. */
+  list-style: none;
 }
 
-.arev__group {
-  padding-top: 0.7rem;
+.arev__strip::-webkit-details-marker {
+  display: none;
 }
 
-.arev__group + .arev__group {
-  margin-top: 0.55rem;
-  border-top: 1px solid rgba(243, 238, 229, 0.09);
+.arev__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
 }
 
-.arev__grouplabel {
-  display: block;
+.arev__eyebrow {
   font-family: var(--font-condensed);
   font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--dust);
-  padding-bottom: 0.3rem;
 }
 
-.arev__line {
+/* Chevron, rotated when the panel is open. */
+.arev__eyebrow::after {
+  content: '\203A';
+  display: inline-block;
+  margin-left: 0.35rem;
+  font-size: 0.95rem;
+  line-height: 0;
+  transform: rotate(90deg);
+  transform-origin: center;
+  color: var(--tan);
+}
+
+.arev[open] .arev__eyebrow::after {
+  transform: rotate(-90deg);
+}
+
+.arev__total {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.6rem;
+  line-height: 1.1;
+  color: var(--ember);
+}
+
+.arev__breakdown {
+  display: block;
+  padding-top: 0.15rem;
+  font-family: var(--font-condensed);
+  font-size: 0.76rem;
+  line-height: 1.35;
+  letter-spacing: 0.03em;
+  color: var(--dust);
+}
+
+.arev__dot {
+  font-style: normal;
+  padding: 0 0.3rem;
+  color: rgba(243, 238, 229, 0.28);
+}
+
+.arev__more {
+  padding: 0.1rem 0.75rem 0.6rem;
+  border-top: 1px solid rgba(243, 238, 229, 0.09);
+  margin-top: 0.35rem;
+}
+
+.arev__row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 0.6rem;
-  padding: 0.2rem 0;
+  padding: 0.25rem 0 0;
 }
 
-.arev__label {
+.arev__rowlabel {
   font-family: var(--font-body);
-  font-size: 0.92rem;
+  font-size: 0.82rem;
   color: var(--cream);
-  /* Lets a long label wrap instead of shoving the figure off the edge. */
   min-width: 0;
 }
 
-.arev__sub {
-  display: block;
+.arev__rowvalue {
   font-family: var(--font-condensed);
-  font-style: normal;
-  font-size: 0.74rem;
-  letter-spacing: 0.05em;
-  color: var(--dust);
-}
-
-.arev__value {
-  font-family: var(--font-condensed);
-  font-size: 1.05rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--cream);
   white-space: nowrap;
 }
 
-.arev__line--muted .arev__label,
-.arev__line--muted .arev__value {
-  color: var(--dust);
-}
-
 .arev__note {
-  margin: 0.25rem 0 0;
+  margin: 0.35rem 0 0;
   font-family: var(--font-body);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   line-height: 1.4;
   color: var(--dust);
-}
-
-@media (min-width: 760px) {
-  .arev {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0 1.6rem;
-    align-items: start;
-  }
-
-  .arev__headline {
-    grid-column: 1 / -1;
-  }
-
-  /* The first group sits under the total; the rest fill the second column. */
-  .arev__group + .arev__group {
-    border-top: 0;
-    margin-top: 0;
-  }
-
-  .arev__group {
-    border-top: 1px solid rgba(243, 238, 229, 0.09);
-    margin-top: 0.55rem;
-  }
 }

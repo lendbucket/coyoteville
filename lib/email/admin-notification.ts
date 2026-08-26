@@ -83,7 +83,7 @@ export function renderAdminNotification(
     ['Notes', r.notes || 'None'],
     ['How they registered', path],
     ['Payment', `${r.payment_status} · ${money(r.amount_cents)}`],
-    ['Food handler permit', permit, !r.permit_uploaded && (r.spot_type === 'truck' || r.serves_food)],
+    ['DSHS health permit', permit, !r.permit_uploaded && (r.spot_type === 'truck' || r.serves_food)],
     ['Signed by', r.signature_name],
     ['Signed at', when(r.signed_at)],
     ['Agreement version', r.agreement_version || 'not recorded'],

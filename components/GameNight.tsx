@@ -1,11 +1,11 @@
 import { GAME_NIGHT } from '@/lib/seo';
 
 /**
- * Game night logistics. Admission, shuttles and parking.
+ * Game night logistics. Admission and parking.
  *
- * The three facts come from lib/seo so this section, the FAQ and the FAQPage
- * schema all state the same thing. People search for the parking price and the
- * shuttle, so those two need to be identical wherever they appear.
+ * The facts come from lib/seo so this section, the FAQ and the FAQPage schema
+ * all state the same thing. People search for the parking price, so it needs to
+ * be identical wherever it appears.
  */
 export default function GameNight() {
   return (

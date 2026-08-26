@@ -44,12 +44,6 @@ export default function Visit() {
               </span>
             </li>
             <li>
-              <span className="factlist__label">Shuttles</span>
-              <span className="factlist__value">
-                Shuttles run to the stadium once the game starts.
-              </span>
-            </li>
-            <li>
               <span className="factlist__label">Bring</span>
               <span className="factlist__value">
                 A chair if you want to sit. Most trucks take cash and cards.

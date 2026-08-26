@@ -26,10 +26,7 @@ export default function Split() {
           The lot is on North Stadium Road, directly across from the stadium and next to Alice
           High School.
         </p>
-        <p>
-          Shuttles run to the stadium once the game starts. Parking opens on the lot at kickoff
-          for $10 per vehicle.
-        </p>
+        <p>Parking opens on the lot at kickoff for $10 per vehicle.</p>
       </div>
     </section>
   );

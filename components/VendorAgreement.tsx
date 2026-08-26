@@ -13,7 +13,7 @@
  * which is precisely what this version string exists to record: anything signed
  * under v2.0-2026 contracted with the old entity and must keep pointing there.
  */
-export const AGREEMENT_VERSION = "v3.0-2026";
+export const AGREEMENT_VERSION = "v3.1-2026";
 
 export const CONTRACTING_ENTITY = "Coyoteville Alice LLC";
 export const CONTRACTING_ENTITY_FULL =
@@ -70,9 +70,15 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
       </p>
       <ol>
         <li>
-          A current mobile food unit permit or temporary food establishment permit issued by the
-          applicable health authority for any Vendor preparing, handling, or serving food or
-          beverages.
+          <strong>
+            A current health permit issued by the Texas Department of State Health Services for
+            every mobile food unit.
+          </strong>{" "}
+          Any Vendor operating a food truck or other mobile food unit must hold a current DSHS
+          mobile food unit permit, must upload it as a condition of registering, and must have it
+          physically present at the event. A temporary food establishment permit issued by the
+          applicable health authority is required for any other Vendor preparing, handling, or
+          serving food or beverages.
         </li>
         <li>
           <strong>
