@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import DeadlineBarMount from '@/components/DeadlineBarMount';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import StringLights from '@/components/StringLights';
@@ -26,6 +27,7 @@ export default function ConfirmedPage({
 
   return (
     <>
+      <DeadlineBarMount />
       <Nav />
 
       <main id="main" className="confirm">

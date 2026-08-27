@@ -129,7 +129,13 @@ export async function notifyRegistration(r: RegistrationEmail): Promise<void> {
  */
 export async function sendReminderEmail(
   to: string,
-  message: { subject: string; html: string; text: string }
+  message: { subject: string; html: string; text: string },
+  /**
+   * Optional files. The reminder path never passes any; the composer does.
+   * Kept on this one sender rather than adding a second near identical
+   * function, because the only difference is the attachments array.
+   */
+  attachments: { filename: string; content: Buffer; contentType: string }[] = []
 ): Promise<boolean> {
   if (!isEmailConfigured()) {
     console.warn('email not configured, cannot send reminder', { to });
@@ -144,6 +150,9 @@ export async function sendReminderEmail(
       subject: message.subject,
       html: message.html,
       text: message.text,
+      ...(attachments.length
+        ? { attachments: attachments.map((a) => ({ filename: a.filename, content: a.content })) }
+        : {}),
     });
 
     if (result?.error) {

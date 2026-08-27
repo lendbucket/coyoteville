@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import { Anton, Barlow_Condensed, Karla, Yellowtail } from 'next/font/google';
 import { SITE, SITE_URL, ADDRESS, GEO, KEYWORDS, OG_IMAGE } from '@/lib/seo';
 import { supportEmail } from '@/lib/support';
-import DeadlineBarMount from '@/components/DeadlineBarMount';
 import './globals.css';
 
 /** Display type. Condensed, heavy, reads like painted lot signage. */
@@ -51,6 +50,13 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   colorScheme: 'dark light',
+  /**
+   * The tracker's tab bar sits against the bottom edge and pads itself with
+   * env(safe-area-inset-bottom). Those insets read as zero unless the viewport
+   * covers the whole screen, so without this the bar would float above a white
+   * strip on a notched iPhone and sit under the home indicator.
+   */
+  viewportFit: 'cover',
 };
 
 export const metadata: Metadata = {
@@ -144,7 +150,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a className="skip" href="#main">
           Skip to content
         </a>
-        <DeadlineBarMount />
         {children}
       </body>
     </html>

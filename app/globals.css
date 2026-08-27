@@ -3857,3 +3857,1187 @@ p {
   padding: 0.7rem 0.85rem;
   color: var(--cream);
 }
+
+/* ========================================================================
+   ADMIN, PHONE FIRST
+   The tracker is used one handed at the gate. Under 900px it behaves like an
+   app: four tabs on a bar at the bottom, one panel at a time, a sheet for
+   detail. At 900px and up every panel stacks and the bar disappears, which is
+   the layout the page already had.
+   ===================================================================== */
+
+.admin--app {
+  padding: 0;
+  max-width: none;
+}
+
+.ash {
+  --tabbar-h: 62px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--black);
+}
+
+/* ------------------------------------------------------------------ top */
+
+.ash__top {
+  padding: calc(env(safe-area-inset-top, 0px) + 0.7rem) 0.85rem 0.5rem;
+  background: var(--black);
+  border-bottom: 1px solid rgba(243, 238, 229, 0.12);
+}
+
+.ash__titlerow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ash__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--cream);
+}
+
+.ash__signout,
+.ash__export {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 0.8rem;
+  border: 1px solid rgba(243, 238, 229, 0.2);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--cream-deep);
+  font-family: var(--font-condensed);
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ash__eventrow {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.ash__eventsel {
+  flex: 1;
+  min-height: 44px;
+}
+
+/* --------------------------------------------------------------- panels */
+
+.ash__panel {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  padding: 0.6rem 0.85rem calc(var(--tabbar-h) + var(--safe-b) + 1rem);
+}
+
+.ash[data-tab="vendors"] .ash__panel[data-panel="vendors"],
+.ash[data-tab="waitlist"] .ash__panel[data-panel="waitlist"],
+.ash[data-tab="money"] .ash__panel[data-panel="money"],
+.ash[data-tab="compose"] .ash__panel[data-panel="compose"] {
+  display: flex;
+  flex-direction: column;
+}
+
+/* -------------------------------------------------------- search + chips */
+
+.ash__search {
+  display: flex;
+  gap: 0.45rem;
+  padding-bottom: 0.5rem;
+}
+
+.ash__searchInput {
+  flex: 1;
+  min-height: 44px;
+}
+
+.ash__select {
+  min-height: 44px;
+  min-width: 76px;
+  padding: 0 0.7rem;
+  border: 1px solid rgba(243, 238, 229, 0.2);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--cream-deep);
+  font-family: var(--font-condensed);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.ash__select.is-on {
+  background: var(--ember);
+  border-color: var(--ember);
+  color: var(--ink);
+}
+
+/* Horizontal chips instead of a dropdown: one tap, no menu to open. */
+.fchips {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.55rem;
+}
+
+.fchips::-webkit-scrollbar {
+  display: none;
+}
+
+.fchip {
+  flex: none;
+  min-height: 44px;
+  padding: 0 0.95rem;
+  border: 1px solid rgba(243, 238, 229, 0.2);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cream-deep);
+  font-family: var(--font-condensed);
+  font-size: 0.9rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.fchip.is-on {
+  background: var(--ember);
+  border-color: var(--ember);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.fchip--action {
+  border-style: dashed;
+}
+
+.fchip:active {
+  transform: scale(0.97);
+}
+
+/* ------------------------------------------------------ selection bar */
+
+.ash__selbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.5rem;
+  background: var(--char-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-condensed);
+  font-size: 0.85rem;
+  color: var(--cream);
+}
+
+.ash__selbar > div {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.ash__selbar button {
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 1px solid rgba(243, 238, 229, 0.2);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--cream-deep);
+  font-family: var(--font-condensed);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.ash__selbar button.is-primary {
+  background: var(--ember);
+  border-color: var(--ember);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------- the list */
+
+.ash__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  /* Momentum, and no rubber banding into the page behind it. */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.ash__pull {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-family: var(--font-condensed);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dust);
+  transition: height 0.15s ease;
+}
+
+.vlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.ash__afterlist {
+  padding-top: 0.8rem;
+}
+
+.ash__empty {
+  padding: 2rem 0.5rem;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--dust);
+}
+
+/* ------------------------------------------------------------ the card */
+
+.vcard {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+  background: var(--char);
+  border: 1px solid rgba(243, 238, 229, 0.12);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.vcard--selected {
+  border-color: var(--ember);
+  background: rgba(240, 169, 75, 0.07);
+}
+
+.vcard__check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  padding-left: 0.35rem;
+  cursor: pointer;
+}
+
+.vcard__check input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--ember);
+}
+
+.vcard__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.7rem 0.2rem 0.7rem 0.8rem;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  /* Instant feedback: there is no hover on a phone. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vcard__body:active {
+  background: rgba(243, 238, 229, 0.06);
+}
+
+.vcard__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.vcard__name {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.12rem;
+  line-height: 1.15;
+  color: var(--cream);
+  overflow-wrap: anywhere;
+}
+
+.vcard__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.vcard__meta {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--dust);
+  overflow-wrap: anywhere;
+}
+
+.vcard__call {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  border-left: 1px solid rgba(243, 238, 229, 0.12);
+  color: var(--ember);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vcard__call:active {
+  background: rgba(240, 169, 75, 0.16);
+}
+
+/* ------------------------------------------------------ badges and pills */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.16rem 0.45rem;
+  border-radius: 4px;
+  font-family: var(--font-condensed);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: rgba(243, 238, 229, 0.1);
+  color: var(--cream-deep);
+}
+
+.badge--truck { background: rgba(196, 85, 43, 0.28); color: #F0B195; }
+.badge--booth { background: rgba(240, 169, 75, 0.2); color: var(--ember); }
+.badge--free  { background: rgba(183, 155, 114, 0.2); color: var(--tan); }
+.badge--spot  { background: rgba(243, 238, 229, 0.14); color: var(--cream); }
+.badge--ok    { background: rgba(96, 158, 106, 0.24); color: #8FD39C; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-family: var(--font-condensed);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.pill--ok   { background: rgba(96, 158, 106, 0.22); color: #8FD39C; }
+.pill--warn { background: rgba(196, 85, 43, 0.24); color: #F0A98B; }
+
+/* ---------------------------------------------------------- skeletons */
+
+.vcard--skeleton {
+  display: block;
+  padding: 0.75rem 0.8rem;
+}
+
+.sk {
+  display: block;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(243, 238, 229, 0.06) 25%,
+    rgba(243, 238, 229, 0.12) 37%,
+    rgba(243, 238, 229, 0.06) 63%
+  );
+  background-size: 400% 100%;
+  animation: sk 1.3s ease infinite;
+}
+
+/* Sized to the real thing, so nothing moves when the data lands. */
+.sk--title  { height: 18px; width: 62%; margin-bottom: 0.5rem; }
+.sk--badges { height: 14px; width: 45%; margin-bottom: 0.45rem; }
+.sk--meta   { height: 12px; width: 80%; }
+
+@keyframes sk {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk { animation: none; }
+}
+
+/* -------------------------------------------------------------- sheet */
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sheet__scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+
+.sheet__panel {
+  position: relative;
+  width: 100%;
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--char);
+  border-top-left-radius: 18px;
+  border-top-right-radius: 18px;
+  border-top: 1px solid rgba(243, 238, 229, 0.16);
+  animation: sheet-up 0.22s ease;
+  transition: transform 0.18s ease;
+}
+
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet__panel { animation: none; }
+}
+
+.sheet__grab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding-top: 8px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.sheet__grab span {
+  display: block;
+  width: 42px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(243, 238, 229, 0.3);
+}
+
+.sheet__scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 0.4rem 0.95rem calc(env(safe-area-inset-bottom, 0px) + 1.2rem);
+}
+
+.sheet__head {
+  padding-bottom: 0.7rem;
+}
+
+.sheet__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.45rem;
+  line-height: 1.1;
+  color: var(--cream);
+  overflow-wrap: anywhere;
+}
+
+.sheet__sub {
+  margin: 0.15rem 0 0.5rem;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  color: var(--dust);
+}
+
+.sheet__actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  padding-bottom: 0.8rem;
+}
+
+.act {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 60px;
+  padding: 0.4rem;
+  border: 1px solid rgba(243, 238, 229, 0.16);
+  border-radius: var(--radius-sm);
+  background: var(--char-2);
+  color: var(--cream);
+  font-family: var(--font-condensed);
+  font-size: 0.8rem;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.act:active {
+  background: rgba(240, 169, 75, 0.16);
+}
+
+.act__icon {
+  color: var(--ember);
+  line-height: 0;
+}
+
+.sheet__block {
+  padding: 0.5rem 0;
+  border-top: 1px solid rgba(243, 238, 229, 0.1);
+}
+
+.sheet__facts {
+  margin: 0;
+  padding: 0.6rem 0 0;
+  border-top: 1px solid rgba(243, 238, 229, 0.1);
+  display: grid;
+  gap: 0.55rem;
+}
+
+.sheet__facts > div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.sheet__facts dt {
+  font-family: var(--font-condensed);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+.sheet__facts dd {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--cream);
+  overflow-wrap: anywhere;
+}
+
+.sheet__facts a {
+  color: var(--ember);
+  /* Comfortable target without breaking the line it sits on. */
+  display: inline-block;
+  padding: 0.35rem 0;
+}
+
+.sheet__missing {
+  color: var(--rust-bright);
+}
+
+.sheet__close {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 1rem;
+}
+
+/* ------------------------------------------------------------- tab bar */
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: rgba(12, 12, 13, 0.97);
+  border-top: 1px solid rgba(243, 238, 229, 0.14);
+  /* Clear of the iOS home indicator. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  backdrop-filter: blur(8px);
+}
+
+.tabbar__tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 62px;
+  border: 0;
+  background: transparent;
+  color: var(--dust);
+  font-family: var(--font-condensed);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tabbar__tab.is-on {
+  color: var(--ember);
+}
+
+.tabbar__tab:active {
+  background: rgba(243, 238, 229, 0.06);
+}
+
+.tabbar__badge {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  margin-left: 6px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--rust);
+  color: var(--cream);
+  font-size: 0.65rem;
+  line-height: 17px;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------- composer */
+
+.cmp {
+  display: grid;
+  gap: 0.9rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cmp__section {
+  background: var(--char);
+  border: 1px solid rgba(243, 238, 229, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 0.8rem;
+}
+
+.cmp__h {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-condensed);
+  font-size: 0.74rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+.cmp__label {
+  display: block;
+  margin: 0.65rem 0 0.25rem;
+  font-family: var(--font-condensed);
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+.cmp__chips {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.5rem;
+}
+
+.cmp__to {
+  list-style: none;
+  margin: 0 0 0.3rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.cmp__to button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--ember);
+  border-radius: 999px;
+  background: rgba(240, 169, 75, 0.12);
+  color: var(--cream);
+  font-family: var(--font-condensed);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.cmp__hint {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--dust);
+}
+
+.cmp__error {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--rust-bright);
+}
+
+.cmp__errorList {
+  margin: 0.3rem 0 0;
+  padding-left: 1.1rem;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--dust);
+}
+
+.cmp__preview-line {
+  margin: 0.4rem 0 0;
+  padding: 0.5rem 0.6rem;
+  background: var(--char-2);
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--cream-deep);
+  overflow-wrap: anywhere;
+}
+
+.cmp__preview-line span {
+  font-family: var(--font-condensed);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dust);
+  margin-right: 0.35rem;
+}
+
+/* Toolbar scrolls sideways rather than wrapping, so the editor never jumps
+   down the screen when the buttons rewrap. */
+.cmp__toolbar {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0.7rem 0 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.cmp__toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.cmp__toolbar button {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 1px solid rgba(243, 238, 229, 0.2);
+  border-radius: var(--radius-sm);
+  background: var(--char-2);
+  color: var(--cream);
+  font-family: var(--font-condensed);
+  font-size: 0.9rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cmp__toolbar button:active {
+  background: rgba(240, 169, 75, 0.2);
+}
+
+.cmp__merge {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.cmp__merge button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-height: 48px;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid rgba(243, 238, 229, 0.18);
+  border-radius: var(--radius-sm);
+  background: var(--char-2);
+  color: var(--cream);
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cmp__merge button span {
+  font-size: 0.75rem;
+  color: var(--dust);
+}
+
+.cmp__editor {
+  min-height: 190px;
+  margin-top: 0.6rem;
+  padding: 0.7rem 0.8rem;
+  background: var(--black);
+  border: 1px solid rgba(243, 238, 229, 0.2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--cream);
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.cmp__editor:focus {
+  outline: 2px solid var(--ember);
+  outline-offset: 1px;
+}
+
+.cmp__editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--dust);
+}
+
+.cmp__editor ul,
+.cmp__editor ol {
+  padding-left: 1.3rem;
+  margin: 0.4rem 0;
+}
+
+.cmp__editor a {
+  color: var(--ember);
+}
+
+.cmp__file {
+  display: none;
+}
+
+.cmp__attach {
+  min-height: 44px;
+  width: 100%;
+}
+
+.cmp__files {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.cmp__files li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-left: 0.6rem;
+  background: var(--char-2);
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--cream);
+  overflow-wrap: anywhere;
+}
+
+.cmp__files button {
+  flex: none;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--rust-bright);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.cmp__previewHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.cmp__toggle {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.cmp__toggle button {
+  min-height: 44px;
+  padding: 0 0.7rem;
+  border: 1px solid rgba(243, 238, 229, 0.2);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--cream-deep);
+  font-family: var(--font-condensed);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.cmp__toggle button.is-on {
+  background: var(--ember);
+  border-color: var(--ember);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* The iframe renders at a real 600px and is scaled to fit, rather than being
+   reflowed to the phone. A reflowed preview would be a preview of a different
+   email than the one that goes out. */
+.cmp__frame {
+  margin-top: 0.6rem;
+  border: 1px solid rgba(243, 238, 229, 0.16);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #0B0B0C;
+}
+
+.cmp__iframe {
+  display: block;
+  border: 0;
+  height: 620px;
+  background: #0B0B0C;
+  transform-origin: top left;
+}
+
+.cmp__frame.is-wide .cmp__iframe {
+  width: 600px;
+  /* 600px of email inside whatever the panel is, without a sideways scroll. */
+  transform: scale(var(--frame-scale, 1));
+}
+
+.cmp__frame.is-narrow .cmp__iframe {
+  width: 375px;
+  transform: scale(var(--frame-scale-narrow, 1));
+}
+
+.cmp__send {
+  position: sticky;
+  bottom: 0;
+  padding: 0.6rem 0 0;
+  background: linear-gradient(to top, var(--black) 70%, transparent);
+}
+
+.cmp__send .btn {
+  width: 100%;
+  min-height: 52px;
+}
+
+.cmp__done {
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.cmp__doneTitle {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.5rem;
+  color: var(--ember);
+}
+
+.cmp__failed {
+  margin: 0.8rem 0;
+  padding: 0.7rem 0.8rem;
+  background: rgba(196, 85, 43, 0.12);
+  border-left: 3px solid var(--rust);
+  border-radius: 6px;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--cream);
+}
+
+.cmp__failed ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.1rem;
+}
+
+/* ==================================================== desktop, 900px up */
+
+@media (min-width: 900px) {
+  .admin--app {
+    padding: 1.5rem var(--gutter) 3rem;
+    max-width: var(--shell);
+    margin: 0 auto;
+  }
+
+  .ash {
+    min-height: 0;
+  }
+
+  .ash__top {
+    padding: 0 0 0.9rem;
+  }
+
+  /* Every panel visible at once, which is what this page already was. */
+  .ash__panel,
+  .ash[data-tab] .ash__panel {
+    display: flex;
+    flex-direction: column;
+    padding: 1.2rem 0 0;
+  }
+
+  .ash__list {
+    overflow: visible;
+  }
+
+  .tabbar {
+    display: none;
+  }
+
+  .sheet__panel {
+    max-width: 640px;
+    margin: 0 auto;
+    max-height: 88dvh;
+    border-radius: 18px 18px 0 0;
+  }
+
+  .cmp {
+    overflow: visible;
+  }
+}
+
+/* ------------------------------------------------ phone layout fixes ---
+   Found by auditing at 320, 375, 390 and 428. Each of these is a measured
+   failure, not a guess. */
+
+/* The list is the scroller, not the page.
+   With min-height the shell grew past the viewport, the page itself scrolled,
+   and the last card ended up underneath the fixed tab bar. Pinning the shell to
+   the viewport makes .ash__list the only thing that scrolls, so its bottom
+   padding actually reserves the bar. */
+@media (max-width: 899px) {
+  .ash {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+}
+
+/* The preview iframe is a real 600px document, and a grid track sizes to its
+   widest item, so every section in the composer was being stretched to 600px
+   and the panel scrolled sideways. Cap the track and let the frame clip. */
+.cmp {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cmp__section,
+.cmp__frame {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* The sheet floats above the tab bar, so its own controls have to clear it,
+   otherwise Close sits on top of the bar. */
+.sheet__scroll {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 62px + 1rem);
+}
+
+/* A real 44px target with a normal sized box drawn inside it. The native input
+   fills the label invisibly; the span is what you see. */
+.vcard__check {
+  position: relative;
+  min-width: 48px;
+  min-height: 44px;
+}
+
+.vcard__check input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.vcard__check span {
+  display: block;
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(243, 238, 229, 0.4);
+  border-radius: 5px;
+  background: transparent;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.vcard__check input:checked + span {
+  background: var(--ember);
+  border-color: var(--ember);
+}
+
+.vcard__check input:checked + span::after {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 11px;
+  margin: 2px auto 0;
+  border: solid var(--ink);
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+}
+
+.vcard__check input:focus-visible + span {
+  outline: 2px solid var(--ember);
+  outline-offset: 2px;
+}
+
+/* Was 43px wide, one short. */
+.ash__selbar button {
+  min-width: 44px;
+}
+
+/* Links inside the sheet were 31px tall. They are the numbers you actually
+   tap standing in the lot. */
+.sheet__facts a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.1rem;
+}
+
+/* Every panel needs its own scroller, not just the vendor list.
+   The waitlist panel had none, so with the shell pinned to the viewport its
+   content was clipped by .ash and the rows past the fold could not be reached
+   at all. Vendors scrolls through .ash__list and compose through .cmp; these
+   two scroll themselves. */
+@media (max-width: 899px) {
+  .ash__panel[data-panel='waitlist'],
+  .ash__panel[data-panel='money'] {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  /* .cmp carries overflow-y:auto but was sizing to its content, so there was
+     nothing for it to scroll. Bounding it against the panel gives it a height
+     to scroll within. */
+  .ash__panel[data-panel='compose'] > .cmp {
+    flex: 1;
+    min-height: 0;
+  }
+}
+
+/* The send bar is sticky at the foot of the composer, so the last field needs
+   room to scroll clear of it rather than sitting underneath. */
+.cmp {
+  padding-bottom: 4.2rem;
+}

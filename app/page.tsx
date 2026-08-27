@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import DeadlineBarMount from '@/components/DeadlineBarMount';
 import Nav from '@/components/Nav';
 import Hero from '@/components/Hero';
 import Ticker from '@/components/Ticker';
@@ -57,6 +58,7 @@ export default async function HomePage() {
   return (
     <>
       <JsonLd schemas={homeSchemaGraph(supportEmail())} />
+      <DeadlineBarMount />
       <Nav />
 
       <main id="main">

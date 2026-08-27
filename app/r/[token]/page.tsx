@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import DeadlineBarMount from '@/components/DeadlineBarMount';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import VendorForm from '@/components/VendorForm';
@@ -67,6 +68,7 @@ export default async function PrepaidPage({ params }: { params: { token: string 
 
   return (
     <>
+      <DeadlineBarMount />
       <Nav />
 
       <main id="main">
