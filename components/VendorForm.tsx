@@ -9,6 +9,8 @@ import {
 } from './VendorAgreement';
 import StringLights from './StringLights';
 import NextSteps from './NextSteps';
+import EventPicker from './EventPicker';
+import type { EventOption } from '@/lib/event-options';
 import { EVENTS, PRICING, SITE } from '@/lib/seo';
 
 /** Kept in step with ALLOWED_LABEL in lib/uploads.ts. */
@@ -162,8 +164,18 @@ export default function VendorForm({
   closedTitle = 'Signup is closed for this event',
   closedBody,
   supportEmail = SITE.email,
+  events,
+  eventSlug,
+  onEventChange,
 }: {
   signupClosed?: boolean;
+  /**
+   * Events to offer. Omitted by the prepaid page, which is scoped to whatever
+   * event that vendor already paid for and falls back to the static calendar.
+   */
+  events?: EventOption[];
+  eventSlug?: string;
+  onEventChange?: (slug: string) => void;
   /** Where the form posts. */
   endpoint?: string;
   /** Prepaid vendors already paid, so there is no checkout step. */
@@ -398,8 +410,7 @@ export default function VendorForm({
           <p className="lede muted">
             {closedBody ?? (
               <>
-                The cutoff for {EVENTS[0].name} was {EVENTS[0].signupClosesDisplay} Central. We
-                close signup two days out so we can lay out the lot and assign spot numbers.
+                We close signup two days out so we can lay out the lot and assign spot numbers.
               </>
             )}
           </p>
@@ -553,18 +564,35 @@ export default function VendorForm({
               )}
             </div>
 
-            <div className="field">
-              <label className="label" htmlFor={`${uid}-event`}>
-                Which event <span className="req">*</span>
-              </label>
-              <select className="select" id={`${uid}-event`} name="event_slug" required defaultValue={EVENTS[0].slug}>
-                {EVENTS.map((event) => (
-                  <option key={event.slug} value={event.slug}>
-                    {event.name}, {event.displayDate}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {events && eventSlug && onEventChange ? (
+              <EventPicker
+                id={`${uid}-event`}
+                events={events}
+                value={eventSlug}
+                onChange={onEventChange}
+              />
+            ) : (
+              /* Prepaid link: no choice to make, so the slug rides along as a
+                 hidden field rather than as a select with one option. */
+              <div className="field">
+                <label className="label" htmlFor={`${uid}-event`}>
+                  Which event <span className="req">*</span>
+                </label>
+                <select
+                  className="select"
+                  id={`${uid}-event`}
+                  name="event_slug"
+                  required
+                  defaultValue={eventSlug ?? EVENTS[0].slug}
+                >
+                  {EVENTS.map((event) => (
+                    <option key={event.slug} value={event.slug}>
+                      {event.name}, {event.displayDate}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="field">

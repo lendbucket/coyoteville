@@ -1,3 +1,4 @@
+import SocialLinks from './SocialLinks';
 import { ADDRESS, MAPS_URL, NEXT_EVENT, SITE } from '@/lib/seo';
 
 export default function Visit() {
@@ -58,9 +59,7 @@ export default function Visit() {
             <li>
               <span className="factlist__label">Follow along</span>
               <span className="factlist__value">
-                <a href={SITE.facebook} target="_blank" rel="noopener noreferrer">
-                  facebook.com/coyoteville
-                </a>
+                <SocialLinks showHandle />
               </span>
             </li>
           </ul>

@@ -27,6 +27,9 @@ export const SITE = {
    */
   ownerEmail: 'ceo@36west.org',
   facebook: 'https://facebook.com/coyoteville',
+  instagram: 'https://instagram.com/coyoteville',
+  /** Handle without the @, for the visible label on both links. */
+  socialHandle: 'coyoteville',
   /** E.164 for structured data, and a readable form for display. */
   telephone: '+15404479432',
   telephoneDisplay: '540 447 9432',
@@ -99,13 +102,21 @@ export function priceForSpot(spot: string): number | null {
 }
 
 /**
- * Upcoming events. The first entry drives the ticker, the countdowns and the
- * Event schema.
+ * The event calendar.
+ *
+ * Kept in date order, oldest first. This is the static half of the schedule:
+ * names, dates and display strings that have to be identical in the page, the
+ * metadata and the structured data. The events table in Supabase carries the
+ * parts that change without a deploy, capacity and the signup deadline, and
+ * lib/event-schedule.ts merges the two.
  *
  * `signupClosesLocal` and `gatesOpenLocal` are wall clock times in
- * EVENT_TIMEZONE (America/Chicago), not offsets. Change them here to move a
- * deadline. Nothing in a component hardcodes a date, and the daylight saving
- * offset is worked out from the zone, so a winter event gets CST on its own.
+ * EVENT_TIMEZONE (America/Chicago), not offsets. The daylight saving offset is
+ * worked out from the zone, so a winter event gets CST on its own.
+ *
+ * The house rule for a deadline is two days before the event at 11:59 PM. Both
+ * entries below follow it, and defaultSignupCloses() reproduces it for anything
+ * added later, so a new event does not strictly need its own literal.
  */
 export const EVENTS = [
   {
@@ -120,16 +131,56 @@ export const EVENTS = [
 
     /** Vendor signup cutoff. After this the form closes, server side. */
     signupClosesLocal: '2026-08-26T23:59:59',
-    signupClosesDisplay: 'Tuesday, August 26, 2026 at 11:59 PM',
+    signupClosesDisplay: 'Wednesday, August 26, 2026 at 11:59 PM',
 
     /** Gates open. Drives the event countdown section. */
     gatesOpenLocal: '2026-08-28T16:00:00',
   },
+  {
+    slug: 'home-game-2026-09-11',
+    name: 'Alice Home Game',
+    date: '2026-09-11',
+    startISO: '2026-09-11T16:00:00-05:00',
+    endISO: '2026-09-11T22:00:00-05:00',
+    displayDate: 'Friday, September 11, 2026',
+    displayTime: '4:00 PM',
+    blurb: 'Alice home game night. We open at 4:00 PM.',
+
+    signupClosesLocal: '2026-09-09T23:59:59',
+    signupClosesDisplay: 'Wednesday, September 9, 2026 at 11:59 PM',
+
+    gatesOpenLocal: '2026-09-11T16:00:00',
+  },
 ] as const;
 
-export const NEXT_EVENT = EVENTS[0];
-
 export type EventConfig = (typeof EVENTS)[number];
+
+/**
+ * Every event, oldest first.
+ *
+ * EVENTS is already written in order; this sorts anyway so that adding one in
+ * the wrong place cannot silently reorder the dropdown or the schema.
+ */
+export const UPCOMING_EVENTS: readonly EventConfig[] = [...EVENTS].sort((a, b) =>
+  a.date.localeCompare(b.date)
+);
+
+/**
+ * The soonest event, whether or not its signup has closed.
+ *
+ * Still the right anchor for "where to find us" copy and the gates countdown,
+ * which stay true right up to the event itself. Anything about *applying*
+ * should use nextOpenEvent() instead, because signup shuts two days out while
+ * this still points at the same event.
+ */
+export const NEXT_EVENT = UPCOMING_EVENTS[0];
+
+/** The house rule: two days before the event, 11:59 PM local. */
+export function defaultSignupCloses(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  const two = new Date(Date.UTC(y, m - 1, d - 2));
+  return two.toISOString().slice(0, 10) + 'T23:59:59';
+}
 
 /** UTC instant of an event's signup cutoff, resolved from its wall clock time. */
 export function signupClosesAt(event: EventConfig = NEXT_EVENT): number {
@@ -145,7 +196,9 @@ export function gatesOpenAt(event: EventConfig = NEXT_EVENT): number {
  * Whether vendor signup is shut for an event.
  *
  * The API route calls this before it will accept an application, so closing is
- * enforced on the server and not just hidden in the UI.
+ * enforced on the server and not just hidden in the UI. This reads the static
+ * deadline; lib/event-schedule.ts is the version that honours an override set
+ * in the events table, and is what the route actually calls.
  */
 export function isSignupClosed(event: EventConfig = NEXT_EVENT, now: number = Date.now()): boolean {
   return now >= signupClosesAt(event);
@@ -154,6 +207,19 @@ export function isSignupClosed(event: EventConfig = NEXT_EVENT, now: number = Da
 /** Zone label for the cutoff, eg "CDT". Rendered next to the deadline. */
 export function signupClosesZone(event: EventConfig = NEXT_EVENT): string {
   return zoneAbbreviation(signupClosesAt(event), EVENT_TIMEZONE);
+}
+
+/** Look up one event by slug. */
+export function eventBySlug(slug: string): EventConfig | null {
+  return UPCOMING_EVENTS.find((e) => e.slug === slug) ?? null;
+}
+
+/**
+ * The soonest event whose signup is still open, or null when every one of them
+ * has closed. Drives the countdown bar and the default in the vendor form.
+ */
+export function nextOpenEvent(now: number = Date.now()): EventConfig | null {
+  return UPCOMING_EVENTS.find((e) => !isSignupClosed(e, now)) ?? null;
 }
 
 /**
@@ -289,7 +355,7 @@ export function organizationSchema(email: string = SITE.email) {
     email,
     telephone: SITE.telephone,
     address: postalAddress,
-    sameAs: [SITE.facebook],
+    sameAs: [SITE.facebook, SITE.instagram],
     areaServed: [
       { '@type': 'City', name: 'Alice' },
       { '@type': 'AdministrativeArea', name: ADDRESS.county },
@@ -345,7 +411,7 @@ export function localBusinessSchema(email: string = SITE.email) {
     address: postalAddress,
     geo: geoCoordinates,
     hasMap: MAPS_URL,
-    sameAs: [SITE.facebook],
+    sameAs: [SITE.facebook, SITE.instagram],
     servesCuisine: ['American', 'Tex-Mex', 'Barbecue', 'Cajun', 'Filipino', 'Desserts'],
     areaServed: [
       {
@@ -375,8 +441,7 @@ export function localBusinessSchema(email: string = SITE.email) {
   };
 }
 
-export function eventSchema() {
-  const e = NEXT_EVENT;
+export function eventSchema(e: EventConfig = NEXT_EVENT) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Event',
@@ -460,7 +525,7 @@ export function homeSchemaGraph(email: string = SITE.email) {
     organizationSchema(email),
     websiteSchema(),
     localBusinessSchema(email),
-    eventSchema(),
+    ...UPCOMING_EVENTS.map((e) => eventSchema(e)),
     faqSchema(),
     breadcrumbSchema(),
   ];

@@ -1,19 +1,31 @@
 import DeadlineBar from './DeadlineBar';
-import { NEXT_EVENT, isSignupClosed, signupClosesAt, signupClosesZone } from '@/lib/seo';
+import { getNextOpenEvent } from '@/lib/event-schedule';
 
 /**
- * Server half of the deadline bar. Resolves the cutoff instant from the wall
- * clock time in lib/seo, and hands the client its own clock to measure from.
- * Change the deadline in EVENTS; nothing here needs touching.
+ * Server half of the deadline bar.
+ *
+ * Counts down to the next event that is still taking applications, not to
+ * whichever is first in the calendar: once August closes, the bar has to move
+ * to September on its own rather than sitting at zero.
+ *
+ * The deadline comes from events.signup_closes_at when it is set, so moving a
+ * cutoff is a database edit rather than a deploy. lib/event-schedule falls back
+ * to the compiled calendar when Supabase is unreachable.
+ *
+ * Renders nothing when every event has closed. A countdown to a date that has
+ * already gone is worse than no countdown.
  */
-export default function DeadlineBarMount() {
+export default async function DeadlineBarMount() {
+  const event = await getNextOpenEvent();
+  if (!event) return null;
+
   return (
     <DeadlineBar
-      targetMs={signupClosesAt()}
+      targetMs={event.signupClosesAtMs}
       serverNowMs={Date.now()}
-      closesDisplay={NEXT_EVENT.signupClosesDisplay}
-      zoneLabel={signupClosesZone()}
-      initiallyClosed={isSignupClosed()}
+      closesDisplay={event.signupClosesDisplay}
+      zoneLabel={event.signupClosesZoneLabel}
+      initiallyClosed={false}
     />
   );
 }

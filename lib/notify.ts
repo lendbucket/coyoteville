@@ -5,6 +5,12 @@ import { supportEmail } from './support';
 import type { RegistrationEmail } from './notify-types';
 import { renderVendorConfirmation } from './email/vendor-confirmation';
 import { renderAdminNotification, type NotificationStage } from './email/admin-notification';
+import {
+  renderWaitlistJoined,
+  renderWaitlistOffer,
+  renderWaitlistOwnerAlert,
+  type WaitlistEmailVendor,
+} from './email/waitlist';
 
 export type { RegistrationEmail };
 
@@ -193,5 +199,93 @@ export async function sendMediaEmail(
   } catch (err) {
     console.error('photo email failed to send', { to, error: err });
     return { ok: false, error: 'Could not reach the mail provider.' };
+  }
+}
+
+/* ------------------------------------------------------------- waitlist */
+
+/**
+ * Waitlist mail.
+ *
+ * Same rule as registration: nothing here may fail the write. By the time this
+ * runs the vendor already has a place in the queue, so a bounced email is a
+ * nuisance and losing their position would not be.
+ *
+ * The owner alert and the vendor confirmation are sent independently. One
+ * failing must not take the other with it, because they serve different people.
+ */
+export async function notifyWaitlistJoined(v: WaitlistEmailVendor): Promise<void> {
+  if (!isEmailConfigured()) {
+    console.warn('email not configured, skipping waitlist mail', { email: v.email });
+    return;
+  }
+
+  const owner = renderWaitlistOwnerAlert(v);
+  const vendor = renderWaitlistJoined(v);
+
+  const results = await Promise.allSettled([
+    resend().emails.send({
+      from: process.env.FROM_EMAIL as string,
+      to: OWNER_EMAIL,
+      replyTo: v.email,
+      subject: owner.subject,
+      html: owner.html,
+      text: owner.text,
+    }),
+    resend().emails.send({
+      from: process.env.FROM_EMAIL as string,
+      to: v.email,
+      replyTo: supportEmail(),
+      subject: vendor.subject,
+      html: vendor.html,
+      text: vendor.text,
+    }),
+  ]);
+
+  results.forEach((r, i) => {
+    const which = i === 0 ? 'owner alert' : 'vendor confirmation';
+    if (r.status === 'rejected') {
+      console.error(`waitlist ${which} failed to send`, { email: v.email, error: r.reason });
+    } else if (r.value?.error) {
+      console.error(`waitlist ${which} rejected by Resend`, { email: v.email, error: r.value.error });
+    }
+  });
+}
+
+/**
+ * Offer a waitlisted vendor a spot.
+ *
+ * Returns whether the provider accepted it, because the caller only stamps the
+ * row as offered once it did. Telling the tracker someone was contacted when
+ * the mail bounced would leave them silently skipped.
+ */
+export async function sendWaitlistOffer(
+  v: WaitlistEmailVendor
+): Promise<{ ok: boolean; error?: string }> {
+  if (!isEmailConfigured()) {
+    return { ok: false, error: 'Email is not connected. Set RESEND_API_KEY and FROM_EMAIL.' };
+  }
+
+  const message = renderWaitlistOffer(v);
+
+  try {
+    const result = await resend().emails.send({
+      from: process.env.FROM_EMAIL as string,
+      to: v.email,
+      replyTo: supportEmail(),
+      subject: message.subject,
+      html: message.html,
+      text: message.text,
+    });
+
+    if (result?.error) {
+      console.error('waitlist offer rejected by Resend', { email: v.email, error: result.error });
+      return { ok: false, error: 'The email provider rejected that address.' };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    console.error('waitlist offer failed to send', { email: v.email, error: err });
+    return { ok: false, error: 'The offer email could not be sent.' };
   }
 }

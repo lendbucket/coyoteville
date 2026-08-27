@@ -3604,3 +3604,256 @@ p {
   line-height: 1.4;
   color: var(--dust);
 }
+
+/* ----------------------------------------------------------- social links */
+
+/* Facebook and Instagram. Every link is a 44px box whatever the glyph inside
+   measures, which is the minimum comfortable tap target on a phone. */
+.social {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.social__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 0.35rem;
+  border-radius: var(--radius-sm);
+  color: var(--cream-deep);
+  text-decoration: none;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.social__link:hover,
+.social__link:focus-visible {
+  color: var(--ember);
+  background: rgba(243, 238, 229, 0.06);
+}
+
+.social__icon {
+  display: block;
+  flex: none;
+}
+
+/* Labelled variant, used where the section reads as a list rather than a row
+   of icons. The box stays 44px tall; only the padding opens up. */
+.social--labelled .social__link {
+  justify-content: flex-start;
+  padding: 0 0.6rem 0 0.35rem;
+}
+
+.social__handle {
+  font-family: var(--font-condensed);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+/* The footer link lists are stacked text, so the icon row needs to sit clear
+   of the items above it rather than inheriting the list rhythm. */
+.footer__social {
+  margin-top: 0.35rem;
+  margin-left: -0.35rem;
+}
+
+/* -------------------------------------------------------- admin waitlist */
+
+/* Built for standing in the lot with a phone. Everything tappable is at least
+   44px, the phone number and the email are real links, and the queue position
+   is the first thing on the row because the list is worked in order. */
+.wl {
+  margin: 0 0 1.4rem;
+}
+
+.wl__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding-bottom: 0.5rem;
+}
+
+.wl__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--cream);
+}
+
+.wl__count {
+  margin: 0;
+  font-family: var(--font-condensed);
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+.wl__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.wl__row {
+  background: var(--char);
+  border: 1px solid rgba(243, 238, 229, 0.12);
+  border-left: 3px solid var(--ember);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.8rem;
+}
+
+/* Already dealt with, so it recedes rather than competing with the queue. */
+.wl__row--converted,
+.wl__row--declined {
+  border-left-color: var(--dust);
+  opacity: 0.65;
+}
+
+.wl__row--offered {
+  border-left-color: var(--rust);
+}
+
+.wl__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.wl__lead {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.wl__pos {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(240, 169, 75, 0.14);
+  color: var(--ember);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.wl__who {
+  min-width: 0;
+}
+
+.wl__biz {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.05rem;
+  line-height: 1.15;
+  color: var(--cream);
+}
+
+.wl__contact {
+  margin: 0.1rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  color: var(--dust);
+}
+
+.wl__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.wl__sells {
+  margin: 0.5rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--cream-deep);
+}
+
+/* Phone and email, sized as targets rather than as inline text. */
+.wl__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.wl__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid rgba(243, 238, 229, 0.18);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-condensed);
+  font-size: 0.92rem;
+  color: var(--ember);
+  text-decoration: none;
+  /* A long address wraps inside the box instead of widening the row. */
+  word-break: break-word;
+}
+
+.wl__link:hover,
+.wl__link:focus-visible {
+  background: rgba(243, 238, 229, 0.06);
+}
+
+.wl__action {
+  margin-top: 0.55rem;
+}
+
+/* The offer button is a real commitment, so it gets a full width target on a
+   phone rather than sitting inline where it can be hit by accident. */
+.wl__action .btn {
+  min-height: 44px;
+  width: 100%;
+}
+
+@media (min-width: 560px) {
+  .wl__action .btn {
+    width: auto;
+    min-width: 190px;
+  }
+}
+
+.wl__msg {
+  margin: 0.4rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--dust);
+}
+
+.wl__msg--error {
+  color: var(--rust-bright);
+}
+
+/* A waitlist is not a spot, and the notice that says so has to read as a
+   warning rather than as decoration. */
+.formnote--warn {
+  border-left: 3px solid var(--ember);
+  background: rgba(240, 169, 75, 0.08);
+  padding: 0.7rem 0.85rem;
+  color: var(--cream);
+}

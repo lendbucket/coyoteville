@@ -1,4 +1,5 @@
 import { getSpots } from '@/lib/spots';
+import { getDefaultEvent } from '@/lib/event-schedule';
 import { NEXT_EVENT, signupClosesZone } from '@/lib/seo';
 
 /**
@@ -9,7 +10,10 @@ import { NEXT_EVENT, signupClosesZone } from '@/lib/seo';
  * this says so rather than showing a percentage of nothing.
  */
 export default async function SpotsMeter() {
-  const spots = await getSpots(NEXT_EVENT.slug);
+  // The meter follows the event a vendor would actually be applying to, which
+  // is the soonest one still open, not whichever is first in the calendar.
+  const event = (await getDefaultEvent()) ?? NEXT_EVENT;
+  const spots = await getSpots(event.slug);
 
   if (!spots.available) {
     return (
@@ -17,7 +21,7 @@ export default async function SpotsMeter() {
         <div className="shell">
           <div className="spots__head">
             <h2 id="spots-title" className="spots__title">
-              Spots for {NEXT_EVENT.name}
+              Spots for {event.name}
             </h2>
           </div>
           <p className="spots__empty">
@@ -31,7 +35,7 @@ export default async function SpotsMeter() {
 
   const { total, booth, truck, freeClaimed } = spots;
   const percent = total.percent;
-  const closesZone = signupClosesZone();
+  const closesZone = signupClosesZone(event);
 
   return (
     <section className="spots" aria-labelledby="spots-title">

@@ -4,7 +4,8 @@ import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { getSquare, getSquareLocationId, isSquareConfigured } from '@/lib/square';
 import { getClientIp, rateLimit } from '@/lib/rate-limit';
 import { AGREEMENT_VERSION } from '@/components/VendorAgreement';
-import { EVENTS, PRICING, SITE_URL, priceForSpot, isSignupClosed } from '@/lib/seo';
+import { EVENTS, PRICING, SITE_URL, priceForSpot } from '@/lib/seo';
+import { getScheduledEvent } from '@/lib/event-schedule';
 import {
   MAX_PHOTOS,
   MAX_TOTAL_UPLOAD_BYTES,
@@ -40,6 +41,8 @@ type Stage =
   | 'parse'
   | 'validation'
   | 'deadline'
+  /** Every booth and truck spot for the event was already claimed. */
+  | 'full'
   | 'upload-validation'
   | 'db-config'
   | 'db-insert'
@@ -339,16 +342,28 @@ export async function POST(request: Request) {
     );
   }
 
-  // Signup cutoff. Enforced here, not just hidden in the UI, so a stale page or
-  // a direct post cannot slip in after the deadline.
-  const event = EVENTS.find((e) => e.slug === value.event_slug);
-  if (!event) {
+  // Signup cutoff and capacity. Enforced here, not just hidden in the UI, so a
+  // stale page or a direct post cannot slip in after the deadline or into an
+  // event that filled up while the form was open.
+  //
+  // The deadline comes from the schedule rather than the compiled calendar, so
+  // a cutoff moved in the events table is honoured by the server too and not
+  // only by the countdown.
+  const event = await getScheduledEvent(value.event_slug);
+  if (!event || !event.isPublished) {
     return bad('Pick an event.');
   }
-  if (isSignupClosed(event)) {
+  if (event.deadlinePassed) {
     logFailure('deadline', { eventSlug: event.slug });
     return bad(
-      `Signup for ${event.name} closed on ${event.signupClosesDisplay} Central. Email us and we will get you on the next one.`,
+      `Signup for ${event.name} closed on ${event.signupClosesDisplay} Central. Join the waitlist and we will contact you if a spot opens.`,
+      409
+    );
+  }
+  if (event.isFull === true) {
+    logFailure('full', { eventSlug: event.slug });
+    return bad(
+      `${event.name} is full. Join the waitlist and we will contact you if a spot opens.`,
       409
     );
   }

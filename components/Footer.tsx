@@ -1,4 +1,5 @@
 import Brand from './Brand';
+import SocialLinks from './SocialLinks';
 import StringLights from './StringLights';
 import { ADDRESS, PRICING, SITE } from '@/lib/seo';
 import { supportEmail } from '@/lib/support';
@@ -49,16 +50,13 @@ export default function Footer() {
             <li>
               <a href={`mailto:${email}`}>{email}</a>
             </li>
-            <li>
-              <a href={SITE.facebook} target="_blank" rel="noopener noreferrer">
-                Facebook
-              </a>
-            </li>
             <li>{ADDRESS.street}</li>
             <li>
               {ADDRESS.city}, {ADDRESS.state} {ADDRESS.zip}
             </li>
           </ul>
+
+          <SocialLinks className="footer__social" />
         </div>
       </div>
 

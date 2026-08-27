@@ -37,6 +37,12 @@ create table if not exists public.events (
   booth_claimed_offline integer not null default 0,
   truck_claimed_offline integer not null default 0,
 
+  -- When vendor signup shuts for this event. Per event on purpose: two events
+  -- are open at once for most of the season and they close on different days.
+  -- Null means the house rule applies, two days before starts_at, which the
+  -- backfill below writes in so nothing has to compute it at read time.
+  signup_closes_at timestamptz,
+
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
 
@@ -50,6 +56,13 @@ alter table public.events add column if not exists booth_capacity integer;
 alter table public.events add column if not exists truck_capacity integer;
 alter table public.events add column if not exists booth_claimed_offline integer not null default 0;
 alter table public.events add column if not exists truck_claimed_offline integer not null default 0;
+alter table public.events add column if not exists signup_closes_at timestamptz;
+
+-- Backfill the house rule for any event that has no explicit deadline. Safe to
+-- re-run: it only touches rows that are still null.
+update public.events
+   set signup_closes_at = starts_at - interval '2 days'
+ where signup_closes_at is null;
 
 do $$
 begin
@@ -79,6 +92,8 @@ comment on column public.events.truck_capacity is
   'Number of food truck spots for this event. Null means not set.';
 comment on column public.events.booth_claimed_offline is
   'Booth vendors who committed by phone or Facebook rather than through the form. Added to the website count by the live meter. Decrement this when one of them registers on the site, or they are counted twice.';
+comment on column public.events.signup_closes_at is
+  'When vendor signup shuts for this event. Defaults to two days before starts_at. The form and the API route both read it, so moving it here closes or reopens signup without a deploy.';
 comment on column public.events.truck_claimed_offline is
   'Food truck vendors who committed by phone or Facebook rather than through the form. Decrement when one registers on the site.';
 
@@ -339,6 +354,123 @@ order by
 comment on view public.event_roster is
   'Run sheet. Approved and settled vendors per event, ready to print.';
 
+-- ------------------------------------------------------------- waitlist ---
+-- Where vendors land when an event is full or its signup deadline has passed.
+--
+-- Not an application. Nothing here is a spot, no agreement is signed and no
+-- payment is taken. A row becomes a real vendor only when someone is offered a
+-- spot and completes the normal form, at which point their row is marked
+-- converted and a vendor_applications row exists alongside it.
+
+create table if not exists public.waitlist (
+  id            uuid primary key default gen_random_uuid(),
+
+  event_slug    text        not null references public.events (slug) on update cascade,
+
+  business_name text        not null,
+  contact_name  text        not null,
+  phone         text        not null,
+  email         text        not null,
+  -- Which kind of spot they are waiting for. Same vocabulary as an application,
+  -- so an offer can be matched against whatever actually frees up.
+  spot_type     text        not null,
+  sells         text        not null,
+
+  -- Where they stand, 1 based, within their event. Assigned by join_waitlist
+  -- under a lock so two people joining at the same instant cannot share one.
+  position      integer     not null,
+
+  status        text        not null default 'waiting',
+  offered_at    timestamptz,
+  converted_at  timestamptz,
+  declined_at   timestamptz,
+  admin_notes   text,
+
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+
+  constraint waitlist_spot_type_check
+    check (spot_type in ('booth', 'truck', 'free')),
+
+  constraint waitlist_status_check
+    check (status in ('waiting', 'offered', 'converted', 'declined')),
+
+  constraint waitlist_position_check check (position >= 1)
+);
+
+-- One position per event. This is what makes the advisory lock in
+-- join_waitlist meaningful: if two inserts ever did race, the second fails
+-- loudly instead of quietly duplicating a place in the queue.
+create unique index if not exists waitlist_event_position_key
+  on public.waitlist (event_slug, position);
+
+-- One entry per email per event. Someone hitting submit twice should not take
+-- two places in the queue.
+create unique index if not exists waitlist_event_email_key
+  on public.waitlist (event_slug, lower(email));
+
+create index if not exists waitlist_event_status_idx
+  on public.waitlist (event_slug, status, position);
+
+comment on table public.waitlist is
+  'Vendors waiting for a spot on a full or closed event. Not an application and not a confirmed spot.';
+comment on column public.waitlist.position is
+  'Place in the queue for this event, 1 based, assigned in join order. Never renumbered, so a declined row leaves a gap rather than moving everyone up.';
+comment on column public.waitlist.status is
+  'waiting, offered, converted or declined. Set to offered with offered_at when the admin emails them an invitation.';
+
+drop trigger if exists waitlist_touch_updated_at on public.waitlist;
+create trigger waitlist_touch_updated_at
+  before update on public.waitlist
+  for each row execute function public.touch_updated_at();
+
+-- ------------------------------------------------------- join the queue ---
+-- Position is assigned here rather than in the API route for the same reason
+-- the prepaid cap is: the route would have to count and then insert, which is
+-- two round trips, and two people joining at the same moment would both read
+-- the same count and both be told they are number 4. An advisory lock on the
+-- event makes the count and the insert one atomic step.
+
+create or replace function public.join_waitlist(payload jsonb)
+returns public.waitlist
+language plpgsql
+as $$
+declare
+  v_event text := payload->>'event_slug';
+  v_next  integer;
+  v_row   public.waitlist;
+begin
+  perform pg_advisory_xact_lock(hashtext('coyoteville:waitlist:' || v_event)::bigint);
+
+  -- w.position, not bare position: POSITION is a keyword in Postgres and an
+  -- unqualified reference inside an aggregate can be read as the start of
+  -- position(x in y). The alias removes the ambiguity.
+  select coalesce(max(w.position), 0) + 1 into v_next
+    from public.waitlist w
+   where w.event_slug = v_event;
+
+  insert into public.waitlist (
+    event_slug, business_name, contact_name, phone, email, spot_type, sells, position
+  )
+  values (
+    v_event,
+    payload->>'business_name',
+    payload->>'contact_name',
+    payload->>'phone',
+    payload->>'email',
+    payload->>'spot_type',
+    payload->>'sells',
+    v_next
+  )
+  returning * into v_row;
+
+  return v_row;
+end;
+$$;
+
+comment on function public.join_waitlist(jsonb) is
+  'Insert a waitlist row with the next free position for its event, atomically.';
+
 -- ------------------------------------------------------------------ RLS ---
 -- On for everything. No anonymous policies at all. The service role key used
 -- by the API routes bypasses RLS, so writes still work from the server.
@@ -346,10 +478,12 @@ comment on view public.event_roster is
 alter table public.events              enable row level security;
 alter table public.vendor_applications enable row level security;
 alter table public.subscribers         enable row level security;
+alter table public.waitlist            enable row level security;
 
 alter table public.events              force row level security;
 alter table public.vendor_applications force row level security;
 alter table public.subscribers         force row level security;
+alter table public.waitlist            force row level security;
 
 -- Published events are the only thing safe to read publicly, and only if you
 -- decide to fetch them from the browser later. Drop this policy if you would
@@ -367,12 +501,14 @@ create policy "events public read published"
 
 revoke all on public.vendor_applications from anon, authenticated;
 revoke all on public.subscribers         from anon, authenticated;
+revoke all on public.waitlist            from anon, authenticated;
 revoke all on public.event_roster        from anon, authenticated;
 
 -- ----------------------------------------------------------------- seed ---
 
-insert into public.events (slug, name, starts_at, ends_at, display_date, display_time, blurb, booth_capacity, truck_capacity)
-values (
+insert into public.events (slug, name, starts_at, ends_at, display_date, display_time, blurb, booth_capacity, truck_capacity, signup_closes_at)
+values
+(
   'tailgate-kickoff-2026-08-28',
   'Tailgate Kickoff',
   '2026-08-28 16:00:00-05',
@@ -381,7 +517,20 @@ values (
   '4:00 PM',
   'First home game of the season. We open at 4:00 PM.',
   20,
-  14
+  14,
+  '2026-08-26 23:59:59-05'
+),
+(
+  'home-game-2026-09-11',
+  'Alice Home Game',
+  '2026-09-11 16:00:00-05',
+  '2026-09-11 22:00:00-05',
+  'Friday, September 11, 2026',
+  '4:00 PM',
+  'Alice home game night. We open at 4:00 PM.',
+  20,
+  14,
+  '2026-09-09 23:59:59-05'
 )
 on conflict (slug) do update
   set name         = excluded.name,
@@ -391,7 +540,8 @@ on conflict (slug) do update
       display_time = excluded.display_time,
       blurb        = excluded.blurb,
       booth_capacity = excluded.booth_capacity,
-      truck_capacity = excluded.truck_capacity;
+      truck_capacity = excluded.truck_capacity,
+      signup_closes_at = excluded.signup_closes_at;
 -- booth_claimed_offline and truck_claimed_offline are deliberately absent from
 -- that update list. They are maintained by hand, and re-running this file must
 -- not reset them to zero.

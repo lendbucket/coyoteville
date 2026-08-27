@@ -13,13 +13,14 @@ import Pricing from '@/components/Pricing';
 import HowItWorks from '@/components/HowItWorks';
 import EventCountdownSection from '@/components/EventCountdownSection';
 import PastVendors from '@/components/PastVendors';
-import VendorForm from '@/components/VendorForm';
+import ApplySection from '@/components/ApplySection';
 import Faq from '@/components/Faq';
 import EmailCapture from '@/components/EmailCapture';
 import Visit from '@/components/Visit';
 import Footer from '@/components/Footer';
 import JsonLd from '@/components/JsonLd';
-import { homeSchemaGraph, isSignupClosed } from '@/lib/seo';
+import { homeSchemaGraph } from '@/lib/seo';
+import { getDefaultEvent, getSelectableEvents } from '@/lib/event-schedule';
 import { supportEmail } from '@/lib/support';
 
 /**
@@ -33,7 +34,26 @@ export const metadata: Metadata = {
   alternates: { canonical: '/' },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  // The picker offers every published event, closed and full ones included,
+  // because those are the ones a vendor joins the waitlist for. Only the live
+  // state travels to the browser; the rest of ScheduledEvent stays server side.
+  const [selectable, defaultEvent] = await Promise.all([
+    getSelectableEvents(),
+    getDefaultEvent(),
+  ]);
+
+  const eventOptions = selectable.map((e) => ({
+    slug: e.slug,
+    name: e.name,
+    displayDate: e.displayDate,
+    isOpen: e.isOpen,
+    deadlinePassed: e.deadlinePassed,
+    isFull: e.isFull,
+    signupClosesDisplay: e.signupClosesDisplay,
+    remaining: e.remaining,
+  }));
+
   return (
     <>
       <JsonLd schemas={homeSchemaGraph(supportEmail())} />
@@ -53,7 +73,11 @@ export default function HomePage() {
         <HowItWorks />
         <EventCountdownSection />
         <PastVendors />
-        <VendorForm signupClosed={isSignupClosed()} supportEmail={supportEmail()} />
+        <ApplySection
+          events={eventOptions}
+          defaultSlug={defaultEvent?.slug ?? ''}
+          supportEmail={supportEmail()}
+        />
         <Faq />
         <EmailCapture />
         <Visit />

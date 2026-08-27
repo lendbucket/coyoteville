@@ -5,10 +5,12 @@ import AdminAbandoned from '@/components/AdminAbandoned';
 import AdminReminderButton from '@/components/AdminReminderButton';
 import AdminSendPhotos from '@/components/AdminSendPhotos';
 import AdminSendAllPhotos from '@/components/AdminSendAllPhotos';
+import AdminWaitlist from '@/components/AdminWaitlist';
 import { getAbandoned, howLongAgo, lastReminderFrom } from '@/lib/abandoned';
 import { isAdminConfigured, isAdminRequest } from '@/lib/admin-auth';
 import { getAdminView, normaliseFilters } from '@/lib/admin-data';
 import { lastMediaSendFrom } from '@/lib/media-log';
+import { getWaitlist } from '@/lib/waitlist';
 import { EVENTS, PRICING } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
@@ -97,10 +99,13 @@ export default async function AdminPage({
   /* ------------------------------------------------------------ tracker */
 
   const filters = normaliseFilters(searchParams);
-  const [view, abandoned] = await Promise.all([
+  const [view, abandoned, waitlist] = await Promise.all([
     getAdminView(filters),
     getAbandoned(filters.event),
+    getWaitlist(filters.event),
   ]);
+
+  const selectedEvent = EVENTS.find((e) => e.slug === filters.event) ?? EVENTS[0];
 
   // Vendors on this event carrying anything worth handing to whoever posts.
   // Permits are deliberately not counted: they are never sent.
@@ -218,6 +223,8 @@ export default async function AdminPage({
           canRemind: Boolean(r.square_payment_link_id),
         }))}
       />
+
+      <AdminWaitlist entries={waitlist} eventName={selectedEvent.name} />
 
       {!view.available ? (
         <p className="formnote formnote--error">
