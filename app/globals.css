@@ -5041,3 +5041,179 @@ p {
 .cmp {
   padding-bottom: 4.2rem;
 }
+
+/* ----------------------------------------------------------- events cards */
+
+/* One card per date, each answering for its own event. A closed or full date
+   is dimmed but never hidden: people still need to see the date exists and
+   that they can get on the list for it. */
+
+.events__lede {
+  max-width: 52ch;
+  margin-bottom: 1.4rem;
+}
+
+.events__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 820px) {
+  .events__list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.2rem;
+  }
+}
+
+.evcard {
+  display: flex;
+  flex-direction: column;
+  padding: 1.1rem 1.15rem 1.2rem;
+  background: var(--char);
+  border: 1px solid rgba(243, 238, 229, 0.14);
+  border-left: 4px solid var(--ember);
+  border-radius: var(--radius);
+}
+
+.evcard--closed {
+  border-left-color: var(--dust);
+}
+
+.evcard__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.9rem;
+}
+
+.evcard__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.35rem, 4.5vw, 1.7rem);
+  line-height: 1.05;
+  color: var(--cream);
+}
+
+.evcard__when {
+  margin: 0.25rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  line-height: 1.35;
+  color: var(--cream-deep);
+}
+
+.evcard__state {
+  flex: none;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-family: var(--font-condensed);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.evcard__state.is-open {
+  background: rgba(96, 158, 106, 0.22);
+  color: #8FD39C;
+}
+
+.evcard__state.is-closed {
+  background: rgba(196, 85, 43, 0.24);
+  color: #F0A98B;
+}
+
+.evcard__bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(243, 238, 229, 0.1);
+  overflow: hidden;
+}
+
+.evcard__bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--rust), var(--ember));
+}
+
+/* A full bar is rust rather than the open gradient, so the state reads without
+   having to parse the number next to it. */
+.evcard__bar i.is-full {
+  background: var(--rust);
+}
+
+.evcard__count {
+  margin: 0.6rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--cream);
+}
+
+.evcard__count b {
+  color: var(--ember);
+}
+
+.evcard--closed .evcard__count b {
+  color: #F0A98B;
+}
+
+.evcard__split {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0.75rem 0 0;
+  border-top: 1px solid rgba(243, 238, 229, 0.1);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.evcard__split li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.evcard__split span {
+  font-family: var(--font-condensed);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+.evcard__split b {
+  font-family: var(--font-condensed);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--cream);
+}
+
+.evcard__note {
+  margin: 0.9rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.83rem;
+  line-height: 1.45;
+  color: var(--dust);
+}
+
+/* Pushed to the bottom so two cards of different heights still line their
+   buttons up with each other. */
+.evcard__cta {
+  /* auto pushes it to the bottom so two cards of different heights still line
+     their buttons up with each other. */
+  margin-top: auto;
+  padding-top: 1.05rem;
+  width: 100%;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

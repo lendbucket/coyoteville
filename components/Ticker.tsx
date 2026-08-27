@@ -1,4 +1,4 @@
-import { NEXT_EVENT, PRICING } from '@/lib/seo';
+import { nextEventByDate, PRICING } from '@/lib/seo';
 
 /**
  * Scrolling ticker under the hero. Carries the real event date and the real
@@ -13,8 +13,12 @@ import { NEXT_EVENT, PRICING } from '@/lib/seo';
  * statically, for assistive tech and for anything reading the markup.
  */
 export default function Ticker() {
+  /* The next event by date, resolved per render so the page moves on to the
+     following one by itself once tonight is over. */
+  const NEXT_EVENT_RESOLVED = nextEventByDate();
+
   const items = [
-    `${NEXT_EVENT.name} · ${NEXT_EVENT.displayDate} · ${NEXT_EVENT.displayTime}`,
+    `${NEXT_EVENT_RESOLVED.name} · ${NEXT_EVENT_RESOLVED.displayDate} · ${NEXT_EVENT_RESOLVED.displayTime}`,
     'Alice organizations set up free',
     `Vendor booths ${PRICING.booth.price} · Truck spots ${PRICING.truck.price}`,
     'Admission is free · Parking $10 per vehicle at kickoff',
@@ -26,9 +30,9 @@ export default function Ticker() {
   return (
     <aside className="ticker" aria-label="Next event and vendor pricing">
       <p className="ticker__sr">
-        {NEXT_EVENT.name} on{' '}
-        <time dateTime={NEXT_EVENT.startISO}>
-          {NEXT_EVENT.displayDate} at {NEXT_EVENT.displayTime}
+        {NEXT_EVENT_RESOLVED.name} on{' '}
+        <time dateTime={NEXT_EVENT_RESOLVED.startISO}>
+          {NEXT_EVENT_RESOLVED.displayDate} at {NEXT_EVENT_RESOLVED.displayTime}
         </time>
         . Vendor booths {PRICING.booth.price}, food truck spots {PRICING.truck.price}. Alice
         organizations set up free. Admission is free and parking on the lot opens at kickoff for

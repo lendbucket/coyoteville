@@ -6,6 +6,10 @@ import {
   EVENTS,
   EVENT_TIMEZONE,
   UPCOMING_EVENTS,
+  eventEndsAt,
+  formatEventDeadline,
+  gatesOpenAt,
+  nextEventByDate,
   signupClosesAt,
   type EventConfig,
 } from './seo';
@@ -30,7 +34,7 @@ import { zoneAbbreviation } from './time';
  * waitlist rather than to a dead end.
  */
 
-export type ScheduledEvent = EventConfig & {
+export type ScheduledEvent = Omit<EventConfig, 'signupClosesDisplay'> & {
   /** UTC ms of the signup cutoff. From the events table when set. */
   signupClosesAtMs: number;
   /**
@@ -39,6 +43,16 @@ export type ScheduledEvent = EventConfig & {
    * database could land on the other side of a daylight saving change.
    */
   signupClosesZoneLabel: string;
+  /**
+   * The cutoff written out, derived from signupClosesAtMs rather than from the
+   * static literal, so a deadline moved in the events table reads correctly on
+   * the page instead of showing the date it was built with.
+   */
+  signupClosesDisplay: string;
+  /** Gates open, as a UTC instant. */
+  gatesOpenAtMs: number;
+  /** When the night finishes, so the site can roll forward on its own. */
+  endsAtMs: number;
   /** True when the cutoff is in the past. */
   deadlinePassed: boolean;
   /** False hides an event from the form and the schema entirely. */
@@ -135,6 +149,9 @@ async function decorate(event: EventConfig, row: EventRow | undefined, now: numb
     ...event,
     signupClosesAtMs,
     signupClosesZoneLabel: zoneAbbreviation(signupClosesAtMs, EVENT_TIMEZONE),
+    signupClosesDisplay: formatEventDeadline(signupClosesAtMs),
+    gatesOpenAtMs: gatesOpenAt(event),
+    endsAtMs: eventEndsAt(event),
     deadlinePassed,
     isPublished,
     isFull,
@@ -191,3 +208,16 @@ export async function getDefaultEvent(now: number = Date.now()): Promise<Schedul
 
 /** Slugs the API routes will accept. Static, so it needs no round trip. */
 export const KNOWN_EVENT_SLUGS: readonly string[] = EVENTS.map((e) => e.slug);
+
+/**
+ * The next event by date, decorated with its live state.
+ *
+ * What the hero and the countdown bar point at: the event the public is coming
+ * to, which stays put after vendor signup shuts and only moves on once the
+ * night is over.
+ */
+export async function getNextEventByDate(now: number = Date.now()): Promise<ScheduledEvent> {
+  const wanted = nextEventByDate(now);
+  const schedule = await getSchedule(now);
+  return schedule.find((e) => e.slug === wanted.slug) ?? schedule[0];
+}

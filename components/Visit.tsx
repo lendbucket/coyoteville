@@ -1,7 +1,11 @@
 import SocialLinks from './SocialLinks';
-import { ADDRESS, MAPS_URL, NEXT_EVENT, SITE } from '@/lib/seo';
+import { ADDRESS, MAPS_URL, nextEventByDate, SITE } from '@/lib/seo';
 
 export default function Visit() {
+  /* The next event by date, resolved per render so the page moves on to the
+     following one by itself once tonight is over. */
+  const NEXT_EVENT_RESOLVED = nextEventByDate();
+
   return (
     <section className="section section--char" id="visit" aria-labelledby="visit-title">
       <div className="shell visit__grid">
@@ -31,7 +35,7 @@ export default function Visit() {
             <li>
               <span className="factlist__label">Next event</span>
               <span className="factlist__value">
-                {NEXT_EVENT.name}, {NEXT_EVENT.displayDate} at {NEXT_EVENT.displayTime}
+                {NEXT_EVENT_RESOLVED.name}, {NEXT_EVENT_RESOLVED.displayDate} at {NEXT_EVENT_RESOLVED.displayTime}
               </span>
             </li>
             <li>

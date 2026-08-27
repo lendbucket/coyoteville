@@ -2,7 +2,7 @@ import Photo from './Photo';
 import StringLights from './StringLights';
 import FoodTruck from './FoodTruck';
 import { SITE_PHOTOS } from '@/lib/photos';
-import { ADDRESS, NEXT_EVENT } from '@/lib/seo';
+import { ADDRESS, nextEventByDate } from '@/lib/seo';
 
 /**
  * Full bleed photographic hero. The photo runs edge to edge, a gradient scrim
@@ -10,6 +10,10 @@ import { ADDRESS, NEXT_EVENT } from '@/lib/seo';
  * between the headline and the fold.
  */
 export default function Hero() {
+  /* The next event by date, resolved per render so the page moves on to the
+     following one by itself once tonight is over. */
+  const NEXT_EVENT_RESOLVED = nextEventByDate();
+
   const hero = SITE_PHOTOS.hero;
   const heroSrcSet = hero.widths.map((w) => `/photos/${hero.file}-${w}.webp ${w}w`).join(', ');
 
@@ -69,10 +73,10 @@ export default function Hero() {
       </div>
 
       <p className="hero__meta">
-        <span>{NEXT_EVENT.name}</span>
+        <span>{NEXT_EVENT_RESOLVED.name}</span>
         <span>
-          <time dateTime={NEXT_EVENT.startISO}>
-            {NEXT_EVENT.displayDate} at {NEXT_EVENT.displayTime}
+          <time dateTime={NEXT_EVENT_RESOLVED.startISO}>
+            {NEXT_EVENT_RESOLVED.displayDate} at {NEXT_EVENT_RESOLVED.displayTime}
           </time>
         </span>
         <span>Admission is free</span>

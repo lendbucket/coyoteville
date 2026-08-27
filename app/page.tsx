@@ -3,7 +3,7 @@ import DeadlineBarMount from '@/components/DeadlineBarMount';
 import Nav from '@/components/Nav';
 import Hero from '@/components/Hero';
 import Ticker from '@/components/Ticker';
-import SpotsMeter from '@/components/SpotsMeter';
+import EventsSection from '@/components/EventsSection';
 import Split from '@/components/Split';
 import Mission from '@/components/Mission';
 import GameNight from '@/components/GameNight';
@@ -64,7 +64,7 @@ export default async function HomePage() {
       <main id="main">
         <Hero />
         <Ticker />
-        <SpotsMeter />
+        <EventsSection />
         <Split />
         <Mission />
         <GameNight />

@@ -209,6 +209,46 @@ export function signupClosesZone(event: EventConfig = NEXT_EVENT): string {
   return zoneAbbreviation(signupClosesAt(event), EVENT_TIMEZONE);
 }
 
+/** UTC instant an event finishes. */
+export function eventEndsAt(event: EventConfig): number {
+  const parsed = Date.parse(event.endISO);
+  return Number.isNaN(parsed) ? gatesOpenAt(event) : parsed;
+}
+
+/**
+ * The next event by date: the soonest one that has not finished yet.
+ *
+ * This is what the public half of the site means by "next". The hero, the
+ * countdown bar and the visit panel all point at the event people are actually
+ * coming to, which stays true after vendor signup shuts two days out and only
+ * moves on once the night is over. Anything about *applying* wants
+ * nextOpenEvent() instead.
+ *
+ * Falls back to the last event in the calendar when every one has been and
+ * gone, so callers always get something to render rather than null.
+ */
+export function nextEventByDate(now: number = Date.now()): EventConfig {
+  return (
+    UPCOMING_EVENTS.find((e) => eventEndsAt(e) > now) ??
+    UPCOMING_EVENTS[UPCOMING_EVENTS.length - 1]
+  );
+}
+
+/** Long form date for an instant, in the event's own timezone. */
+export function formatEventDeadline(ms: number): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: EVENT_TIMEZONE,
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+    .format(new Date(ms))
+    .replace(' at ', ' at ');
+}
+
 /** Look up one event by slug. */
 export function eventBySlug(slug: string): EventConfig | null {
   return UPCOMING_EVENTS.find((e) => e.slug === slug) ?? null;

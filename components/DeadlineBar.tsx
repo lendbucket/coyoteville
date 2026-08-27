@@ -4,27 +4,42 @@ import { useEffect, useRef, useState } from 'react';
 import Countdown, { pad } from './Countdown';
 
 /**
- * Sticky signup deadline bar, pinned above the nav on every page.
+ * Sticky countdown bar, pinned above the nav on the public pages.
  *
- * The server decides the target instant and hands over its own clock. When the
- * countdown runs out this swaps to a closed state in place, without a reload.
- * Closing the form for real is enforced on the server: the API route rejects
- * late applications regardless of what this bar is showing.
+ * Counts down to gates opening at the next event by date. The server decides
+ * the target instant and hands over its own clock; when the countdown runs out
+ * this swaps in place to "gates are open", without a reload, and the next
+ * server render moves it on to the following event once the night is over.
+ *
+ * The vendor signup cutoff is a line under the clock rather than the thing
+ * being counted, because it stops meaning anything two days before the event
+ * while the event itself is still the reason anyone is on the page. Closing the
+ * form for real is enforced on the server regardless of what this shows.
  */
 export default function DeadlineBar({
   targetMs,
   serverNowMs,
-  closesDisplay,
+  eventName,
+  eventDate,
+  eventTime,
+  signupOpen,
+  signupClosesDisplay,
   zoneLabel,
-  initiallyClosed,
+  initiallyOpen,
 }: {
   targetMs: number;
   serverNowMs: number;
-  closesDisplay: string;
+  eventName: string;
+  eventDate: string;
+  eventTime: string;
+  /** Whether vendor signup is still taking applications for this event. */
+  signupOpen: boolean;
+  signupClosesDisplay: string;
   zoneLabel: string;
-  initiallyClosed: boolean;
+  /** True when gates have already opened, so it starts in the open state. */
+  initiallyOpen: boolean;
 }) {
-  const [closed, setClosed] = useState(initiallyClosed);
+  const [open, setOpen] = useState(initiallyOpen);
   const barRef = useRef<HTMLDivElement>(null);
 
   /**
@@ -57,18 +72,19 @@ export default function DeadlineBar({
       observer.disconnect();
       window.removeEventListener('resize', apply);
     };
-  }, [closed]);
+  }, [open]);
 
-  if (closed) {
+  // Gates are open, so the countdown has nothing left to count.
+  if (open) {
     return (
-      <div className="deadline deadline--closed" role="status" ref={barRef}>
+      <div className="deadline" role="status" ref={barRef}>
         <div className="shell deadline__inner">
-          <span className="deadline__label">Vendor signup is closed for this event</span>
+          <span className="deadline__label">We are open</span>
           <span className="deadline__note">
-            Closed {closesDisplay} {zoneLabel}. Email us and we will get you on the next one.
+            {eventName} is on now. Gates opened at {eventTime}. Admission is free.
           </span>
           <a className="deadline__cta" href="#visit">
-            Next event
+            Directions
           </a>
         </div>
       </div>
@@ -78,19 +94,21 @@ export default function DeadlineBar({
   return (
     <div className="deadline" ref={barRef}>
       <div className="shell deadline__inner">
-        <span className="deadline__label">Vendor signup closes in</span>
+        <span className="deadline__label">
+          {eventName}, {eventDate}. Gates open in
+        </span>
 
         <Countdown
           targetMs={targetMs}
           serverNowMs={serverNowMs}
-          onExpire={() => setClosed(true)}
+          onExpire={() => setOpen(true)}
         >
           {(r) => (
             <span className="deadline__clock">
               {/* One live region for the whole clock, polite, so a screen
                   reader is not interrupted every single second. */}
               <span className="sr-only" aria-live="polite">
-                {r.days} days {r.hours} hours {r.minutes} minutes until vendor signup closes
+                {r.days} days {r.hours} hours {r.minutes} minutes until gates open
               </span>
               <span className="deadline__unit" aria-hidden="true">
                 <b>{pad(r.days)}</b>
@@ -112,8 +130,14 @@ export default function DeadlineBar({
           )}
         </Countdown>
 
+        <span className="deadline__note">
+          {signupOpen
+            ? `Vendor signup closes ${signupClosesDisplay} ${zoneLabel}`
+            : 'Vendor signup is closed for this date'}
+        </span>
+
         <a className="deadline__cta" href="#apply">
-          Apply now
+          {signupOpen ? 'Apply now' : 'Join the waitlist'}
         </a>
       </div>
     </div>

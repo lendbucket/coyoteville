@@ -1,14 +1,18 @@
 import Photo from './Photo';
 import { SITE_PHOTOS } from '@/lib/photos';
-import { NEXT_EVENT, PRICING } from '@/lib/seo';
+import { nextEventByDate, PRICING } from '@/lib/seo';
 
 /**
  * Stats strip laid over a photograph rather than a flat colour block. The
  * numbers come from lib/seo so the strip and the Event schema cannot disagree.
  */
 export default function Stats() {
+  /* The next event by date, resolved per render so the page moves on to the
+     following one by itself once tonight is over. */
+  const NEXT_EVENT_RESOLVED = nextEventByDate();
+
   const stats = [
-    { value: NEXT_EVENT.displayTime.replace(/:00\s*/, ''), label: 'We open' },
+    { value: NEXT_EVENT_RESOLVED.displayTime.replace(/:00\s*/, ''), label: 'We open' },
     { value: PRICING.booth.price, label: PRICING.booth.label },
     { value: PRICING.truck.price, label: PRICING.truck.label },
     { value: 'Free', label: 'Alice organizations' },
