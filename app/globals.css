@@ -2393,25 +2393,179 @@ p {
 
 /* -------------------------------------------------------------- admin */
 
+/* The sign in card.
+
+   Built for a phone opened from a home screen icon, so it is one centred card
+   under the same string lights the site sections hang. The block padding is
+   tied to the viewport width rather than its height because the lights scale
+   with width: the SVG is 1200 units across and about 80 tall, so it renders at
+   roughly 6.7vw, and 8vw always clears it without having to hard code a
+   height. */
 .adminlogin {
+  position: relative;
   min-height: 100vh;
+  /* Small viewport height, so the card is centred against the short state of
+     mobile Safari rather than jumping when the toolbars collapse. */
+  min-height: 100svh;
   display: grid;
   place-items: center;
-  padding: 2rem var(--gutter);
+  padding: clamp(3rem, 8vw, 9rem) var(--gutter);
   background: var(--black);
+  overflow: hidden;
+}
+
+/* Warm bloom behind the card, the same trick the hero uses, so the panel is
+   not sitting on flat black. */
+.adminlogin::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(760px 460px at 50% 18%, rgba(196, 85, 43, 0.24), transparent 72%);
+}
+
+.adminlogin .string-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+.adminlogin__in {
+  position: relative;
+  z-index: 3;
+  width: min(420px, 100%);
 }
 
 .adminlogin__card {
-  width: min(420px, 100%);
+  width: 100%;
   background: var(--char);
   border: 1px solid rgba(243, 238, 229, 0.12);
   border-radius: var(--radius);
-  padding: 1.8rem;
+  padding: clamp(1.5rem, 6vw, 2.25rem);
+  text-align: center;
+  box-shadow: 0 26px 64px rgba(0, 0, 0, 0.5);
 }
 
-.adminlogin h1 {
-  font-size: 1.6rem;
-  margin-bottom: 0.4rem;
+/* Big enough to actually read the badge, and it keeps its 3:2 ratio from the
+   width and height attributes on the tag. */
+.adminlogin__logo {
+  width: clamp(170px, 60%, 200px);
+  height: auto;
+  margin: 0 auto 1rem;
+}
+
+/* Shown only if /logo.svg fails, so the card never renders a broken image. */
+.adminlogin__fallback {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 1rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--rust);
+  color: var(--cream);
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+}
+
+.adminlogin__title {
+  margin: 0;
+  font-size: clamp(2rem, 9vw, 2.5rem);
+  color: var(--cream);
+}
+
+.adminlogin__where {
+  margin: 0.55rem 0 0;
+  font-family: var(--font-condensed);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tan);
+}
+
+/* Wrong password, rate limit, missing password on the server. Left aligned
+   because it is a sentence, not a label. */
+.adminlogin__error,
+.adminlogin__hint {
+  margin: 1.35rem 0 0;
+  text-align: left;
+}
+
+.adminlogin__form {
+  margin-top: 1.6rem;
+  gap: 1.05rem;
+  text-align: left;
+}
+
+/* 17px, over the 16px threshold under which iOS zooms the page on tap, and
+   tall enough to be a comfortable target. */
+.adminlogin__input {
+  font-size: 1.0625rem;
+  min-height: 48px;
+}
+
+.adminlogin__input:focus {
+  outline: none;
+  border-color: var(--ember);
+  box-shadow: 0 0 0 3px rgba(240, 169, 75, 0.3);
+}
+
+.adminlogin__submit {
+  width: 100%;
+  min-height: 50px;
+}
+
+.adminlogin__spinner {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: adminlogin-spin 0.7s linear infinite;
+}
+
+@keyframes adminlogin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adminlogin__spinner {
+    animation-duration: 2.6s;
+  }
+}
+
+/* Which event the tracker will open on. Deliberately quiet: it is a label on
+   the screen, not a second heading. */
+.adminlogin__foot {
+  margin: 1.15rem 0 0;
+  text-align: center;
+  font-family: var(--font-condensed);
+  /* Tracked tight enough that the long form date still lands on one line at
+     375px, which is the width this screen is actually opened at. */
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dust);
+}
+
+.adminlogin__foot b {
+  color: var(--cream-70);
+  font-weight: 700;
+}
+
+.adminlogin__dot {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  margin: 0 0.45rem;
+  vertical-align: middle;
+  background: currentColor;
 }
 
 .admin {

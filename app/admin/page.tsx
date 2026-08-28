@@ -1,13 +1,16 @@
 import type { Metadata, Viewport } from 'next';
+import AdminLogin from '@/components/admin/AdminLogin';
 import AdminShell from '@/components/admin/AdminShell';
+import { loginErrorMessage } from '@/components/admin/login-errors';
 import type { VendorCardRow } from '@/components/admin/types';
+import StringLights from '@/components/StringLights';
 import { getAbandoned, howLongAgo, lastReminderFrom } from '@/lib/abandoned';
 import { isAdminConfigured, isAdminRequest } from '@/lib/admin-auth';
 import { getAdminView, normaliseFilters } from '@/lib/admin-data';
 import { lastMediaSendFrom } from '@/lib/media-log';
 import { lastComposeSendFrom } from '@/lib/compose-log';
 import { getWaitlist } from '@/lib/waitlist';
-import { EVENTS, PRICING } from '@/lib/seo';
+import { EVENTS, PRICING, nextEventByDate } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,12 +42,6 @@ export const viewport: Viewport = {
   colorScheme: 'dark',
 };
 
-const LOGIN_ERRORS: Record<string, string> = {
-  bad: 'That password did not match.',
-  rate: 'Too many tries. Wait a few minutes.',
-  unset: 'ADMIN_PASSWORD is not set on the server yet.',
-};
-
 function money(cents: number): string {
   return cents === 0 ? 'Free' : `$${(cents / 100).toFixed(0)}`;
 }
@@ -70,45 +67,26 @@ export default async function AdminPage({
 
   if (!(await isAdminRequest())) {
     const errorKey = Array.isArray(searchParams.e) ? searchParams.e[0] : searchParams.e;
-    const error = errorKey ? LOGIN_ERRORS[errorKey] : null;
+
+    /* The static calendar, not the live schedule. This is the one screen a
+       signed out stranger can reach, and it has no business opening a database
+       connection to draw a single line of text. */
+    const upcoming = nextEventByDate();
 
     return (
       <main className="adminlogin">
-        <div className="adminlogin__card">
-          <h1>Vendor tracker</h1>
-          <p className="hint">Staff only. This page is not indexed and not linked from the site.</p>
+        <StringLights tone="dark" variant="top" swags={4} sag={26} bulbsPerSwag={6} id="adminlogin-lights" />
 
-          {error ? (
-            <p className="formnote formnote--error" role="alert">
-              {error}
-            </p>
-          ) : null}
+        <div className="adminlogin__in">
+          <AdminLogin initialError={loginErrorMessage(errorKey)} configured={isAdminConfigured()} />
 
-          {!isAdminConfigured() ? (
-            <p className="hint">
-              Set <code>ADMIN_PASSWORD</code> in the environment and redeploy before signing in.
-            </p>
-          ) : null}
-
-          <form className="form" method="POST" action="/api/admin/login">
-            <div className="field">
-              <label className="label" htmlFor="admin-password">
-                Password
-              </label>
-              <input
-                className="input"
-                id="admin-password"
-                name="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                autoFocus
-              />
-            </div>
-            <button className="btn btn--amber" type="submit">
-              Sign in
-            </button>
-          </form>
+          {/* Which event the tracker opens on, settled before you have even
+              typed the password. */}
+          <p className="adminlogin__foot">
+            Next up: <b>{upcoming.name}</b>
+            <span className="adminlogin__dot" aria-hidden="true" />
+            <time dateTime={upcoming.date}>{upcoming.displayDate}</time>
+          </p>
         </div>
       </main>
     );
