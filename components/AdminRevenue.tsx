@@ -80,7 +80,10 @@ export default function AdminRevenue({ revenue }: { revenue: RevenueSummary | nu
         ) : null}
 
         <Row label="Square" value={dollars(bySource.square.cents)} />
-        <Row label="Prepaid" value={dollars(bySource.prepaid.cents)} />
+        {/* Booked, not held: this is a split of collected and has to add up
+            to it, so it counts an offline row at its fee whether or not anyone
+            has been paid. Received above is the number that is money. */}
+        <Row label="Prepaid (booked)" value={dollars(bySource.prepaid.cents)} />
         <Row
           label={`Unpaid, checkout started (${outstanding.count})`}
           value={dollars(outstanding.cents)}

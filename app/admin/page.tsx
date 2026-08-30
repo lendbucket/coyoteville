@@ -175,6 +175,7 @@ export default async function AdminPage({
        of thing this exists to show, and money() would round it away. */
     amountReceivedLabel:
       r.amount_received_cents === null ? '' : `$${(r.amount_received_cents / 100).toFixed(2)}`,
+    amountReceivedAt: r.amount_received_at ? when(r.amount_received_at) : '',
     approvalStatus: r.approval_status,
     bookingKind: r.booking_kind,
     bookingLabel:

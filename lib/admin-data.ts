@@ -38,6 +38,11 @@ export type AdminApplication = {
   amount_cents: number;
   /** Cash counted by hand against an offline row. Null means unreconciled. */
   amount_received_cents: number | null;
+  /**
+   * When that cash was counted. Not paid_at, which the database stamps at
+   * submission and which therefore says nothing about money arriving.
+   */
+  amount_received_at: string | null;
   payment_status: string;
   payment_method: string | null;
   approval_status: string;
@@ -146,6 +151,7 @@ const COLUMNS = [
   'upload_issues',
   'amount_cents',
   'amount_received_cents',
+  'amount_received_at',
   'payment_status',
   'payment_method',
   'approval_status',

@@ -105,9 +105,12 @@ export async function POST(request: Request) {
     const raw = String(body.amount_received_dollars).trim();
 
     if (raw === '') {
-      // Cleared, for a figure typed in wrong. The row goes back to having
-      // nothing counted against it, which is what it was before.
+      /* Cleared, for a figure typed in wrong. The row goes back to having
+         nothing counted against it, which is what it was before, so the
+         timestamp goes with the amount: a date without a figure would say
+         somebody counted and record nothing they counted. */
       patch.amount_received_cents = null;
+      patch.amount_received_at = null;
     } else {
       const cents = centsFromDollars(raw);
       if (cents === undefined) {
@@ -117,10 +120,12 @@ export async function POST(request: Request) {
         );
       }
       patch.amount_received_cents = cents;
-      // paid_at is the only timestamp this table has for money arriving, and on
-      // an offline row the database stamped it at submission, before anyone had
-      // collected anything. Re-stamping it here is what makes it true.
-      patch.paid_at = new Date().toISOString();
+      /* Its own column, deliberately not paid_at. register_prepaid_vendor
+         stamps paid_at at submission, so re-stamping it here would leave one
+         column meaning "submitted" on the rows nobody has reconciled and "cash
+         counted" on the rows somebody has. Two meanings in one column on a
+         money record is how the books stop being readable. */
+      patch.amount_received_at = new Date().toISOString();
     }
 
     receivedChanged = true;
@@ -135,7 +140,9 @@ export async function POST(request: Request) {
     .from('vendor_applications')
     .update(patch)
     .eq('id', id)
-    .select('id, approval_status, spot_number, event_slug, amount_received_cents, paid_at')
+    .select(
+      'id, approval_status, spot_number, event_slug, amount_received_cents, amount_received_at'
+    )
     .single();
 
   if (error || !data) {

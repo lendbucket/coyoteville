@@ -6471,3 +6471,12 @@ p {
 .arev__note--warn {
   color: #f6c0a8;
 }
+
+.cash__when {
+  margin: -0.35rem 0 0.7rem;
+  font-family: var(--font-condensed);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dust);
+}

@@ -154,6 +154,7 @@ export default function VendorSheet({
                 id={row.id}
                 amountCents={row.amountCents}
                 amountReceivedCents={row.amountReceivedCents}
+                amountReceivedAt={row.amountReceivedAt}
               />
             </div>
           ) : null}

@@ -22,11 +22,20 @@ export default function CashReceived({
   id,
   amountCents,
   amountReceivedCents,
+  amountReceivedAt,
 }: {
   id: string;
   /** The booked fee, offered as the starting point since it is usually right. */
   amountCents: number;
   amountReceivedCents: number | null;
+  /**
+   * When it was counted, already formatted. Empty when nothing is recorded.
+   *
+   * Its own column rather than paid_at, which the database stamps at
+   * submission: a recorded amount without the date it was recorded is half a
+   * book-keeping entry.
+   */
+  amountReceivedAt: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -76,17 +85,22 @@ export default function CashReceived({
       <p className="cash__head">Cash received</p>
 
       {recorded ? (
-        <p className="cash__state">
-          <b>${(amountReceivedCents / 100).toFixed(2)}</b> recorded against a{' '}
-          {`$${expected}`} spot
-          {difference === 0 ? null : (
-            <span className={difference < 0 ? 'cash__short' : 'cash__over'}>
-              {difference < 0
-                ? ` · $${(Math.abs(difference) / 100).toFixed(2)} short`
-                : ` · $${(difference / 100).toFixed(2)} over`}
-            </span>
-          )}
-        </p>
+        <>
+          <p className="cash__state">
+            <b>${(amountReceivedCents / 100).toFixed(2)}</b> recorded against a{' '}
+            {`$${expected}`} spot
+            {difference === 0 ? null : (
+              <span className={difference < 0 ? 'cash__short' : 'cash__over'}>
+                {difference < 0
+                  ? ` · $${(Math.abs(difference) / 100).toFixed(2)} short`
+                  : ` · $${(difference / 100).toFixed(2)} over`}
+              </span>
+            )}
+          </p>
+          {/* The date the money was counted, which is the half of a
+              book-keeping entry an amount on its own is missing. */}
+          {amountReceivedAt ? <p className="cash__when">Counted {amountReceivedAt}</p> : null}
+        </>
       ) : (
         <p className="cash__state cash__state--missing">
           Nothing recorded. This row says paid because the database stamps a

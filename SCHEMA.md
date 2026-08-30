@@ -42,7 +42,7 @@ vendor_applications
   amount_received_cents, monthly_amount_cents,
   subscription_cancel_at_period_end, failed_payment_count, refund_error,
   last_invoice_status, last_invoice_at, square_payment_id,
-  refund_amount_cents, recurring_acknowledged
+  refund_amount_cents, recurring_acknowledged, amount_received_at
 
 waitlist
   id, event_slug, position, business_name, contact_name, phone, email,
@@ -66,6 +66,12 @@ postgres functions (bodies NOT in this repo):
 
 `waitlist` has no `declined_at` and no `converted_at`. A waitlist entry's state
 is `status` alone.
+
+On `vendor_applications`, `paid_at` and `amount_received_at` are not the same
+thing and must not be used interchangeably. `register_prepaid_vendor` stamps
+`paid_at` at submission, before anyone has collected anything, so on an offline
+row it means "submitted". `amount_received_at` is when cash was actually counted
+and recorded, and is the only timestamp that means money arrived.
 
 ## Checking the schema
 

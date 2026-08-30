@@ -24,6 +24,8 @@ export type VendorCardRow = {
   amountReceivedCents: number | null;
   /** Already formatted, or empty when there is nothing recorded. */
   amountReceivedLabel: string;
+  /** When the cash was counted, formatted. Empty when nothing is recorded. */
+  amountReceivedAt: string;
   approvalStatus: string;
   /** 'event', 'day' or 'monthly'. Decides which controls the sheet shows. */
   bookingKind: string;
