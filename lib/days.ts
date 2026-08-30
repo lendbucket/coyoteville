@@ -62,8 +62,16 @@ export type DayStatus = {
   note: string | null;
 };
 
+/**
+ * One row of day_availability.
+ *
+ * The date column there is `booking_date`, the same name vendor_applications
+ * uses, not `day`. The domain type below still calls it `day` because that is
+ * what it is to the rest of the app; the translation happens where the row is
+ * read, and nowhere else.
+ */
 type AvailabilityRow = {
-  day: string;
+  booking_date: string;
   is_open: boolean | null;
   booth_capacity: number | null;
   truck_capacity: number | null;
@@ -117,9 +125,9 @@ export async function getDayStatuses(
       const [availability, bookings] = await Promise.all([
         supabase
           .from('day_availability')
-          .select('day, is_open, booth_capacity, truck_capacity, note')
-          .gte('day', from)
-          .lte('day', to),
+          .select('booking_date, is_open, booth_capacity, truck_capacity, note')
+          .gte('booking_date', from)
+          .lte('booking_date', to),
         supabase
           .from('vendor_applications')
           .select('booking_date, spot_type')
@@ -134,7 +142,7 @@ export async function getDayStatuses(
       if (bookings.error) throw bookings.error;
 
       for (const row of (availability.data ?? []) as AvailabilityRow[]) {
-        exceptions.set(row.day, row);
+        exceptions.set(row.booking_date, row);
       }
 
       for (const row of (bookings.data ?? []) as BookingRow[]) {

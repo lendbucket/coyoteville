@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { cancelAtPeriodEnd, mapSubscriptionStatus } from '@/lib/subscriptions';
-import { formatDayLong, isDayKey } from '@/lib/booking';
+import { dayKeyFromTimestamp, formatDayLong, timestampFromDayKey } from '@/lib/booking';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,7 +41,9 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabase
     .from('vendor_applications')
-    .select('id, booking_kind, square_subscription_id, subscription_status, subscription_period_end, subscription_cancel_at_period_end')
+    .select(
+      'id, booking_kind, square_subscription_id, subscription_status, subscription_next_billing_at, subscription_cancel_at_period_end'
+    )
     .eq('id', id)
     .maybeSingle();
 
@@ -56,14 +58,15 @@ export async function POST(request: Request) {
     );
   }
 
+  /* Stored as a timestamptz, read as the date it falls on here. */
+  const alreadyPaidThrough = dayKeyFromTimestamp(data.subscription_next_billing_at);
+
   if (data.subscription_cancel_at_period_end) {
     return NextResponse.json(
       {
         ok: false,
         error: `That spot is already cancelled and runs until ${
-          isDayKey(data.subscription_period_end ?? '')
-            ? formatDayLong(data.subscription_period_end as string)
-            : 'the end of the paid period'
+          alreadyPaidThrough ? formatDayLong(alreadyPaidThrough) : 'the end of the paid period'
         }.`,
       },
       { status: 409 }
@@ -97,7 +100,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: outcome.error }, { status: 502 });
   }
 
-  const periodEnd = outcome.value.chargedThroughDate ?? data.subscription_period_end ?? null;
+  // Square's answer is a plain date; so is the one already on the row once it
+  // has been read back off the timestamp.
+  const periodEnd = outcome.value.chargedThroughDate ?? alreadyPaidThrough ?? null;
 
   const { error: writeError } = await supabase
     .from('vendor_applications')
@@ -109,7 +114,7 @@ export async function POST(request: Request) {
       // which is why the spot is released off the period end rather than off
       // this field alone.
       subscription_status: mapSubscriptionStatus(outcome.value.status),
-      ...(periodEnd ? { subscription_period_end: periodEnd } : {}),
+      ...(periodEnd ? { subscription_next_billing_at: timestampFromDayKey(periodEnd) } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('id', id);

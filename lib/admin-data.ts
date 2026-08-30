@@ -18,7 +18,8 @@ export type AdminApplication = {
   booking_date: string | null;
   square_subscription_id: string | null;
   subscription_status: string | null;
-  subscription_period_end: string | null;
+  /** timestamptz. Converted to a day key at the point it is read. */
+  subscription_next_billing_at: string | null;
   subscription_cancel_at_period_end: boolean;
   monthly_amount_cents: number | null;
   failed_payment_count: number;
@@ -119,7 +120,7 @@ const COLUMNS = [
   'booking_date',
   'square_subscription_id',
   'subscription_status',
-  'subscription_period_end',
+  'subscription_next_billing_at',
   'subscription_cancel_at_period_end',
   'monthly_amount_cents',
   'failed_payment_count',

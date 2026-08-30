@@ -3,7 +3,7 @@ import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { mapSubscriptionStatus } from './subscriptions';
 import { invalidateSpots } from './spots';
 import { notifyPaymentFailed, notifySubscriptionRenewed } from './notify';
-import { addMonth } from './booking';
+import { addMonth, dayKeyFromTimestamp, timestampFromDayKey, todayKey } from './booking';
 
 /**
  * The recurring lifecycle, as it arrives from Square.
@@ -22,7 +22,7 @@ const APPLICATION_COLUMNS =
   'id, business_name, contact_name, phone, email, spot_type, event_slug, sells, notes, ' +
   'serves_food, permit_path, signature_name, signed_at, agreement_version, ' +
   'monthly_amount_cents, amount_cents, payment_status, payment_method, ' +
-  'square_subscription_id, subscription_status, subscription_period_end, failed_payment_count, ' +
+  'square_subscription_id, subscription_status, subscription_next_billing_at, failed_payment_count, ' +
   'subscription_cancel_at_period_end';
 
 type SubscriptionRow = {
@@ -46,7 +46,8 @@ type SubscriptionRow = {
   payment_method: string | null;
   square_subscription_id: string | null;
   subscription_status: string | null;
-  subscription_period_end: string | null;
+  /** timestamptz. Read through dayKeyFromTimestamp, never used raw. */
+  subscription_next_billing_at: string | null;
   failed_payment_count: number;
   subscription_cancel_at_period_end: boolean;
 };
@@ -110,9 +111,16 @@ export async function handleInvoicePaid(args: {
   const row = await findBySubscriptionId(args.subscriptionId);
   if (!row) return { handled: false };
 
+  /* Square's paid-through is a plain date. Falling back to a month on from
+     what is already on the row means reading that timestamp back as a date
+     first: addMonth parses a day key, and handing it an ISO timestamp would
+     put the next charge date a century out. */
   const periodEnd =
     args.paidThrough ??
-    addMonth(row.subscription_period_end ?? new Date().toISOString().slice(0, 10));
+    addMonth(
+      dayKeyFromTimestamp(row.subscription_next_billing_at) ??
+        todayKey('America/Chicago')
+    );
 
   const { error } = await getSupabaseAdmin()
     .from('vendor_applications')
@@ -122,7 +130,7 @@ export async function handleInvoicePaid(args: {
       // until the end of what they have paid for and is not resurrected by a
       // charge that settled in the meantime.
       subscription_status: row.subscription_cancel_at_period_end ? row.subscription_status : 'active',
-      subscription_period_end: periodEnd,
+      subscription_next_billing_at: timestampFromDayKey(periodEnd),
       failed_payment_count: 0,
       last_invoice_status: args.invoiceStatus,
       last_invoice_at: new Date().toISOString(),
@@ -188,7 +196,7 @@ export async function handleInvoiceFailed(args: {
     ...toEmail(row, 'Permanent monthly spot'),
     attempt: attempts,
     retry_date: args.retryDate,
-    paid_through: row.subscription_period_end,
+    paid_through: dayKeyFromTimestamp(row.subscription_next_billing_at),
   });
 
   return { handled: true, applicationId: row.id };
@@ -221,7 +229,9 @@ export async function handleSubscriptionUpdated(args: {
     updated_at: new Date().toISOString(),
   };
 
-  if (args.chargedThroughDate) patch.subscription_period_end = args.chargedThroughDate;
+  if (args.chargedThroughDate) {
+    patch.subscription_next_billing_at = timestampFromDayKey(args.chargedThroughDate);
+  }
   if (args.canceledDate) patch.subscription_canceled_at = new Date().toISOString();
 
   const { error } = await getSupabaseAdmin()

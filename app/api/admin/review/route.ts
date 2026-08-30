@@ -8,7 +8,13 @@ import {
   releaseCardOnFile,
   startSubscription,
 } from '@/lib/subscriptions';
-import { MONTHLY_PRICING, addMonth, formatDayLong, isMonthlySpot } from '@/lib/booking';
+import {
+  MONTHLY_PRICING,
+  addMonth,
+  formatDayLong,
+  isMonthlySpot,
+  timestampFromDayKey,
+} from '@/lib/booking';
 import { notifyApproved, notifyDenied } from '@/lib/notify';
 import { EVENTS } from '@/lib/seo';
 import type { RegistrationEmail } from '@/lib/notify-types';
@@ -186,7 +192,10 @@ async function startMonthlySubscription(
       square_subscription_id: started.value.subscriptionId,
       subscription_status: status,
       subscription_started_at: new Date().toISOString(),
-      subscription_period_end: periodEnd,
+      // Square deals in dates; the column is a timestamptz. Converted here so
+      // Postgres is not left to read a bare date as UTC midnight, which lands
+      // on the previous evening in the park's timezone.
+      subscription_next_billing_at: timestampFromDayKey(periodEnd),
       payment_status: 'paid',
       paid_at: new Date().toISOString(),
       refund_error: null,

@@ -11,7 +11,7 @@ import { lastMediaSendFrom } from '@/lib/media-log';
 import { lastComposeSendFrom } from '@/lib/compose-log';
 import { getWaitlist } from '@/lib/waitlist';
 import { EVENTS, PRICING, nextEventByDate } from '@/lib/seo';
-import { formatDayLong, isDayKey } from '@/lib/booking';
+import { dayKeyFromTimestamp, formatDayLong } from '@/lib/booking';
 import { DAY_SCOPE, SCOPE_LABELS, isEventScope } from '@/lib/admin-scope';
 import { bookingWindow, getDayStatuses } from '@/lib/days';
 
@@ -179,10 +179,13 @@ export default async function AdminPage({
           : (EVENTS.find((e) => e.slug === r.event_slug)?.name ?? 'Event'),
     bookingDay: r.booking_date,
     subscriptionStatus: r.subscription_status,
-    subscriptionPeriodEnd:
-      r.subscription_period_end && isDayKey(r.subscription_period_end)
-        ? formatDayLong(r.subscription_period_end)
-        : null,
+    /* Stored as a timestamptz, shown as the date it falls on here. Reading it
+       through the day key conversion rather than isDayKey directly, which an
+       ISO timestamp fails, leaving the sheet showing nothing. */
+    subscriptionPeriodEnd: (() => {
+      const day = dayKeyFromTimestamp(r.subscription_next_billing_at);
+      return day ? formatDayLong(day) : null;
+    })(),
     subscriptionCanceling: Boolean(r.subscription_cancel_at_period_end),
     monthlyLabel: r.monthly_amount_cents ? money(r.monthly_amount_cents) : '',
     failedPayments: r.failed_payment_count ?? 0,

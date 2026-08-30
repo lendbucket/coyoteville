@@ -76,10 +76,38 @@ work on design before the backend is wired.
 
 1. Create a project at https://supabase.com.
 2. Open the **SQL Editor**, paste the whole contents of `supabase/schema.sql`, run it.
-   It is idempotent, so running it again after an edit is fine.
+   It is idempotent, so running it again after an edit is fine. **On a fresh
+   project only** — see the warning below before running it against anything live.
 3. Go to **Project Settings, API** and copy:
    - **Project URL** into `NEXT_PUBLIC_SUPABASE_URL`
    - **service_role** secret into `SUPABASE_SERVICE_ROLE_KEY`
+
+### SCHEMA.md is the source of truth for column names
+
+`SCHEMA.md` at the repo root is read directly from the production database and
+is the only thing to trust about what columns exist.
+
+**`supabase/schema.sql` and `supabase/drift-fix-2026-08-29.sql` both disagree
+with production.** The drift fix is permanently unapplied and must never be
+executed: it would add duplicate columns alongside the real ones that already
+hold live data. Three separate outages have come from code written against
+those files rather than against the database.
+
+Before writing a query, check the column against `SCHEMA.md`. To check the
+whole repo:
+
+```bash
+npm run check:schema
+```
+
+It cross-checks every Supabase `select`, `insert`, `update`, filter and `order`
+against `SCHEMA.md` and names the file and line of anything that does not
+match. It also runs automatically as a `prebuild` step, so a query naming a
+column that does not exist fails the build rather than the page: Postgres
+rejects one with error 42703 and fails the whole statement.
+
+When production genuinely changes, update `SCHEMA.md` first. The checker has no
+other source of truth and will not learn a new column any other way.
 
 ### About the security model
 

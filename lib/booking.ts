@@ -250,3 +250,88 @@ export function addMonth(key: DayKey): DayKey {
   const day = Math.min(d, lastDay);
   return `${targetYear}-${String(targetMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
+
+/* ------------------------------------------------------- timestamp edges
+ *
+ * vendor_applications.subscription_next_billing_at is a timestamptz, but
+ * everything above and every renewal date Square hands us is a plain day: the
+ * charge lands on a date, not at an instant anyone cares about. These two are
+ * the only places the two representations meet, so the rest of the app keeps
+ * working in day keys and isDayKey stays a true test rather than something
+ * that quietly fails on an ISO string.
+ *
+ * The zone is the park's, matching what the audited drift fix used when it
+ * derived a date from this column, so a billing timestamp late on the 31st
+ * Central does not read back as the 1st.
+ */
+
+/** A stored timestamp as the day it falls on in the park's timezone. */
+export function dayKeyFromTimestamp(value: string | null | undefined): DayKey | null {
+  if (!value) return null;
+  // Already a day key: a value that never went through the database, or one
+  // Square gave us as a plain date. Passing it through is the right answer and
+  // avoids inventing a time of day to reinterpret it at.
+  if (isDayKey(value)) return value;
+
+  const at = new Date(value);
+  if (Number.isNaN(at.getTime())) return null;
+  return todayKey('America/Chicago', at.getTime());
+}
+
+const ZONE_PARTS = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Chicago',
+  hour12: false,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+});
+
+/**
+ * The park's offset from UTC at a given instant, in milliseconds, negative
+ * through the Americas.
+ *
+ * Read out of Intl rather than by comparing against a Date built from a
+ * localised string: that comparison silently returns zero whenever the machine
+ * running it is already on Central time, which is exactly the machine nobody
+ * tests on.
+ */
+function centralOffsetMs(instant: number): number {
+  const parts = Object.fromEntries(
+    ZONE_PARTS.formatToParts(new Date(instant)).map((p) => [p.type, p.value])
+  ) as Record<string, string>;
+
+  const asIfUtc = Date.UTC(
+    Number(parts.year),
+    Number(parts.month) - 1,
+    Number(parts.day),
+    Number(parts.hour) % 24,
+    Number(parts.minute),
+    Number(parts.second)
+  );
+
+  return asIfUtc - instant;
+}
+
+/**
+ * A day key as the instant that day begins in the park's timezone.
+ *
+ * Written explicitly rather than letting Postgres coerce a bare date, which it
+ * would take as UTC midnight and store as the previous evening here.
+ */
+export function timestampFromDayKey(key: DayKey | null | undefined): string | null {
+  if (!key || !isDayKey(key)) return null;
+
+  const [y, m, d] = key.split('-').map(Number);
+  const wallClock = Date.UTC(y, m - 1, d);
+
+  // Offset looked up twice: the first guess can land on the wrong side of a
+  // daylight saving change, and the second is taken at the instant the first
+  // one points at.
+  let instant = wallClock - centralOffsetMs(wallClock);
+  instant = wallClock - centralOffsetMs(instant);
+
+  return new Date(instant).toISOString();
+}

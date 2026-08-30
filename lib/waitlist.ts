@@ -30,10 +30,15 @@ export type WaitlistEntry = {
   spot_type: string;
   sells: string;
   position: number;
+  /**
+   * Where the entry stands, and the only record that it moved.
+   *
+   * The table has no converted_at and no declined_at; `offered_at` is the one
+   * timestamp it keeps. A converted or declined entry is one whose status says
+   * so, which is how every check in the app already read it. See SCHEMA.md.
+   */
   status: WaitlistStatus;
   offered_at: string | null;
-  converted_at: string | null;
-  declined_at: string | null;
   admin_notes: string | null;
   created_at: string;
 };
@@ -52,7 +57,18 @@ export type WaitlistJoin = {
 };
 
 const COLUMNS =
-  'id, event_slug, booking_date, booking_kind, business_name, contact_name, phone, email, spot_type, sells, position, status, offered_at, converted_at, declined_at, admin_notes, created_at';
+  'id, event_slug, booking_date, booking_kind, business_name, contact_name, phone, email, spot_type, sells, position, status, offered_at, admin_notes, created_at';
+
+/**
+ * Whether this entry came off the list and registered.
+ *
+ * Conversion is read off `status`, not off a timestamp: the table has no
+ * converted_at column. Every check in the app already worked this way; the
+ * select was simply asking for a column that does not exist alongside them.
+ */
+export function isConverted(entry: WaitlistEntry): boolean {
+  return entry.status === 'converted';
+}
 
 /** Postgres unique violation. Someone is already on this event's list. */
 function isDuplicate(error: { code?: string; message?: string } | null): boolean {

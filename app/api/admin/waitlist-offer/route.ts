@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
 import { getScheduledEvent } from '@/lib/event-schedule';
 import { formatDayLong } from '@/lib/booking';
-import { getEntry, markOffered } from '@/lib/waitlist';
+import { getEntry, isConverted, markOffered } from '@/lib/waitlist';
 import { sendWaitlistOffer } from '@/lib/notify';
 
 export const runtime = 'nodejs';
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   const entry = await getEntry(id);
   if (!entry) return bad('That waitlist entry is gone.', 404);
 
-  if (entry.status === 'converted') {
+  if (isConverted(entry)) {
     return bad('That vendor already registered.', 409);
   }
 
