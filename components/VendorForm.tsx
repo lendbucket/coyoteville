@@ -181,6 +181,8 @@ export default function VendorForm({
   events,
   eventSlug,
   onEventChange,
+  spotType,
+  onSpotTypeChange,
 }: {
   signupClosed?: boolean;
   /**
@@ -190,6 +192,16 @@ export default function VendorForm({
   events?: EventOption[];
   eventSlug?: string;
   onEventChange?: (slug: string) => void;
+  /**
+   * The spot type, lifted when the parent needs it.
+   *
+   * ApplySection owns it on the public page, because intake is capped per type
+   * and so the decision between this form and the waitlist depends on which
+   * type is picked. The prepaid page renders this form directly and passes
+   * neither, in which case the state stays local the way it always was.
+   */
+  spotType?: '' | 'booth' | 'truck' | 'free';
+  onSpotTypeChange?: (spot: '' | 'booth' | 'truck' | 'free') => void;
   /** Where the form posts. */
   endpoint?: string;
   /** Prepaid vendors already paid, so there is no checkout step. */
@@ -212,7 +224,11 @@ export default function VendorForm({
    * permit rules, and a pre-selected booth meant people submitted without ever
    * reading the field. Empty until they actually choose.
    */
-  const [spot, setSpot] = useState<'' | 'booth' | 'truck' | 'free'>('');
+  const [localSpot, setLocalSpot] = useState<'' | 'booth' | 'truck' | 'free'>('');
+  // Controlled when the parent supplies both halves, local otherwise.
+  const controlled = spotType !== undefined && onSpotTypeChange !== undefined;
+  const spot = controlled ? spotType : localSpot;
+  const setSpot = controlled ? onSpotTypeChange : setLocalSpot;
   const [spotError, setSpotError] = useState(false);
   /** What the submit button is doing, so a slow upload does not look frozen. */
   const [phase, setPhase] = useState<'' | 'preparing' | 'uploading' | 'finishing'>('');

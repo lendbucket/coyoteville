@@ -640,7 +640,12 @@ comment on view public.event_roster is
 create table if not exists public.waitlist (
   id            uuid primary key default gen_random_uuid(),
 
-  event_slug    text        not null references public.events (slug) on update cascade,
+  -- What they are waiting for. Null for a day, which is not an event and has
+  -- no slug to point at. The shape check below is what enforces that exactly
+  -- one of the two is set.
+  event_slug    text        references public.events (slug) on update cascade,
+  booking_date  date,
+  booking_kind  text        not null default 'event',
 
   business_name text        not null,
   contact_name  text        not null,
@@ -670,22 +675,58 @@ create table if not exists public.waitlist (
   constraint waitlist_status_check
     check (status in ('waiting', 'offered', 'converted', 'declined')),
 
-  constraint waitlist_position_check check (position >= 1)
+  constraint waitlist_position_check check (position >= 1),
+
+  constraint waitlist_booking_kind_check
+    check (booking_kind in ('event', 'day')),
+
+  -- Exactly one of the two, matching whichever kind this is. Without it a row
+  -- with neither, or with both, would key its position against a scope that
+  -- does not exist.
+  constraint waitlist_scope_check
+    check (
+      (booking_kind = 'event' and event_slug is not null and booking_date is null)
+      or (booking_kind = 'day' and booking_date is not null and event_slug is null)
+    )
 );
 
--- One position per event. This is what makes the advisory lock in
--- join_waitlist meaningful: if two inserts ever did race, the second fails
--- loudly instead of quietly duplicating a place in the queue.
-create unique index if not exists waitlist_event_position_key
-  on public.waitlist (event_slug, position);
+/* One pair of partial indexes per kind rather than one index over a computed
+   scope.
+   The obvious version of this keys on coalesce(event_slug, booking_date::text),
+   but a unique index needs its expression to be IMMUTABLE and casting a date to
+   text is not: date_out reads DateStyle, so the same row could render two ways
+   and the index would be silently wrong. Partial indexes on the real columns
+   avoid the question entirely and read better. */
 
--- One entry per email per event. Someone hitting submit twice should not take
--- two places in the queue.
+-- One position per event, and one per date. This is what makes the advisory
+-- lock in join_waitlist meaningful: if two inserts ever did race, the second
+-- fails loudly instead of quietly duplicating a place in the queue.
+drop index if exists public.waitlist_event_position_key;
+create unique index if not exists waitlist_event_position_key
+  on public.waitlist (event_slug, position)
+  where booking_kind = 'event';
+
+create unique index if not exists waitlist_day_position_key
+  on public.waitlist (booking_date, position)
+  where booking_kind = 'day';
+
+-- One entry per email per queue. Someone hitting submit twice should not take
+-- two places in it.
+drop index if exists public.waitlist_event_email_key;
 create unique index if not exists waitlist_event_email_key
-  on public.waitlist (event_slug, lower(email));
+  on public.waitlist (event_slug, lower(email))
+  where booking_kind = 'event';
+
+create unique index if not exists waitlist_day_email_key
+  on public.waitlist (booking_date, lower(email))
+  where booking_kind = 'day';
 
 create index if not exists waitlist_event_status_idx
   on public.waitlist (event_slug, status, position);
+
+create index if not exists waitlist_day_status_idx
+  on public.waitlist (booking_date, status, position)
+  where booking_kind = 'day';
 
 comment on table public.waitlist is
   'Vendors waiting for a spot on a full or closed event. Not an application and not a confirmed spot.';
@@ -693,6 +734,34 @@ comment on column public.waitlist.position is
   'Place in the queue for this event, 1 based, assigned in join order. Never renumbered, so a declined row leaves a gap rather than moving everyone up.';
 comment on column public.waitlist.status is
   'waiting, offered, converted or declined. Set to offered with offered_at when the admin emails them an invitation.';
+
+-- The waitlist could only ever hold an event. It now also holds a plain date,
+-- for the ordinary open days, so event_slug loses its not null and the two new
+-- columns arrive. Every existing row is an event booking, which is what the
+-- default says, so nothing needs backfilling.
+alter table public.waitlist add column if not exists booking_date date;
+alter table public.waitlist add column if not exists booking_kind text not null default 'event';
+alter table public.waitlist alter column event_slug drop not null;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'waitlist_booking_kind_check') then
+    alter table public.waitlist
+      add constraint waitlist_booking_kind_check check (booking_kind in ('event', 'day'));
+  end if;
+
+  if not exists (select 1 from pg_constraint where conname = 'waitlist_scope_check') then
+    alter table public.waitlist
+      add constraint waitlist_scope_check
+      check (
+        (booking_kind = 'event' and event_slug is not null and booking_date is null)
+        or (booking_kind = 'day' and booking_date is not null and event_slug is null)
+      );
+  end if;
+end $$;
+
+comment on column public.waitlist.booking_kind is
+  'event or day. An event entry carries event_slug, a day entry carries booking_date, and the scope check enforces exactly one.';
 
 drop trigger if exists waitlist_touch_updated_at on public.waitlist;
 create trigger waitlist_touch_updated_at
@@ -711,24 +780,38 @@ returns public.waitlist
 language plpgsql
 as $$
 declare
-  v_event text := payload->>'event_slug';
+  v_event text := nullif(payload->>'event_slug', '');
+  v_date  date := nullif(payload->>'booking_date', '')::date;
+  v_kind  text := coalesce(nullif(payload->>'booking_kind', ''), 'event');
+  /* Only a lock key, never stored or indexed, so rendering the date here is
+     safe in a way it would not be inside a unique index. to_char is pinned to
+     an explicit pattern rather than left to DateStyle. */
+  v_scope text := coalesce(v_event, 'day:' || to_char(v_date, 'YYYY-MM-DD'));
   v_next  integer;
   v_row   public.waitlist;
 begin
-  perform pg_advisory_xact_lock(hashtext('coyoteville:waitlist:' || v_event)::bigint);
+  -- Locked on the scope rather than on the event, so a date queues under its
+  -- own lock and two people joining the same Tuesday cannot share a position.
+  perform pg_advisory_xact_lock(hashtext('coyoteville:waitlist:' || v_scope)::bigint);
 
   -- w.position, not bare position: POSITION is a keyword in Postgres and an
   -- unqualified reference inside an aggregate can be read as the start of
   -- position(x in y). The alias removes the ambiguity.
+  --
+  -- Matched on the real columns so each branch uses its own partial index.
   select coalesce(max(w.position), 0) + 1 into v_next
     from public.waitlist w
-   where w.event_slug = v_event;
+   where (v_kind = 'event' and w.booking_kind = 'event' and w.event_slug = v_event)
+      or (v_kind = 'day'   and w.booking_kind = 'day'   and w.booking_date = v_date);
 
   insert into public.waitlist (
-    event_slug, business_name, contact_name, phone, email, spot_type, sells, position
+    event_slug, booking_date, booking_kind,
+    business_name, contact_name, phone, email, spot_type, sells, position
   )
   values (
     v_event,
+    v_date,
+    v_kind,
     payload->>'business_name',
     payload->>'contact_name',
     payload->>'phone',
@@ -744,7 +827,7 @@ end;
 $$;
 
 comment on function public.join_waitlist(jsonb) is
-  'Insert a waitlist row with the next free position for its event, atomically.';
+  'Insert a waitlist row with the next free position for its scope, an event or a date, atomically.';
 
 -- ------------------------------------------------------------------ RLS ---
 -- On for everything. No anonymous policies at all. The service role key used

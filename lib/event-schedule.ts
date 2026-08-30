@@ -66,6 +66,16 @@ export type ScheduledEvent = Omit<EventConfig, 'signupClosesDisplay'> & {
   remaining: number | null;
   /** Published, deadline not passed, and not known to be full. */
   isOpen: boolean;
+  /**
+   * Taking applications for this type in particular.
+   *
+   * Intake is capped per spot type, so an event with the booths shut and the
+   * trucks open is closed to one vendor and open to the next. isOpen is the
+   * coarse answer and stays true while either type is taking; these two are
+   * what actually decide whether a given vendor can apply.
+   */
+  boothOpen: boolean;
+  truckOpen: boolean;
 };
 
 type EventRow = {
@@ -167,6 +177,12 @@ async function decorate(event: EventConfig, row: EventRow | undefined, now: numb
     isFull,
     remaining,
     isOpen: isPublished && !deadlinePassed && isFull !== true,
+    // A null review remainder means no capacity is set, which is "cannot
+    // tell" rather than "full", so it stays open the same way isFull does.
+    boothOpen:
+      isPublished && !deadlinePassed && (spots.booth.reviewRemaining ?? 1) > 0,
+    truckOpen:
+      isPublished && !deadlinePassed && (spots.truck.reviewRemaining ?? 1) > 0,
   };
 }
 

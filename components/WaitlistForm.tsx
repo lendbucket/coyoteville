@@ -26,11 +26,20 @@ export default function WaitlistForm({
   eventSlug,
   onEventChange,
   supportEmail,
+  spotType = '',
+  onSpotTypeChange,
 }: {
   events: EventOption[];
   eventSlug: string;
   onEventChange: (slug: string) => void;
   supportEmail: string;
+  /**
+   * Carried over from the application form when a vendor is sent here because
+   * the type they picked is full. Re-asking them for it would look like the
+   * page had forgotten, and the answer is the reason they are on this form.
+   */
+  spotType?: '' | 'booth' | 'truck' | 'free';
+  onSpotTypeChange?: (spot: '' | 'booth' | 'truck' | 'free') => void;
 }) {
   const uid = useId();
   const [status, setStatus] = useState<Status>('idle');
@@ -53,6 +62,10 @@ export default function WaitlistForm({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          // The public form only ever queues an event. The route also takes a
+          // date, for the ordinary open days, which nothing on this page uses
+          // yet, so it is sent explicitly rather than left to a default.
+          booking_kind: 'event',
           event_slug: form.get('event_slug'),
           business_name: form.get('business_name'),
           contact_name: form.get('contact_name'),
@@ -122,8 +135,8 @@ export default function WaitlistForm({
         <h2 id="apply-title">Join the waitlist</h2>
 
         <p className="lede muted">
-          {event ? closedReason(event) : 'This event is not taking applications.'} Put your name
-          down and we will contact you if a spot opens.
+          {event ? closedReason(event, spotType || undefined) : 'This event is not taking applications.'}{' '}
+          Put your name down and we will contact you if a spot opens.
         </p>
 
         <p className="formnote formnote--warn" role="note">
@@ -145,7 +158,16 @@ export default function WaitlistForm({
               <label className="label" htmlFor={`${uid}-spot`}>
                 Spot you want <span className="req">*</span>
               </label>
-              <select className="select" id={`${uid}-spot`} name="spot_type" required defaultValue="">
+              <select
+                className="select"
+                id={`${uid}-spot`}
+                name="spot_type"
+                required
+                value={spotType}
+                onChange={(e) =>
+                  onSpotTypeChange?.(e.target.value as '' | 'booth' | 'truck' | 'free')
+                }
+              >
                 <option value="" disabled>
                   Pick one
                 </option>

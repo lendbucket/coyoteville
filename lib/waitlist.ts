@@ -19,7 +19,10 @@ export type WaitlistStatus = 'waiting' | 'offered' | 'converted' | 'declined';
 
 export type WaitlistEntry = {
   id: string;
-  event_slug: string;
+  /** Null for a day entry, which is not an event and has no slug. */
+  event_slug: string | null;
+  booking_date: string | null;
+  booking_kind: string;
   business_name: string;
   contact_name: string;
   phone: string;
@@ -36,7 +39,10 @@ export type WaitlistEntry = {
 };
 
 export type WaitlistJoin = {
-  event_slug: string;
+  /** An event slug, or null for a day. Exactly one of these two is set. */
+  event_slug: string | null;
+  booking_date: string | null;
+  booking_kind: 'event' | 'day';
   business_name: string;
   contact_name: string;
   phone: string;
@@ -46,7 +52,7 @@ export type WaitlistJoin = {
 };
 
 const COLUMNS =
-  'id, event_slug, business_name, contact_name, phone, email, spot_type, sells, position, status, offered_at, converted_at, declined_at, admin_notes, created_at';
+  'id, event_slug, booking_date, booking_kind, business_name, contact_name, phone, email, spot_type, sells, position, status, offered_at, converted_at, declined_at, admin_notes, created_at';
 
 /** Postgres unique violation. Someone is already on this event's list. */
 function isDuplicate(error: { code?: string; message?: string } | null): boolean {
@@ -80,7 +86,7 @@ export async function joinWaitlist(input: WaitlistJoin): Promise<JoinResult> {
 
     if (error) {
       if (isDuplicate(error)) {
-        const existing = await findByEmail(input.event_slug, input.email);
+        const existing = await findByEmail(input.event_slug, input.booking_date, input.email);
         if (existing) return { ok: true, entry: existing, alreadyOn: true };
       }
       throw error;
@@ -99,18 +105,21 @@ export async function joinWaitlist(input: WaitlistJoin): Promise<JoinResult> {
 }
 
 export async function findByEmail(
-  eventSlug: string,
+  eventSlug: string | null,
+  bookingDate: string | null,
   email: string
 ): Promise<WaitlistEntry | null> {
   if (!isSupabaseConfigured()) return null;
 
   const supabase = getSupabaseAdmin();
-  const { data, error } = await supabase
-    .from('waitlist')
-    .select(COLUMNS)
-    .eq('event_slug', eventSlug)
-    .ilike('email', email)
-    .maybeSingle();
+  /* Scoped the same way the unique index is, so the row that comes back is the
+     one that actually collided rather than the same person on another date. */
+  const base = supabase.from('waitlist').select(COLUMNS).ilike('email', email);
+
+  const { data, error } = await (eventSlug
+    ? base.eq('event_slug', eventSlug)
+    : base.eq('booking_date', bookingDate)
+  ).maybeSingle();
 
   if (error) {
     console.error('waitlist lookup failed', error);
@@ -135,6 +144,27 @@ export async function getWaitlist(eventSlug: string): Promise<WaitlistEntry[]> {
     return (data ?? []) as unknown as WaitlistEntry[];
   } catch (err) {
     console.error('waitlist read failed', err);
+    return [];
+  }
+}
+
+/** Everyone waiting on an ordinary day, soonest date first. */
+export async function getDayWaitlist(): Promise<WaitlistEntry[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase
+      .from('waitlist')
+      .select(COLUMNS)
+      .eq('booking_kind', 'day')
+      .order('booking_date', { ascending: true })
+      .order('position', { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as unknown as WaitlistEntry[];
+  } catch (err) {
+    console.error('day waitlist read failed', err);
     return [];
   }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
 import { getScheduledEvent } from '@/lib/event-schedule';
+import { formatDayLong } from '@/lib/booking';
 import { getEntry, markOffered } from '@/lib/waitlist';
 import { sendWaitlistOffer } from '@/lib/notify';
 
@@ -45,8 +46,20 @@ export async function POST(request: Request) {
     return bad('That vendor already registered.', 409);
   }
 
-  const event = await getScheduledEvent(entry.event_slug);
-  if (!event) return bad('That event is not in the calendar.', 409);
+  /* A day entry is waiting on a date rather than an event, so there is nothing
+     in the calendar to look up and the date itself is what the offer names. The
+     link back into the form carries no event slug, which is right: they are
+     being invited to book that day, not an event. */
+  const isDay = entry.booking_kind === 'day';
+
+  if (isDay && !entry.booking_date) {
+    return bad('That waitlist entry has no date on it.', 409);
+  }
+
+  const event = isDay ? null : await getScheduledEvent(entry.event_slug ?? '');
+  if (!isDay && !event) return bad('That event is not in the calendar.', 409);
+
+  const whenLabel = isDay ? formatDayLong(entry.booking_date as string) : (event as NonNullable<typeof event>).name;
 
   const sent = await sendWaitlistOffer({
     businessName: entry.business_name,
@@ -56,9 +69,11 @@ export async function POST(request: Request) {
     spotType: entry.spot_type,
     sells: entry.sells,
     position: entry.position,
-    eventName: event.name,
-    eventDate: event.displayDate,
-    eventSlug: event.slug,
+    eventName: whenLabel,
+    eventDate: isDay
+      ? formatDayLong(entry.booking_date as string)
+      : (event as NonNullable<typeof event>).displayDate,
+    eventSlug: isDay ? '' : (event as NonNullable<typeof event>).slug,
   });
 
   if (!sent.ok) {

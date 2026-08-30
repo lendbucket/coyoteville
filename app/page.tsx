@@ -54,6 +54,8 @@ export default async function HomePage() {
     isFull: e.isFull,
     signupClosesDisplay: e.signupClosesDisplay,
     remaining: e.remaining,
+    boothOpen: e.boothOpen,
+    truckOpen: e.truckOpen,
   }));
 
   return (

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import VendorForm from './VendorForm';
 import WaitlistForm from './WaitlistForm';
-import type { EventOption } from '@/lib/event-options';
+import { isOpenForSpot, type EventOption } from '@/lib/event-options';
 
 /**
  * The apply section: either the application form or the waitlist, depending on
@@ -29,6 +29,12 @@ export default function ApplySection({
   supportEmail: string;
 }) {
   const [slug, setSlug] = useState(defaultSlug);
+  /* The spot type lives here rather than in the form, because intake is capped
+     per type and so it is what decides between applying and waiting. Picking a
+     type whose queue is full is the moment a vendor stops being an applicant
+     and becomes somebody waiting, and that has to be visible the instant they
+     pick it rather than after they have filled the whole form in and paid. */
+  const [spot, setSpot] = useState<'' | 'booth' | 'truck' | 'free'>('');
 
   /**
    * Honour ?event= in the URL. The waitlist offer email links straight to the
@@ -62,13 +68,21 @@ export default function ApplySection({
     );
   }
 
-  if (!selected.isOpen) {
+  /* Shut to this vendor, which is not the same as shut. An event with the
+     booths full and the trucks still going is open to one and closed to the
+     next, so the question is asked of the type they picked. With nothing picked
+     yet the form is shown, because there is no answer to give. */
+  const shutForThem = spot !== '' && !isOpenForSpot(selected, spot);
+
+  if (!selected.isOpen || shutForThem) {
     return (
       <WaitlistForm
         events={events}
         eventSlug={selected.slug}
         onEventChange={setSlug}
         supportEmail={supportEmail}
+        spotType={spot}
+        onSpotTypeChange={setSpot}
       />
     );
   }
@@ -79,6 +93,8 @@ export default function ApplySection({
       eventSlug={selected.slug}
       onEventChange={setSlug}
       supportEmail={supportEmail}
+      spotType={spot}
+      onSpotTypeChange={setSpot}
     />
   );
 }
