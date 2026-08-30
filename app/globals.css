@@ -6373,3 +6373,101 @@ p {
   line-height: 1.45;
   color: var(--dust);
 }
+
+/* ------------------------------------------------------------
+   Cash actually received.
+
+   A prepaid row is stamped paid by the database the moment the vendor submits,
+   before anyone has collected. These are the controls that tell booked money
+   apart from money in hand.
+   ------------------------------------------------------------ */
+
+.badge--cash {
+  background: rgba(196, 85, 43, 0.3);
+  color: #f6c0a8;
+}
+
+.cash__head {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-condensed);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.cash__state {
+  margin: 0 0 0.7rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--cream-deep);
+}
+
+.cash__state--missing {
+  color: var(--dust);
+}
+
+.cash__short {
+  color: #ff9b7a;
+}
+
+.cash__over {
+  color: var(--ember);
+}
+
+.cash__entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cash__field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 7rem;
+  min-width: 7rem;
+}
+
+.cash__currency {
+  position: absolute;
+  left: 0.6rem;
+  color: var(--dust);
+  pointer-events: none;
+}
+
+.cash__input {
+  width: 100%;
+  /* Clears the currency mark rather than sitting under it. */
+  padding-left: 1.5rem;
+}
+
+.cash__save,
+.cash__clear {
+  min-height: 44px;
+}
+
+.cash__hint,
+.cash__error,
+.cash__ok {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.cash__hint {
+  color: var(--dust);
+}
+
+.cash__error {
+  color: #ff9b7a;
+}
+
+.cash__ok {
+  color: var(--ember);
+}
+
+.arev__note--warn {
+  color: #f6c0a8;
+}

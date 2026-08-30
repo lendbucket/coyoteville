@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import AdminRowControls from '../AdminRowControls';
 import AdminSendPhotos from '../AdminSendPhotos';
 import { AgreementSheetButton } from './AgreementDownload';
+import CashReceived from './CashReceived';
 import ReviewControls from './ReviewControls';
 import SubscriptionControls from './SubscriptionControls';
 import { isSettled, type VendorCardRow } from './types';
@@ -144,6 +145,18 @@ export default function VendorSheet({
               refundError={row.refundError}
             />
           </div>
+
+          {/* Offline only. An online row has Square's word for what was
+              taken and there is nothing to count by hand. */}
+          {row.paymentMethod === 'offline' ? (
+            <div className="sheet__block">
+              <CashReceived
+                id={row.id}
+                amountCents={row.amountCents}
+                amountReceivedCents={row.amountReceivedCents}
+              />
+            </div>
+          ) : null}
 
           <div className="sheet__block">
             <AdminRowControls

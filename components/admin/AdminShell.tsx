@@ -95,7 +95,14 @@ export default function AdminShell({
   revenue: RevenueSummary | null;
   waitlist: WaitlistEntry[];
   abandoned: React.ComponentProps<typeof AdminAbandoned>['rows'];
-  counts: { total: number; paid: number; unpaid: number; pending: number; signed: number };
+  counts: {
+    total: number;
+    paid: number;
+    unpaid: number;
+    pending: number;
+    signed: number;
+    unreconciled: number;
+  };
   /** Null under the day and monthly scopes, and when no capacity is set. */
   reviewSlots: ReviewSlots | null;
   /** Review slots per day, keyed by date. Only loaded under the day scope. */

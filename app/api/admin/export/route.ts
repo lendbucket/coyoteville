@@ -24,6 +24,7 @@ const HEADERS = [
   'Payment status',
   'Payment method',
   'Amount',
+  'Amount received',
   'Approval',
   'Spot number',
   'Agreement signed',
@@ -121,6 +122,9 @@ export async function GET(request: Request) {
         r.payment_status,
         r.payment_method ?? '',
         (r.amount_cents / 100).toFixed(2),
+        // Blank, not zero. Nothing recorded is a different fact from nothing
+        // received, and a spreadsheet summing this column must not conflate them.
+        r.amount_received_cents === null ? '' : (r.amount_received_cents / 100).toFixed(2),
         r.approval_status,
         r.spot_number ?? '',
         r.waiver_accepted ? 'yes' : 'no',

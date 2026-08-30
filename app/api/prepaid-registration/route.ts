@@ -201,6 +201,15 @@ export async function POST(request: Request) {
       event_slug,
       sells,
       notes: notes || null,
+
+      /* Sent explicitly rather than left to the database function, which
+         currently hardcodes both to true whatever it is handed. These are the
+         values validated above, which is what makes them worth anything: a row
+         claiming a signed agreement is the record we would produce if the
+         vendor ever disputed one. Booleans, not the strings off the form. */
+      waiver_accepted: accepted,
+      permits_confirmed,
+
       signature_name,
       signed_date: signedDate,
       agreement_version: AGREEMENT_VERSION,

@@ -36,6 +36,8 @@ export type AdminApplication = {
   permit_path: string | null;
   upload_issues: string | null;
   amount_cents: number;
+  /** Cash counted by hand against an offline row. Null means unreconciled. */
+  amount_received_cents: number | null;
   payment_status: string;
   payment_method: string | null;
   approval_status: string;
@@ -83,6 +85,12 @@ export type AdminView = {
      * promise a different archive than the one the button produces.
      */
     signed: number;
+    /**
+     * Settled offline rows with no cash recorded against them. The count the
+     * "Cash owed" chip shows, taken off the unfiltered read so it does not move
+     * with the search box.
+     */
+    unreconciled: number;
   };
   /** Event wide, never the filtered slice. Null when the read failed. */
   revenue: RevenueSummary | null;
@@ -102,11 +110,11 @@ export type ReviewSlots = {
   truck: { remaining: number; capacity: number; held: number };
 };
 
-const EMPTY_COUNTS = { total: 0, paid: 0, unpaid: 0, pending: 0, signed: 0 };
+const EMPTY_COUNTS = { total: 0, paid: 0, unpaid: 0, pending: 0, signed: 0, unreconciled: 0 };
 
 /** Columns the revenue summary reads, on top of the ones the tracker shows. */
 const REVENUE_COLUMNS =
-  'spot_type, amount_cents, payment_status, payment_method, approval_status, square_order_id, created_at, booking_kind, waiver_accepted, agreement_version';
+  'spot_type, amount_cents, amount_received_cents, payment_status, payment_method, approval_status, square_order_id, created_at, booking_kind, waiver_accepted, agreement_version';
 
 const COLUMNS = [
   'id',
@@ -137,6 +145,7 @@ const COLUMNS = [
   'permit_path',
   'upload_issues',
   'amount_cents',
+  'amount_received_cents',
   'payment_status',
   'payment_method',
   'approval_status',
@@ -253,12 +262,25 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
     let unpaid = 0;
     let pending = 0;
     let signed = 0;
+    let unreconciled = 0;
     for (const row of allRows) {
       // What the bulk agreement download will actually find: signed, and
       // stamped with the version it was signed under.
       if (row.waiver_accepted && row.agreement_version) signed += 1;
 
       const settled = row.payment_status === 'paid' || row.payment_status === 'not_required';
+
+      /* Claims paid, with nothing counted against it. The database stamps a
+         prepaid row paid the moment the vendor submits, so this is the only
+         thing separating money that exists from money that is asserted. */
+      if (
+        settled &&
+        row.payment_method === 'offline' &&
+        (row.amount_received_cents === null || row.amount_received_cents === undefined)
+      ) {
+        unreconciled += 1;
+      }
+
       if (settled) paid += 1;
       else if (row.payment_status === 'unpaid') unpaid += 1;
 
@@ -274,7 +296,7 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
     return {
       available: true,
       rows,
-      counts: { total: allRows.length, paid, unpaid, pending, signed },
+      counts: { total: allRows.length, paid, unpaid, pending, signed, unreconciled },
       revenue: summariseRevenue(allRows, {
         truck: spots.truck.capacity,
         booth: spots.booth.capacity,

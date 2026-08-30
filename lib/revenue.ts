@@ -22,6 +22,12 @@ export type RevenueRow = {
   square_order_id: string | null;
   created_at: string;
   /**
+   * Cash actually counted against an offline row, recorded by hand in the
+   * tracker. Null means nobody has reconciled it yet, which is not the same as
+   * zero: zero is "we counted and got nothing".
+   */
+  amount_received_cents?: number | null;
+  /**
    * 'event', 'day' or 'monthly'. Absent on a row read by an older caller, which
    * is why it is optional: nothing in this file needs it, and it rides along
    * only so the tracker can tell a monthly application waiting on review apart
@@ -62,6 +68,16 @@ export type RevenueSummary = {
   };
   /** Unpaid rows that have a Square order sitting against them. */
   outstanding: RevenueLine;
+  /**
+   * What was sold against what is actually in hand.
+   *
+   * These are two different questions and the strip used to answer only the
+   * first. A prepaid row is stamped paid by the database the instant the vendor
+   * submits the form, before anyone has collected anything, so booked money and
+   * held money are not the same number and the difference is the thing worth
+   * seeing.
+   */
+  cash: CashReconciliation;
   projected: {
     truck: ProjectedLine;
     booth: ProjectedLine;
@@ -160,6 +176,29 @@ function project(
   };
 }
 
+export type CashReconciliation = {
+  /** Sum of amount_cents on settled rows. What was sold. */
+  bookedCents: number;
+  /**
+   * What is actually held. Square settled the online rows, so those count at
+   * their full amount. An offline row counts only what someone has recorded
+   * receiving against it.
+   */
+  receivedCents: number;
+  /**
+   * Booked minus received. Positive is money owed; negative is an overpayment,
+   * which is why it is not floored at zero. Both are recordable and both are
+   * worth seeing.
+   */
+  differenceCents: number;
+  /**
+   * Settled offline rows with nothing recorded against them at all. These are
+   * the rows claiming paid on the strength of a database default. The cents
+   * figure is what they are booked at, which is what is unaccounted for.
+   */
+  unreconciled: RevenueLine;
+};
+
 export type Capacities = {
   truck: number | null;
   booth: number | null;
@@ -179,8 +218,10 @@ export function summariseRevenue(rows: RevenueRow[], capacities: Capacities): Re
   const square = emptyLine();
   const prepaid = emptyLine();
   const outstanding = emptyLine();
+  const unreconciled = emptyLine();
 
   let collectedCents = 0;
+  let receivedCents = 0;
 
   for (const row of rows) {
     if (!live(row)) continue;
@@ -205,6 +246,24 @@ export function summariseRevenue(rows: RevenueRow[], capacities: Capacities): Re
         const bucket = row.payment_method === 'offline' ? prepaid : square;
         bucket.count += 1;
         bucket.cents += amount;
+      }
+
+      /* What is actually held.
+       *
+       * An online row cleared through Square, so the booked amount is the
+       * received amount. An offline row is only worth what somebody has
+       * counted against it, and until that happens it contributes nothing
+       * however confidently the row says paid. */
+      if (row.payment_method === 'offline') {
+        const received = row.amount_received_cents;
+        if (received === null || received === undefined) {
+          unreconciled.count += 1;
+          unreconciled.cents += amount;
+        } else {
+          receivedCents += Math.max(0, received);
+        }
+      } else {
+        receivedCents += amount;
       }
       continue;
     }
@@ -232,6 +291,12 @@ export function summariseRevenue(rows: RevenueRow[], capacities: Capacities): Re
     collected: { cents: collectedCents, truck, booth, free },
     bySource: { square, prepaid },
     outstanding,
+    cash: {
+      bookedCents: collectedCents,
+      receivedCents,
+      differenceCents: collectedCents - receivedCents,
+      unreconciled,
+    },
     projected: {
       truck: projectedTruck,
       booth: projectedBooth,

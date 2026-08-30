@@ -18,6 +18,12 @@ export type VendorCardRow = {
   paymentStatus: string;
   paymentMethod: string | null;
   amountLabel: string;
+  /** Booked fee in cents, so the sheet can prefill what was expected. */
+  amountCents: number;
+  /** Cash counted by hand, in cents. Null means nobody has reconciled it. */
+  amountReceivedCents: number | null;
+  /** Already formatted, or empty when there is nothing recorded. */
+  amountReceivedLabel: string;
   approvalStatus: string;
   /** 'event', 'day' or 'monthly'. Decides which controls the sheet shows. */
   bookingKind: string;
@@ -66,6 +72,7 @@ export type FilterKey =
   | 'kind:event'
   | 'kind:day'
   | 'kind:monthly'
+  | 'cash'
   | 'truck'
   | 'booth'
   | 'free';
@@ -82,6 +89,7 @@ export const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'kind:monthly', label: 'Monthly' },
   { key: 'paid', label: 'Paid' },
   { key: 'unpaid', label: 'Unpaid' },
+  { key: 'cash', label: 'Cash owed' },
   { key: 'truck', label: 'Trucks' },
   { key: 'booth', label: 'Booths' },
   { key: 'free', label: 'Orgs' },
@@ -90,6 +98,19 @@ export const FILTERS: { key: FilterKey; label: string }[] = [
 /** Settled means paid or a free spot, the same pair used everywhere else. */
 export function isSettled(row: VendorCardRow): boolean {
   return row.paymentStatus === 'paid' || row.paymentStatus === 'not_required';
+}
+
+/**
+ * Claims paid, with no cash counted against it.
+ *
+ * Offline rows are stamped paid by the database the moment the vendor submits
+ * the form, before anyone has collected anything. Until somebody records what
+ * they actually took, the row is an assertion rather than money, and this is
+ * what separates the two. The same rule the unreconciled count on the server
+ * uses, so the chip and the badge cannot disagree with it.
+ */
+export function needsCash(row: VendorCardRow): boolean {
+  return isSettled(row) && row.paymentMethod === 'offline' && row.amountReceivedCents === null;
 }
 
 /**
@@ -111,6 +132,7 @@ export function matchesFilter(row: VendorCardRow, filter: FilterKey): boolean {
   if (filter === 'review') return needsReview(row);
   if (filter === 'paid') return isSettled(row);
   if (filter === 'unpaid') return row.paymentStatus === 'unpaid';
+  if (filter === 'cash') return needsCash(row);
   if (filter.startsWith('kind:')) return row.bookingKind === filter.slice(5);
   return row.spotType === filter;
 }

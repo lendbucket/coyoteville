@@ -1,7 +1,7 @@
 'use client';
 
 import { AgreementRowButton } from './AgreementDownload';
-import { isSettled, needsReview, type VendorCardRow } from './types';
+import { isSettled, needsCash, needsReview, type VendorCardRow } from './types';
 
 /**
  * One vendor, as a card.
@@ -29,6 +29,7 @@ export default function VendorCard({
 }) {
   const settled = isSettled(row);
   const waiting = needsReview(row);
+  const cashOwed = needsCash(row);
   const tel = row.phone.replace(/[^\d+]/g, '');
 
   return (
@@ -62,6 +63,7 @@ export default function VendorCard({
         <span className="vcard__badges">
           <span className={`badge badge--${row.spotType}`}>{row.spotTypeLabel}</span>
           {row.spotNumber ? <span className="badge badge--spot">Spot {row.spotNumber}</span> : null}
+          {cashOwed ? <span className="badge badge--cash">No cash recorded</span> : null}
           {waiting ? (
             <span className="badge badge--review">Needs review</span>
           ) : row.approvalStatus === 'approved' ? (

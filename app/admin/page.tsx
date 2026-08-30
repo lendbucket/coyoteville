@@ -169,6 +169,12 @@ export default async function AdminPage({
     paymentStatus: r.payment_status,
     paymentMethod: r.payment_method,
     amountLabel: r.amount_cents ? money(r.amount_cents) : '',
+    amountCents: r.amount_cents,
+    amountReceivedCents: r.amount_received_cents,
+    /* Cents, not whole dollars: a short payment of $22.50 is exactly the kind
+       of thing this exists to show, and money() would round it away. */
+    amountReceivedLabel:
+      r.amount_received_cents === null ? '' : `$${(r.amount_received_cents / 100).toFixed(2)}`,
     approvalStatus: r.approval_status,
     bookingKind: r.booking_kind,
     bookingLabel:

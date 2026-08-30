@@ -38,7 +38,8 @@ export default function AdminRevenue({ revenue }: { revenue: RevenueSummary | nu
     );
   }
 
-  const { collected, bySource, outstanding, projected } = revenue;
+  const { collected, bySource, outstanding, projected, cash } = revenue;
+  const owed = cash.differenceCents;
 
   return (
     <details className="arev">
@@ -58,6 +59,26 @@ export default function AdminRevenue({ revenue }: { revenue: RevenueSummary | nu
       </summary>
 
       <div className="arev__more">
+        {/* Booked against held. The strip's headline is what was sold, which is
+            not the same as what is in the tin: a prepaid row is stamped paid on
+            submission, before anyone has collected from them. */}
+        <Row label="Booked" value={dollars(cash.bookedCents)} />
+        <Row label="Received" value={dollars(cash.receivedCents)} />
+        {owed !== 0 ? (
+          <Row
+            label={owed > 0 ? 'Not yet in hand' : 'Received over booked'}
+            value={dollars(Math.abs(owed))}
+          />
+        ) : null}
+        {cash.unreconciled.count ? (
+          <p className="arev__note arev__note--warn">
+            {cash.unreconciled.count === 1
+              ? '1 offline spot says paid with no cash recorded against it'
+              : `${cash.unreconciled.count} offline spots say paid with no cash recorded against them`}
+            , {dollars(cash.unreconciled.cents)} booked. The Cash owed chip lists them.
+          </p>
+        ) : null}
+
         <Row label="Square" value={dollars(bySource.square.cents)} />
         <Row label="Prepaid" value={dollars(bySource.prepaid.cents)} />
         <Row
