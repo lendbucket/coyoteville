@@ -1,6 +1,6 @@
 'use client';
 
-import { isSettled, type VendorCardRow } from './types';
+import { isSettled, needsReview, type VendorCardRow } from './types';
 
 /**
  * One vendor, as a card.
@@ -27,10 +27,11 @@ export default function VendorCard({
   onToggle: (id: string) => void;
 }) {
   const settled = isSettled(row);
+  const waiting = needsReview(row);
   const tel = row.phone.replace(/[^\d+]/g, '');
 
   return (
-    <li className={`vcard ${selected ? 'vcard--selected' : ''}`}>
+    <li className={`vcard ${selected ? 'vcard--selected' : ''} ${waiting ? 'vcard--review' : ''}`}>
       {selectable ? (
         <label className="vcard__check">
           <input
@@ -60,8 +61,12 @@ export default function VendorCard({
         <span className="vcard__badges">
           <span className={`badge badge--${row.spotType}`}>{row.spotTypeLabel}</span>
           {row.spotNumber ? <span className="badge badge--spot">Spot {row.spotNumber}</span> : null}
-          {row.approvalStatus === 'approved' ? (
+          {waiting ? (
+            <span className="badge badge--review">Needs review</span>
+          ) : row.approvalStatus === 'approved' ? (
             <span className="badge badge--ok">Approved</span>
+          ) : row.approvalStatus === 'denied' ? (
+            <span className="badge badge--off">Denied</span>
           ) : null}
         </span>
 

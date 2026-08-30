@@ -65,7 +65,7 @@ export default function AdminRowControls({
           <option value="pending">Pending</option>
           <option value="approved">Approved</option>
           <option value="waitlist">Waitlist</option>
-          <option value="declined">Declined</option>
+          <option value="denied">Denied</option>
           <option value="cancelled">Cancelled</option>
         </select>
       </label>

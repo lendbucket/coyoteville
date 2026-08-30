@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import AdminRowControls from '../AdminRowControls';
 import AdminSendPhotos from '../AdminSendPhotos';
+import ReviewControls from './ReviewControls';
 import { isSettled, type VendorCardRow } from './types';
 
 /**
@@ -126,6 +127,20 @@ export default function VendorSheet({
               </span>
               Mail app
             </a>
+          </div>
+
+          {/* The decision comes before the housekeeping controls, because on a
+              pending vendor it is the only reason this sheet was opened. */}
+          <div className="sheet__block">
+            <ReviewControls
+              id={row.id}
+              businessName={row.businessName}
+              approvalStatus={row.approvalStatus}
+              amountLabel={row.amountLabel}
+              denialReason={row.denialReason}
+              refundLabel={row.refundLabel}
+              refundError={row.refundError}
+            />
           </div>
 
           <div className="sheet__block">

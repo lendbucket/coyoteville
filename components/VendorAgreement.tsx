@@ -12,8 +12,23 @@
  * Coyoteville to Coyoteville Alice LLC. That is a different legal counterparty,
  * which is precisely what this version string exists to record: anything signed
  * under v2.0-2026 contracted with the old entity and must keep pointing there.
+ *
+ * v4.0-2026 adds section 3, Application Review, Cancellation, and Refunds, and
+ * with it the rule that payment buys a place in the review queue rather than a
+ * spot. That changes what a vendor is actually buying when they pay, so it is a
+ * major bump and nothing signed under v3.1-2026 is treated as having agreed to
+ * it. Sections 3 through 18 shifted down to 4 through 19; the text of those
+ * sections is unchanged apart from the cross reference added to section 2.
  */
-export const AGREEMENT_VERSION = "v3.1-2026";
+export const AGREEMENT_VERSION = "v4.0-2026";
+
+/**
+ * How many numbered sections the agreement has. The form tells the vendor to
+ * read all of them and says the number out loud, in two places, so it is read
+ * from here rather than typed in as a literal that goes stale the next time a
+ * section is added.
+ */
+export const AGREEMENT_SECTION_COUNT = 19;
 
 export const CONTRACTING_ENTITY = "Coyoteville Alice LLC";
 export const CONTRACTING_ENTITY_FULL =
@@ -53,13 +68,64 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         assigned space for the duration of the event only. This is a license to occupy, not a
         lease, and conveys no tenancy, possessory interest, or property right of any kind. Space
         assignment, size, and location are determined solely by Coyoteville and may be changed at
-        any time. Fees are due in advance, a space is not reserved until payment is received, and
-        fees are non refundable. Coyoteville charges no commission and takes no percentage of
-        Vendor&apos;s sales. Vendor may not sublet, share, transfer, or assign its space to any
-        other business without prior written consent.
+        any time. Fees are due in advance. Payment does not reserve or confirm a space; it places
+        Vendor&apos;s application into the review queue described in Section 3, and a space exists
+        only once Coyoteville has approved that application. Except as expressly provided in
+        Section 3, fees are non refundable. Coyoteville charges no commission and takes no
+        percentage of Vendor&apos;s sales. Vendor may not sublet, share, transfer, or assign its
+        space to any other business without prior written consent.
       </p>
 
-      <h4>3. Permits, Licenses, and Food Handler Certification</h4>
+      <h4>3. Application Review, Cancellation, and Refunds</h4>
+      <div className="agreement__box">
+        <p className="agreement__boxhd">Read this before you pay</p>
+        <p>
+          <strong>
+            Payment reserves Vendor&apos;s place in the review queue. It does not confirm a spot.
+          </strong>{" "}
+          Every application is reviewed by Coyoteville, ordinarily within forty eight hours of
+          payment. Vendor has a space only when Coyoteville sends written approval. Until then no
+          space is held for Vendor, no placement is assigned, and Vendor should not rely on
+          participating in the event.
+        </p>
+        <p>
+          <strong>
+            If Coyoteville denies an application, the fee is refunded in full, automatically.
+          </strong>{" "}
+          Vendor does not have to request it. The refund is issued to the original payment method
+          and typically takes five to ten business days to appear, which is a function of
+          Vendor&apos;s card issuer and bank rather than of Coyoteville.{" "}
+          <strong>
+            Approval is at the sole discretion of Coyoteville and no reason is required.
+          </strong>{" "}
+          Coyoteville may decline any application for any reason or for no reason, including the
+          mix of vendors already accepted for a date, and a denial is not a statement about
+          Vendor&apos;s business.
+        </p>
+      </div>
+      <p>
+        <strong>If Vendor cancels, the fee is not refunded, for any reason.</strong> That includes
+        illness, staffing, weather, vehicle or equipment failure, a competing booking, a change of
+        mind, and simply not attending. This applies however far in advance Vendor cancels.
+      </p>
+      <p>
+        <strong>
+          A spot is sold for one specific date and carries no credit, transfer, or rain check
+          toward any other date.
+        </strong>{" "}
+        A paid space is held out of a limited number for that date and is not resold once Vendor
+        cancels, so the fee is not moved to a future event, is not held on account, is not
+        exchanged for a different spot type, and is not transferable to another business.
+      </p>
+      <p>
+        The two rules in this section are distinct and are not in conflict. A refund arises only
+        where Coyoteville declines to accept Vendor, which is Coyoteville&apos;s decision. No
+        refund arises where Vendor withdraws after being accepted, which is Vendor&apos;s decision.
+        Nothing in this section entitles Vendor to a refund in any circumstance addressed by
+        Section 4, Section 9, or Section 14, under which fees are not refunded.
+      </p>
+
+      <h4>4. Permits, Licenses, and Food Handler Certification</h4>
       <p>
         Vendor is solely responsible for obtaining, maintaining, and producing on demand every
         permit, license, certification, and registration required for its operation by the City of
@@ -112,7 +178,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </strong>
       </p>
 
-      <h4>4. Insurance</h4>
+      <h4>5. Insurance</h4>
       <p>
         Vendor will obtain and maintain at its own expense, for the entire time it is on the
         premises, commercial general liability insurance covering bodily injury, property damage,
@@ -129,7 +195,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         this Agreement, including its indemnification obligations.
       </p>
 
-      <h4>5. Equipment, Fire Safety, and Utilities</h4>
+      <h4>6. Equipment, Fire Safety, and Utilities</h4>
       <p>
         Vendor supplies all of its own equipment, including tent, canopy, weights or anchors,
         tables, chairs, signage, lighting, generator, fuel, potable water, refrigeration, cooking
@@ -148,7 +214,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         code official concerning the safety of its setup.
       </p>
 
-      <h4>6. Food Safety and Sanitation</h4>
+      <h4>7. Food Safety and Sanitation</h4>
       <p>
         Vendor is solely responsible for the safety, handling, temperature control, storage,
         preparation, labeling, and service of every product it sells or distributes, including
@@ -161,7 +227,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </strong>
       </p>
 
-      <h4>7. Waste, Gray Water, and Grease</h4>
+      <h4>8. Waste, Gray Water, and Grease</h4>
       <p>
         Discharging gray water, wastewater, grease, cooking oil, ice melt containing food residue,
         or any other liquid waste onto the ground, into storm drains, or anywhere on or near the
@@ -173,7 +239,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         penalty assessed against Coyoteville as a result.
       </p>
 
-      <h4>8. Conduct, Compliance, and Removal</h4>
+      <h4>9. Conduct, Compliance, and Removal</h4>
       <p>
         Vendor and its personnel will conduct themselves professionally and lawfully at all times,
         will comply with all applicable federal, state, and local laws and ordinances, including
@@ -190,7 +256,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </strong>
       </p>
 
-      <h4>9. Security and Personal Property</h4>
+      <h4>10. Security and Personal Property</h4>
       <p>
         Coyoteville provides no security, surveillance, storage, or safekeeping of any kind. All
         property Vendor brings to the premises, including inventory, equipment, cash, vehicles, and
@@ -202,7 +268,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </strong>
       </p>
 
-      <h4>10. Assumption of Risk</h4>
+      <h4>11. Assumption of Risk</h4>
       <div className="agreement__box">
         <p className="agreement__boxhd">Assumption of Risk</p>
         <p>
@@ -224,7 +290,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </p>
       </div>
 
-      <h4>11. Release of Liability</h4>
+      <h4>12. Release of Liability</h4>
       <div className="agreement__box">
         <p className="agreement__boxhd">Release and Waiver of Claims</p>
         <p>
@@ -245,7 +311,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </p>
       </div>
 
-      <h4>12. Indemnification</h4>
+      <h4>13. Indemnification</h4>
       <div className="agreement__box">
         <p className="agreement__boxhd">Indemnity, Including Indemnitee&apos;s Own Negligence</p>
         <p>
@@ -269,14 +335,17 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </p>
       </div>
 
-      <h4>13. Weather, Cancellation, and Force Majeure</h4>
+      <h4>14. Weather, Cancellation, and Force Majeure</h4>
       <p>
         Events are held rain or shine. Coyoteville may delay, suspend, relocate, shorten, or cancel
         any event, in whole or in part, for weather, safety, public health, governmental order,
         utility failure, or any cause beyond its reasonable control, and may direct Vendor to cease
-        operating or evacuate at any time. Fees are non refundable in all such circumstances.
-        Coyoteville will make a reasonable effort, but is not obligated, to credit a canceled event
-        toward a future date.{" "}
+        operating or evacuate at any time. Fees are non refundable in all such circumstances, and
+        the refund in Section 3 does not apply, because it arises only where Coyoteville declines an
+        application. Where Coyoteville itself cancels a date it will make a reasonable effort, but
+        is not obligated, to credit that fee toward a future event; the bar in Section 3 on credit
+        and transfer applies to a cancellation by Vendor and does not limit what Coyoteville may
+        choose to do here.{" "}
         <strong>
           The Released Parties are not liable for any lost profits, lost sales, spoiled inventory,
           wasted labor, travel costs, or other loss Vendor incurs as a result of any delay,
@@ -284,7 +353,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </strong>
       </p>
 
-      <h4>14. No Guarantee of Attendance or Sales</h4>
+      <h4>15. No Guarantee of Attendance or Sales</h4>
       <p>
         Coyoteville makes no representation, warranty, or guarantee regarding event attendance, foot
         traffic, weather, sales volume, revenue, the number or type of other vendors present, or the
@@ -292,7 +361,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         independent business judgment in deciding to participate.
       </p>
 
-      <h4>15. Media and Photo Release</h4>
+      <h4>16. Media and Photo Release</h4>
       <p>
         Vendor grants Coyoteville and its assigns an irrevocable, royalty free, perpetual right to
         photograph, film, record, and reproduce images and recordings of Vendor, its space,
@@ -302,7 +371,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         own employees and personnel.
       </p>
 
-      <h4>16. Governing Law, Venue, and Attorney Fees</h4>
+      <h4>17. Governing Law, Venue, and Attorney Fees</h4>
       <p>
         This Agreement is governed by the laws of the State of Texas without regard to conflict of
         law principles. Exclusive venue for any dispute lies in the state courts of Jim Wells
@@ -311,7 +380,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         recover its reasonable attorneys fees and costs.
       </p>
 
-      <h4>17. General Provisions</h4>
+      <h4>18. General Provisions</h4>
       <p>
         If any provision of this Agreement is held unenforceable, it will be modified to the minimum
         extent necessary to be enforceable, or severed, and the remainder will continue in full
@@ -323,7 +392,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         at the time of each event governs that event.
       </p>
 
-      <h4>18. Acknowledgment and Electronic Signature</h4>
+      <h4>19. Acknowledgment and Electronic Signature</h4>
       <div className="agreement__box">
         <p>
           Vendor has read this entire Agreement, understands it fully, and signs it freely and

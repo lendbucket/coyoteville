@@ -43,19 +43,25 @@ function when(iso: string | null): string {
 
 /**
  * 'started' fires the moment the form is submitted, before checkout, so every
- * attempt is visible. 'confirmed' fires when the money actually lands.
+ * attempt is visible. 'review' fires when the money lands, which under the
+ * approval workflow is the point an application joins the queue rather than the
+ * point it becomes a booking.
+ *
+ * 'confirmed' is kept for the paths that settle without review, which today is
+ * only a prepaid registration.
  */
-export type NotificationStage = 'started' | 'confirmed';
+export type NotificationStage = 'started' | 'review' | 'confirmed';
 
 export function renderAdminNotification(
   r: RegistrationEmail,
-  stage: NotificationStage = 'confirmed'
+  stage: NotificationStage = 'review'
 ): {
   subject: string;
   html: string;
   text: string;
 } {
   const started = stage === 'started';
+  const review = stage === 'review';
   const path = started
     ? 'Website, sent to Square checkout, NOT PAID YET'
     : r.payment_method === 'offline'
@@ -71,7 +77,11 @@ export function renderAdminNotification(
       : 'Not required';
 
   const rows: Array<[string, string, boolean?]> = [
-    ['Status', started ? 'Awaiting payment' : 'Confirmed', started],
+    [
+      'Status',
+      started ? 'Awaiting payment' : review ? 'PAID, WAITING ON YOUR REVIEW' : 'Confirmed',
+      started || review,
+    ],
     ['Business', r.business_name],
     ['Contact', r.contact_name],
     ['Phone', r.phone],
@@ -92,6 +102,16 @@ export function renderAdminNotification(
 
   const adminUrl = `${SITE_URL}/admin?event=${encodeURIComponent(r.event_slug)}&q=${encodeURIComponent(r.business_name)}`;
 
+  // Amber for a review, the same as an unpaid start, because it is a state that
+  // still needs something done about it. Green would read as handled, and
+  // nothing has been handled yet.
+  const banner = started || review ? '#8A5A00' : '#1E6B3C';
+  const bannerText = started
+    ? 'Started signup &middot; awaiting payment'
+    : review
+      ? 'Paid &middot; waiting on your review'
+      : 'Payment received';
+
   const html = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -106,8 +126,8 @@ export function renderAdminNotification(
 <!--[if mso]><table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;background-color:#FFFFFF;border:1px solid #DDDDE0;">
   <tr><td style="padding:0;">
-    <div style="background-color:${started ? '#8A5A00' : '#1E6B3C'};color:#FFFFFF;font-family:${BODY};font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:10px 22px;">
-      ${started ? 'Started signup &middot; awaiting payment' : 'Payment received'}
+    <div style="background-color:${banner};color:#FFFFFF;font-family:${BODY};font-size:13px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;padding:10px 22px;">
+      ${bannerText}
     </div>
   </td></tr>
   <tr><td style="padding:18px 22px 6px;">
@@ -130,8 +150,18 @@ export function renderAdminNotification(
     </table>
   </td></tr>
 
+  ${
+    review
+      ? `<tr><td style="padding:4px 22px 0;">
+    <div style="font-family:${BODY};font-size:14px;line-height:21px;color:#111111;background-color:#FFF4E0;border:1px solid #E9C77E;padding:12px 14px;">
+      <b>This spot is held but not confirmed.</b> It counts against capacity until you decide. Denying refunds the fee in full and frees the spot straight away.
+    </div>
+  </td></tr>`
+      : ''
+  }
+
   <tr><td style="padding:18px 22px 24px;">
-    <a href="${adminUrl}" style="display:inline-block;background-color:#C4552B;color:#FFFFFF;font-family:${BODY};font-size:14px;font-weight:bold;text-decoration:none;padding:11px 20px;border-radius:4px;">Open in the tracker</a>
+    <a href="${adminUrl}" style="display:inline-block;background-color:#C4552B;color:#FFFFFF;font-family:${BODY};font-size:14px;font-weight:bold;text-decoration:none;padding:11px 20px;border-radius:4px;">${review ? 'Review in the tracker' : 'Open in the tracker'}</a>
   </td></tr>
 </table>
 <!--[if mso]></td></tr></table><![endif]-->
@@ -144,14 +174,18 @@ export function renderAdminNotification(
   const text =
     (started
       ? 'STARTED SIGNUP, AWAITING PAYMENT.\nThey have been sent to Square checkout and have not paid yet.\n\n'
-      : 'PAYMENT RECEIVED.\n\n') +
+      : review
+        ? 'PAID, WAITING ON YOUR REVIEW.\nThe spot is held but not confirmed. Denying refunds the fee in full and frees it.\n\n'
+        : 'PAYMENT RECEIVED.\n\n') +
     rows.map(([k, v]) => `${k}: ${v}`).join('\n') +
     `\n\nOpen in the tracker: ${adminUrl}\n`;
 
   return {
     subject: started
       ? `Vendor started signup, ${r.business_name}, ${spotLabel(r.spot_type)}, awaiting payment`
-      : `Vendor PAID, ${r.business_name}, ${spotLabel(r.spot_type)}`,
+      : review
+        ? `REVIEW NEEDED, ${r.business_name}, ${spotLabel(r.spot_type)}, ${r.event_name}`
+        : `Vendor PAID, ${r.business_name}, ${spotLabel(r.spot_type)}`,
     html,
     text,
   };

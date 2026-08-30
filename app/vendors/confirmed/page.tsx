@@ -4,12 +4,14 @@ import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import StringLights from '@/components/StringLights';
 import NextSteps from '@/components/NextSteps';
+import Fireworks from '@/components/Fireworks';
 import { NEXT_EVENT } from '@/lib/seo';
+import { REFUND_WINDOW, REVIEW_WINDOW } from '@/lib/approval';
 import { supportEmail } from '@/lib/support';
 
 export const metadata: Metadata = {
-  title: 'Vendor spot confirmed',
-  description: 'Your Coyoteville vendor spot is paid and confirmed.',
+  title: 'Application received',
+  description: 'Your Coyoteville vendor application is paid and in review.',
   robots: {
     index: false,
     follow: false,
@@ -18,12 +20,22 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * Where Square drops a vendor after checkout.
+ *
+ * This page used to say the spot was confirmed, which is no longer true: the
+ * payment has settled and the application has joined the review queue. The
+ * celebration stays, because finishing signup is still a real moment and this
+ * is still the end of a long form, but every line under it is careful not to
+ * promise a spot that has not been granted yet.
+ */
 export default function ConfirmedPage({
   searchParams,
 }: {
   searchParams: { spot?: string };
 }) {
   const email = supportEmail();
+  const free = searchParams.spot === 'free';
 
   return (
     <>
@@ -31,30 +43,44 @@ export default function ConfirmedPage({
       <Nav />
 
       <main id="main" className="confirm">
-        <div className="shell confirm__card">
-          <StringLights tone="dark" variant="top" swags={4} sag={26} bulbsPerSwag={6} id="confirm-lights" />
+        <StringLights tone="dark" variant="top" swags={4} sag={26} bulbsPerSwag={6} id="confirm-lights" />
+        <Fireworks />
 
-          <p className="confirm__script">Confirmed</p>
-          <h1 style={{ fontSize: 'clamp(1.9rem, 4.5vw, 2.9rem)' }}>Your spot is paid</h1>
+        <div className="shell confirm__card">
+          <p className="confirm__script">Thank you</p>
+          <h1 style={{ fontSize: 'clamp(1.9rem, 4.5vw, 2.9rem)' }}>We have your application</h1>
 
           <p className="muted">
-            We have your payment and your signed agreement. Your spot at {NEXT_EVENT.name} on{' '}
-            {NEXT_EVENT.displayDate} is confirmed. Square sends the receipt to your email.
+            {free
+              ? 'We have your signed agreement. Nothing was charged.'
+              : 'We have your payment and your signed agreement. Square sends the receipt to your email.'}{' '}
+            You are in the queue for {NEXT_EVENT.name} on {NEXT_EVENT.displayDate}.
+          </p>
+
+          {/* The rule, stated the same way it was stated before they paid and
+              the same way the email states it. Somebody who reads all three and
+              gets three different promises has been told nothing. */}
+          <p className="formnote formnote--warn confirm__review" role="note">
+            <b>This is not a confirmed spot yet.</b> {free ? 'Your application' : 'Paying'} reserves
+            your place in the review queue. We review every application {REVIEW_WINDOW} and email
+            you either way.{' '}
+            {free
+              ? 'Nothing was charged, so there is nothing to refund if we cannot fit you in.'
+              : `If we cannot accommodate you, you are refunded in full automatically, and it takes ${REFUND_WINDOW} to appear on your statement.`}
           </p>
 
           <ul className="confirm__steps">
             <li>
-              <strong>We will email your spot number</strong> a few days before the event, with
-              your setup time.
+              <strong>Watch for our email.</strong> Approved or not, you hear from us{' '}
+              {REVIEW_WINDOW}. The approval email carries your spot details and setup time.
             </li>
             <li>
-              <strong>Bring your own setup.</strong> Table, chairs, canopy, decorations,
-              weights, generator, fuel, water, cooking gear and a fire extinguisher. One vehicle
-              per space.
+              <strong>Hold off on buying stock</strong> or booking help for this date until that
+              email lands.
             </li>
             <li>
-              <strong>Keep your permits on site.</strong> Bring your Texas DSHS health permit and
-              food handler certificates to the event, not at home.
+              <strong>Keep your permits ready.</strong> If you are approved, bring your Texas DSHS
+              health permit and food handler certificates to the event, not at home.
             </li>
             <li>
               <strong>Grease and gray water leave with you.</strong> Nothing is discharged on the

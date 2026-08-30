@@ -4,10 +4,13 @@ import { useEffect, useId, useState } from 'react';
 import {
   VendorAgreement,
   AGREEMENT_VERSION,
+  AGREEMENT_SECTION_COUNT,
   AUTHORIZED_SIGNER,
   CONTRACTING_ENTITY,
 } from './VendorAgreement';
+import { REFUND_WINDOW, REVIEW_WINDOW } from '@/lib/approval';
 import StringLights from './StringLights';
+import Fireworks from './Fireworks';
 import NextSteps from './NextSteps';
 import EventPicker from './EventPicker';
 import type { EventOption } from '@/lib/event-options';
@@ -367,7 +370,7 @@ export default function VendorForm({
       setMessage(
         prepaid
           ? 'Your spot is registered and your agreement is signed. No payment is due, you already paid. We will email your spot number before the event.'
-          : 'We have your application and your signed agreement. We will email you your spot number before the event.'
+          : `We have your application and your signed agreement. It is not a confirmed spot yet. We review every application ${REVIEW_WINDOW} and email you either way.`
       );
     } catch (err) {
       setStatus('error');
@@ -382,11 +385,14 @@ export default function VendorForm({
 
   if (status === 'done') {
     return (
-      <section className="section apply" id="apply" aria-labelledby="apply-title">
+      <section className="section apply apply--done" id="apply" aria-labelledby="apply-title">
         <StringLights tone="dark" variant="top" swags={5} sag={30} id="apply-lights-done" />
-        <div className="shell">
+        {/* The free organisation and prepaid paths finish here rather than on
+            /vendors/confirmed, so the moment gets marked here too. */}
+        <Fireworks />
+        <div className="shell apply__donecard">
           <p className="eyebrow">Vendor application</p>
-          <h2 id="apply-title">{prepaid ? 'You are registered' : 'You are in'}</h2>
+          <h2 id="apply-title">{prepaid ? 'You are registered' : 'We have your application'}</h2>
           <p className="lede">{message}</p>
           <p className="hint">
             Questions in the meantime, email <a href={`mailto:${supportEmail}`}>{supportEmail}</a>.
@@ -703,7 +709,9 @@ export default function VendorForm({
           {/* --------------------------------------------- agreement */}
 
           <div className="field">
-            <span className="label">Vendor Participation Agreement, read all 18 sections</span>
+            <span className="label">
+              Vendor Participation Agreement, read all {AGREEMENT_SECTION_COUNT} sections
+            </span>
             <p className="counterparty">
               You are entering into an agreement with <b>{CONTRACTING_ENTITY}</b>,{' '}
               {AUTHORIZED_SIGNER}.
@@ -719,7 +727,8 @@ export default function VendorForm({
               </div>
             </div>
             <span className="hint hint--scroll">
-              Scroll inside the box to read all 18 sections. Version {AGREEMENT_VERSION}. This
+              Scroll inside the box to read all {AGREEMENT_SECTION_COUNT} sections. Version{" "}
+              {AGREEMENT_VERSION}. This
               exact version gets saved with your signature.
             </span>
           </div>
@@ -803,6 +812,29 @@ export default function VendorForm({
             </p>
           ) : null}
 
+          {/* The review rule, immediately above the pay button rather than in
+              the intro copy, because this is the last thing read before money
+              moves and it is the one thing a vendor must not be surprised by
+              afterwards. Prepaid vendors were agreed by phone and are not in
+              the queue, so they do not see it. */}
+          {!prepaid ? (
+            <p className="formnote formnote--warn reviewnote" role="note">
+              <b>Paying does not confirm your spot.</b> It reserves your place in the review queue.
+              We review every application {REVIEW_WINDOW} and email you either way.{' '}
+              {spot === 'free' ? (
+                <>
+                  Nothing is charged for an Alice organization spot, so there is nothing to refund
+                  if we cannot fit you in.
+                </>
+              ) : (
+                <>
+                  If we cannot accommodate you, you are refunded in full automatically, and it takes{' '}
+                  {REFUND_WINDOW} to appear on your statement.
+                </>
+              )}
+            </p>
+          ) : null}
+
           <div className="form__submit">
             {/* Disabled for the whole submission, not just the network call, so
                 a slow upload cannot be double submitted by an impatient tap. */}
@@ -846,7 +878,7 @@ export default function VendorForm({
                 : spot === 'free'
                   ? 'Alice organizations set up at no charge, so there is no payment step.'
                   : fee
-                    ? `You will be charged ${fee} at Square checkout. Nothing is taken before that.`
+                    ? `You will be charged ${fee} at Square checkout, which puts you in the review queue. Nothing is taken before that.`
                     : 'Pick a spot type above to see your fee.'}
             </span>
           </div>

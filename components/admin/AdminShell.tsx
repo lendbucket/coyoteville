@@ -86,7 +86,7 @@ export default function AdminShell({
   revenue: RevenueSummary | null;
   waitlist: WaitlistEntry[];
   abandoned: React.ComponentProps<typeof AdminAbandoned>['rows'];
-  counts: { total: number; paid: number; unpaid: number };
+  counts: { total: number; paid: number; unpaid: number; pending: number };
   eventName: string;
   eventDate: string;
   eventSlug: string;
@@ -196,6 +196,35 @@ export default function AdminShell({
             CSV
           </a>
         </form>
+
+        {/* The queue, at the top of every tab rather than inside the vendor
+            list, because a spot sitting unreviewed is holding capacity and the
+            one failure mode worth designing against is not noticing. Tapping it
+            lands on the vendors tab already filtered to the ones waiting. */}
+        {counts.pending > 0 ? (
+          <button
+            className="ash__review"
+            type="button"
+            onClick={() => {
+              setTab('vendors');
+              setFilter('review');
+              setQuery('');
+            }}
+          >
+            <span className="ash__reviewcount">{counts.pending}</span>
+            <span className="ash__reviewtext">
+              <b>
+                {counts.pending === 1
+                  ? 'application waiting on you'
+                  : 'applications waiting on you'}
+              </b>
+              Paid and holding a spot. Nothing is confirmed until you approve it.
+            </span>
+            <span className="ash__reviewgo" aria-hidden="true">
+              &rsaquo;
+            </span>
+          </button>
+        ) : null}
       </header>
 
       {/* -------------------------------------------------------- vendors */}
@@ -277,7 +306,11 @@ export default function AdminShell({
             <Skeletons />
           ) : visible.length === 0 ? (
             <p className="ash__empty">
-              {rows.length === 0 ? 'No applications for this event yet.' : 'Nothing matches that.'}
+              {rows.length === 0
+                ? 'No applications for this event yet.'
+                : filter === 'review'
+                  ? 'Nothing is waiting on review. The queue is clear.'
+                  : 'Nothing matches that.'}
             </p>
           ) : (
             <ul className="vlist">
@@ -362,6 +395,9 @@ export default function AdminShell({
             <span>{t.label}</span>
             {t.key === 'compose' && selectedIds.length ? (
               <span className="tabbar__badge">{selectedIds.length}</span>
+            ) : null}
+            {t.key === 'vendors' && counts.pending ? (
+              <span className="tabbar__badge tabbar__badge--review">{counts.pending}</span>
             ) : null}
           </button>
         ))}

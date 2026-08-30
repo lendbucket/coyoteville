@@ -2,16 +2,23 @@ import 'server-only';
 import { cache } from 'react';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { NEXT_EVENT } from './seo';
+import { RELEASING_STATUSES } from './approval';
 
 /**
  * Live spot counts.
  *
  * Website applications are counted out of the database. Claimed means a row
  * whose payment has actually settled: 'paid' for the ones that go through
- * Square, and 'not_required' for the free Alice organisation spots, which are
- * confirmed the moment they are submitted. Rows sitting at 'unpaid' are people
- * who started checkout and have not finished, and they do not hold a spot,
- * which is the same rule the pricing copy states.
+ * Square, and 'not_required' for the free Alice organisation spots. Rows
+ * sitting at 'unpaid' are people who started checkout and have not finished,
+ * and they do not hold a spot, which is the same rule the pricing copy states.
+ *
+ * A settled row holds its spot while it waits on review. That is deliberate:
+ * approving more vendors than there is room for is the failure this meter
+ * exists to prevent, so a paid application that nobody has looked at yet still
+ * counts against capacity. Denying or cancelling one releases it immediately,
+ * before any refund has settled, because the spot is free the moment the
+ * decision is made and the next vendor should be able to have it.
  *
  * On top of that, booth_claimed_offline and truck_claimed_offline on the events
  * row hold vendors who committed by phone or on Facebook rather than through
@@ -29,6 +36,9 @@ import { NEXT_EVENT } from './seo';
 
 /** Payment states that mean the spot is actually held. */
 const CLAIMED_STATES = ['paid', 'not_required'] as const;
+
+/** Decisions that hand the spot back, whatever the payment status says. */
+const RELEASED_STATES = RELEASING_STATUSES;
 
 export type SpotLine = {
   capacity: number | null;
@@ -204,7 +214,8 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
         .from('vendor_applications')
         .select('spot_type')
         .eq('event_slug', eventSlug)
-        .in('payment_status', CLAIMED_STATES as unknown as string[]),
+        .in('payment_status', CLAIMED_STATES as unknown as string[])
+        .not('approval_status', 'in', `(${RELEASED_STATES.join(',')})`),
     ]);
 
     if (rowsResult.error) throw rowsResult.error;

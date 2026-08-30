@@ -19,6 +19,12 @@ export type VendorCardRow = {
   paymentMethod: string | null;
   amountLabel: string;
   approvalStatus: string;
+  /** The reason typed at denial. Shown back so the decision is auditable. */
+  denialReason: string | null;
+  /** What was actually sent back, formatted. Empty when nothing was. */
+  refundLabel: string;
+  /** Set when the automatic refund failed and someone has to finish it by hand. */
+  refundError: string | null;
   sells: string;
   servesFood: boolean;
   signed: boolean;
@@ -36,9 +42,12 @@ export type VendorCardRow = {
   lastEmail: { to: string; at: string; subject: string } | null;
 };
 
-export type FilterKey = 'all' | 'paid' | 'unpaid' | 'truck' | 'booth' | 'free';
+export type FilterKey = 'all' | 'review' | 'paid' | 'unpaid' | 'truck' | 'booth' | 'free';
 
+/* 'Review' sits first because it is the only chip that is a job rather than a
+   view, and the whole point of the queue is that it cannot be missed. */
 export const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'review', label: 'Review' },
   { key: 'all', label: 'All' },
   { key: 'paid', label: 'Paid' },
   { key: 'unpaid', label: 'Unpaid' },
@@ -52,8 +61,18 @@ export function isSettled(row: VendorCardRow): boolean {
   return row.paymentStatus === 'paid' || row.paymentStatus === 'not_required';
 }
 
+/**
+ * Waiting on a decision: the money is in and nobody has ruled on it yet. The
+ * same rule the pending count on the server uses, so the badge and the chip can
+ * never disagree with the banner.
+ */
+export function needsReview(row: VendorCardRow): boolean {
+  return isSettled(row) && row.approvalStatus === 'pending';
+}
+
 export function matchesFilter(row: VendorCardRow, filter: FilterKey): boolean {
   if (filter === 'all') return true;
+  if (filter === 'review') return needsReview(row);
   if (filter === 'paid') return isSettled(row);
   if (filter === 'unpaid') return row.paymentStatus === 'unpaid';
   return row.spotType === filter;

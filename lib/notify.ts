@@ -4,6 +4,7 @@ import { SITE } from './seo';
 import { supportEmail } from './support';
 import type { RegistrationEmail } from './notify-types';
 import { renderVendorConfirmation } from './email/vendor-confirmation';
+import { renderPaymentReceived, renderVendorDenied, type DeniedEmail } from './email/vendor-review';
 import { renderAdminNotification, type NotificationStage } from './email/admin-notification';
 import {
   renderWaitlistJoined,
@@ -74,7 +75,14 @@ export async function notifyRegistrationStarted(r: RegistrationEmail): Promise<v
   }
 }
 
-/** Send both messages. Never throws. Call only after the write has succeeded. */
+/**
+ * Send both messages. Never throws. Call only after the write has succeeded.
+ *
+ * This is the settled-and-done path, which since the approval workflow landed
+ * means prepaid registrations only: those were agreed by phone before the link
+ * was ever sent, so the vendor really is confirmed and gets the confirmation.
+ * Everything that goes through review uses notifyPaymentReceived instead.
+ */
 export async function notifyRegistration(r: RegistrationEmail): Promise<void> {
   if (!isEmailConfigured()) {
     console.warn('email not configured, skipping registration notification', { application: r.id });
@@ -82,7 +90,7 @@ export async function notifyRegistration(r: RegistrationEmail): Promise<void> {
   }
 
   const from = process.env.FROM_EMAIL as string;
-  const owner = renderAdminNotification(r);
+  const owner = renderAdminNotification(r, 'confirmed');
   const vendor = renderVendorConfirmation(r, supportEmail());
 
   // Sent independently so one failing does not stop the other.
@@ -121,6 +129,120 @@ export async function notifyRegistration(r: RegistrationEmail): Promise<void> {
       console.error(`${which} rejected by Resend`, { application: r.id, error: result.value.error });
     }
   });
+}
+
+/* ---------------------------------------------------------- review flow */
+
+/**
+ * One vendor message and one owner message, sent independently.
+ *
+ * Every send in the review flow has this shape, so the fan out, the reply-to
+ * rules and the logging live here once rather than three times. Vendors always
+ * reply to the monitored support address, never to the owner's alerts inbox,
+ * whatever the from address happens to be.
+ */
+async function sendPair(
+  applicationId: string,
+  vendorTo: string,
+  vendorMessage: { subject: string; html: string; text: string } | null,
+  ownerMessage: { subject: string; html: string; text: string } | null,
+  replyToOwner: string
+): Promise<void> {
+  const from = process.env.FROM_EMAIL as string;
+  const sends: Promise<unknown>[] = [];
+  const labels: string[] = [];
+
+  if (ownerMessage) {
+    labels.push('owner notification');
+    sends.push(
+      resend().emails.send({
+        from,
+        to: OWNER_EMAIL,
+        replyTo: replyToOwner,
+        subject: ownerMessage.subject,
+        html: ownerMessage.html,
+        text: ownerMessage.text,
+      })
+    );
+  }
+
+  if (vendorMessage) {
+    labels.push('vendor email');
+    sends.push(
+      resend().emails.send({
+        from,
+        to: vendorTo,
+        replyTo: supportEmail(),
+        subject: vendorMessage.subject,
+        html: vendorMessage.html,
+        text: vendorMessage.text,
+      })
+    );
+  }
+
+  const results = await Promise.allSettled(sends);
+
+  results.forEach((result, i) => {
+    const which = labels[i];
+    if (result.status === 'rejected') {
+      console.error(`${which} failed to send`, { application: applicationId, error: result.reason });
+      return;
+    }
+    // Resend reports delivery problems in the body rather than by throwing.
+    const value = result.value as { error?: unknown } | undefined;
+    if (value?.error) {
+      console.error(`${which} rejected by Resend`, { application: applicationId, error: value.error });
+    }
+  });
+}
+
+/**
+ * Payment settled, so the application has joined the review queue.
+ *
+ * The vendor is told plainly that this is not a confirmed spot, and the owner
+ * is told there is something waiting on them. This replaces what used to be a
+ * confirmation at this point, because the money landing no longer means the
+ * vendor has a spot.
+ */
+export async function notifyPaymentReceived(r: RegistrationEmail): Promise<void> {
+  if (!isEmailConfigured()) {
+    console.warn('email not configured, skipping review notification', { application: r.id });
+    return;
+  }
+
+  await sendPair(
+    r.id,
+    r.email,
+    renderPaymentReceived(r, supportEmail()),
+    renderAdminNotification(r, 'review'),
+    r.email
+  );
+}
+
+/**
+ * Approved. This is the message that used to go out at payment, and it is now
+ * the only one that says the spot is real.
+ *
+ * Vendor only: the owner is the person who just pressed the button, so mailing
+ * them about their own decision would be noise.
+ */
+export async function notifyApproved(r: RegistrationEmail): Promise<void> {
+  if (!isEmailConfigured()) {
+    console.warn('email not configured, skipping approval email', { application: r.id });
+    return;
+  }
+
+  await sendPair(r.id, r.email, renderVendorConfirmation(r, supportEmail()), null, r.email);
+}
+
+/** Denied, with the reason the admin typed and the refund that went with it. */
+export async function notifyDenied(r: DeniedEmail): Promise<void> {
+  if (!isEmailConfigured()) {
+    console.warn('email not configured, skipping denial email', { application: r.id });
+    return;
+  }
+
+  await sendPair(r.id, r.email, renderVendorDenied(r, supportEmail()), null, r.email);
 }
 
 /**

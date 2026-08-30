@@ -15,7 +15,7 @@ import {
   type ValidatedUpload,
 } from '@/lib/uploads';
 import { invalidateSpots } from '@/lib/spots';
-import { notifyRegistration, notifyRegistrationStarted } from '@/lib/notify';
+import { notifyPaymentReceived, notifyRegistrationStarted } from '@/lib/notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -437,7 +437,12 @@ export async function POST(request: Request) {
       amount_cents: amountCents,
       payment_status: isFree ? 'not_required' : 'unpaid',
       payment_method: 'online',
-      approval_status: isFree ? 'approved' : 'pending',
+      /* Everyone goes through review, including the free Alice organisation
+         spots. They used to be approved on submission because there was no
+         payment to wait on, but the queue is about who sets up on the lot, not
+         about who has paid, and an org that is never reviewable cannot be
+         turned down. Denying one simply has nothing to refund. */
+      approval_status: 'pending',
     })
     .select('id')
     .single();
@@ -536,11 +541,11 @@ export async function POST(request: Request) {
 
   // Alice organizations set up at no charge, so they skip checkout.
   //
-  // There is no payment to wait on, so the booking is complete right here and
-  // the email goes out now. A paying vendor is notified from the Square webhook
-  // instead, once the money actually settles.
+  // There is no payment to wait on, so they join the review queue right here.
+  // A paying vendor joins it from the Square webhook instead, once the money
+  // actually settles.
   if (isFree) {
-    await notifyRegistration({
+    await notifyPaymentReceived({
       id: inserted.id,
       business_name: value.business_name,
       contact_name: value.contact_name,

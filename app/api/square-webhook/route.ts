@@ -4,7 +4,7 @@ import { getSquare, isSquareConfigured } from '@/lib/square';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { EVENTS, SITE_URL } from '@/lib/seo';
 import { invalidateSpots } from '@/lib/spots';
-import { notifyRegistration } from '@/lib/notify';
+import { notifyPaymentReceived } from '@/lib/notify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -208,8 +208,15 @@ export async function POST(request: Request) {
       .update({
         payment_status: 'paid',
         payment_method: 'online',
-        approval_status: 'approved',
+        /* approval_status is deliberately not touched. Settling a payment used
+           to approve the application, which is exactly the behaviour the review
+           queue exists to remove: the money landing buys a place in the queue,
+           and only a person approving it makes the spot real. The row stays at
+           whatever it was inserted as, which is 'pending'. */
         square_order_id: orderId,
+        // The Refunds API refunds a payment, not an order, so a denial cannot
+        // be refunded automatically unless this is captured here.
+        square_payment_id: payment.id ?? null,
         paid_at: new Date().toISOString(),
       })
       .eq('id', applicationId)
@@ -232,11 +239,11 @@ export async function POST(request: Request) {
 
     invalidateSpots(updated.event_slug);
 
-    // The payment has settled, so this is the point the booking is real. Email
-    // goes out here rather than at form submission, which would notify about
-    // people who abandoned checkout. A failure is logged inside and can never
-    // turn a paid booking into an error.
-    await notifyRegistration({
+    // The payment has settled, so this is the point the application joins the
+    // review queue. Email goes out here rather than at form submission, which
+    // would notify about people who abandoned checkout. A failure is logged
+    // inside and can never turn a paid application into an error.
+    await notifyPaymentReceived({
       id: updated.id,
       business_name: updated.business_name,
       contact_name: updated.contact_name,

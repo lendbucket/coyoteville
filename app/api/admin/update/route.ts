@@ -6,7 +6,7 @@ import { invalidateSpots } from '@/lib/spots';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const APPROVALS = ['pending', 'approved', 'waitlist', 'declined', 'cancelled'];
+const APPROVALS = ['pending', 'approved', 'waitlist', 'denied', 'cancelled'];
 
 /** Inline edits from the tracker: approval status and spot number. */
 export async function POST(request: Request) {

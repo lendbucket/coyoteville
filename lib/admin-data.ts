@@ -29,6 +29,10 @@ export type AdminApplication = {
   payment_status: string;
   payment_method: string | null;
   approval_status: string;
+  reviewed_at: string | null;
+  denial_reason: string | null;
+  refund_amount_cents: number | null;
+  refund_error: string | null;
   spot_number: string | null;
   admin_notes: string | null;
   square_payment_link_id: string | null;
@@ -44,10 +48,17 @@ export type AdminFilters = {
 export type AdminView = {
   available: boolean;
   rows: AdminApplication[];
-  counts: { total: number; paid: number; unpaid: number };
+  /**
+   * `pending` is settled applications waiting on a decision, which is the one
+   * number on this page that is a job rather than a fact. Unpaid rows are not
+   * in it: nobody is waiting on the admin until the money has landed.
+   */
+  counts: { total: number; paid: number; unpaid: number; pending: number };
   /** Event wide, never the filtered slice. Null when the read failed. */
   revenue: RevenueSummary | null;
 };
+
+const EMPTY_COUNTS = { total: 0, paid: 0, unpaid: 0, pending: 0 };
 
 /** Columns the revenue summary reads, on top of the ones the tracker shows. */
 const REVENUE_COLUMNS =
@@ -77,6 +88,10 @@ const COLUMNS = [
   'payment_status',
   'payment_method',
   'approval_status',
+  'reviewed_at',
+  'denial_reason',
+  'refund_amount_cents',
+  'refund_error',
   'spot_number',
   'admin_notes',
   'square_payment_link_id',
@@ -110,7 +125,7 @@ export function normaliseFilters(params: Record<string, string | string[] | unde
  */
 export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
   if (!isSupabaseConfigured()) {
-    return { available: false, rows: [], counts: { total: 0, paid: 0, unpaid: 0 }, revenue: null };
+    return { available: false, rows: [], counts: { ...EMPTY_COUNTS }, revenue: null };
   }
 
   try {
@@ -149,15 +164,20 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
 
     let paid = 0;
     let unpaid = 0;
+    let pending = 0;
     for (const row of allRows) {
-      if (row.payment_status === 'paid' || row.payment_status === 'not_required') paid += 1;
+      const settled = row.payment_status === 'paid' || row.payment_status === 'not_required';
+      if (settled) paid += 1;
       else if (row.payment_status === 'unpaid') unpaid += 1;
+      // Waiting on a decision only counts once the money is in. An abandoned
+      // checkout is not a queue item, it is a lead.
+      if (settled && row.approval_status === 'pending') pending += 1;
     }
 
     return {
       available: true,
       rows,
-      counts: { total: allRows.length, paid, unpaid },
+      counts: { total: allRows.length, paid, unpaid, pending },
       revenue: summariseRevenue(allRows, {
         truck: spots.truck.capacity,
         booth: spots.booth.capacity,
@@ -165,7 +185,7 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
     };
   } catch (err) {
     console.error('admin view failed', err);
-    return { available: false, rows: [], counts: { total: 0, paid: 0, unpaid: 0 }, revenue: null };
+    return { available: false, rows: [], counts: { ...EMPTY_COUNTS }, revenue: null };
   }
 }
 

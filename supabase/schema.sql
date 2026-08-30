@@ -145,12 +145,31 @@ create table if not exists public.vendor_applications (
   payment_method        text,
   square_order_id        text,
   square_payment_link_id text,
+  -- The Square payment, not the order. The Refunds API takes a payment id, so
+  -- a denial cannot be refunded automatically without this.
+  square_payment_id      text,
   paid_at               timestamptz,
 
-  -- what we do with it
+  -- the review decision
+  --
+  -- Payment no longer confirms a spot. A settled application sits at 'pending'
+  -- until it is approved or denied in the tracker. Approving is what makes the
+  -- spot real; denying refunds the fee in full and frees the spot.
   approval_status       text        not null default 'pending',
+  reviewed_at           timestamptz,
+  -- Typed by the admin when denying, and reproduced verbatim in the email the
+  -- vendor receives. Null on every other row.
+  denial_reason         text,
   spot_number           text,
   admin_notes           text,
+
+  -- refund of a denied application
+  refund_id             text,
+  refund_amount_cents   integer,
+  refunded_at           timestamptz,
+  -- Set when the automatic refund failed. The denial still stands and the spot
+  -- is still freed; this is what tells the admin to go and refund by hand.
+  refund_error          text,
 
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now(),
@@ -165,10 +184,13 @@ create table if not exists public.vendor_applications (
     check (payment_method is null or payment_method in ('online', 'offline')),
 
   constraint vendor_applications_approval_status_check
-    check (approval_status in ('pending', 'approved', 'waitlist', 'declined', 'cancelled')),
+    check (approval_status in ('pending', 'approved', 'waitlist', 'denied', 'cancelled')),
 
   constraint vendor_applications_amount_check
     check (amount_cents >= 0),
+
+  constraint vendor_applications_refund_amount_check
+    check (refund_amount_cents is null or refund_amount_cents >= 0),
 
   -- A record is only valid if both boxes were actually checked and the vendor
   -- typed a name. The API enforces this too. Belt and suspenders.
@@ -211,6 +233,51 @@ begin
   end if;
 end $$;
 
+-- Review and refund columns were added with the approval workflow. On a
+-- database that predates it every settled row was auto-approved at payment, so
+-- nothing is backfilled to pending: those spots were really sold under the old
+-- rule and re-opening them for review would be wrong.
+alter table public.vendor_applications add column if not exists square_payment_id    text;
+alter table public.vendor_applications add column if not exists reviewed_at          timestamptz;
+alter table public.vendor_applications add column if not exists denial_reason        text;
+alter table public.vendor_applications add column if not exists refund_id            text;
+alter table public.vendor_applications add column if not exists refund_amount_cents  integer;
+alter table public.vendor_applications add column if not exists refunded_at          timestamptz;
+alter table public.vendor_applications add column if not exists refund_error         text;
+
+-- 'declined' became 'denied' when the approval workflow landed, so the stored
+-- value matches the word the tracker and the emails use. Rows are migrated
+-- before the constraint is swapped, or the swap would fail against them.
+update public.vendor_applications
+   set approval_status = 'denied'
+ where approval_status = 'declined';
+
+do $
+begin
+  alter table public.vendor_applications
+    drop constraint if exists vendor_applications_approval_status_check;
+  alter table public.vendor_applications
+    add constraint vendor_applications_approval_status_check
+    check (approval_status in ('pending', 'approved', 'waitlist', 'denied', 'cancelled'));
+
+  if not exists (
+    select 1 from pg_constraint where conname = 'vendor_applications_refund_amount_check'
+  ) then
+    alter table public.vendor_applications
+      add constraint vendor_applications_refund_amount_check
+      check (refund_amount_cents is null or refund_amount_cents >= 0);
+  end if;
+end $;
+
+comment on column public.vendor_applications.square_payment_id is
+  'Square payment id, captured by the webhook. The Refunds API refunds a payment, not an order, so a denial cannot be refunded automatically without it.';
+comment on column public.vendor_applications.approval_status is
+  'pending until reviewed. Payment does not confirm a spot: approving does. Denying refunds the fee in full and frees the spot on the live meter.';
+comment on column public.vendor_applications.denial_reason is
+  'Typed by the admin when denying and reproduced verbatim in the email the vendor receives.';
+comment on column public.vendor_applications.refund_error is
+  'Set when the automatic refund failed. The denial stands and the spot is freed regardless; this is the flag to go and refund by hand in Square.';
+
 -- Upload columns were added after the first release.
 alter table public.vendor_applications add column if not exists logo_path    text;
 alter table public.vendor_applications add column if not exists photo_paths  text[] not null default '{}';
@@ -252,6 +319,12 @@ create index if not exists vendor_applications_payment_idx
 
 create index if not exists vendor_applications_approval_idx
   on public.vendor_applications (approval_status, event_slug);
+
+-- The review queue. Partial, because the only question ever asked of it is
+-- "what is still waiting on me", and that is a small slice of the table.
+create index if not exists vendor_applications_pending_review_idx
+  on public.vendor_applications (event_slug, created_at)
+  where approval_status = 'pending';
 
 create index if not exists vendor_applications_email_idx
   on public.vendor_applications (lower(email));
@@ -668,6 +741,9 @@ begin
     'paid',
     'offline',
     now(),
+    -- Prepaid vendors were agreed to by phone before they were ever sent the
+    -- link, so the review already happened offline. Sending them back through
+    -- the queue would be asking the same question twice.
     'approved',
     payload->>'admin_notes'
   )

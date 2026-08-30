@@ -1688,6 +1688,7 @@ p {
 /* ------------------------------------------------------------ confirmed */
 
 .confirm {
+  position: relative;
   min-height: 78vh;
   display: grid;
   place-items: center;
@@ -1695,10 +1696,63 @@ p {
   color: var(--cream);
   text-align: center;
   padding-block: 4rem;
+  overflow: hidden;
 }
 
 .confirm__card {
   max-width: 620px;
+  position: relative;
+  z-index: 2;
+}
+
+/* The in-form finish, which is where a free organisation and a prepaid vendor
+   land instead of /vendors/confirmed. Same treatment. */
+.apply--done {
+  position: relative;
+  overflow: hidden;
+}
+
+.apply__donecard {
+  position: relative;
+  z-index: 2;
+}
+
+/* The review rule wherever it appears: above the pay button on the form, and
+   under the headline on the confirmation. Left aligned and sized to be read
+   rather than skimmed past. */
+.reviewnote,
+.confirm__review {
+  text-align: left;
+  line-height: 1.5;
+}
+
+.confirm__review {
+  margin: 1.6rem 0 0;
+}
+
+/* Fireworks sit over the confirmation, not behind it. Pointer events are off
+   so the canvas never eats a tap on the button underneath, and it is capped
+   below the string lights so the two do not fight. */
+.fireworks {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  /* Capped at one viewport, never the height of the section.
+     .confirm runs several thousand pixels tall once the next steps list is
+     under it, and a canvas that size is a 15 megapixel buffer whose trail
+     rectangle gets refilled sixty times a second. The bursts only ever happen
+     in the top of the frame, so the rest of that buffer was pure cost. */
+  height: min(100%, 100svh);
+  z-index: 1;
+  pointer-events: none;
+  display: block;
+  /* Faded out over the lower half so a falling spark never ends up behind the
+     sentence explaining that the spot is not confirmed. The mask is composited,
+     not redrawn, so it costs nothing per frame. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 78%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 78%);
 }
 
 .confirm__script {
@@ -4386,6 +4440,172 @@ p {
 .badge--free  { background: rgba(183, 155, 114, 0.2); color: var(--tan); }
 .badge--spot  { background: rgba(243, 238, 229, 0.14); color: var(--cream); }
 .badge--ok    { background: rgba(96, 158, 106, 0.24); color: #8FD39C; }
+.badge--off   { background: rgba(243, 238, 229, 0.08); color: var(--dust); }
+/* Ember, and the only badge that is filled rather than tinted. A spot waiting
+   on a decision is holding capacity, so it gets to shout. */
+.badge--review { background: var(--ember); color: var(--black); font-weight: 700; }
+
+/* ------------------------------------------------------ review queue */
+
+/* The banner at the top of the tracker. Full bleed of the header, tappable
+   across its whole width, and it lands on the filtered list. */
+.ash__review {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  margin-top: 0.85rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(240, 169, 75, 0.55);
+  border-left: 4px solid var(--ember);
+  border-radius: var(--radius-sm);
+  background: rgba(240, 169, 75, 0.12);
+  color: var(--cream);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ash__review:active {
+  background: rgba(240, 169, 75, 0.2);
+}
+
+.ash__reviewcount {
+  flex: none;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 0.4rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--ember);
+  color: var(--black);
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.ash__reviewtext {
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--cream-70);
+  min-width: 0;
+}
+
+.ash__reviewtext b {
+  font-family: var(--font-condensed);
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.ash__reviewgo {
+  flex: none;
+  margin-left: auto;
+  font-size: 1.5rem;
+  color: var(--ember);
+}
+
+.tabbar__badge--review {
+  background: var(--ember);
+  color: var(--black);
+  font-weight: 700;
+}
+
+/* An ember edge on the card itself, so the queue is findable by eye when the
+   list is scrolled past the chips. */
+.vcard--review {
+  border-color: rgba(240, 169, 75, 0.5);
+  box-shadow: inset 3px 0 0 var(--ember);
+}
+
+.review {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.review__hd {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  font-family: var(--font-condensed);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.review__sub {
+  font-family: var(--font-body);
+  font-size: 0.84rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--cream-70);
+}
+
+.review__row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.review__btn {
+  flex: 1;
+  min-height: 48px;
+  padding-inline: 0.9rem;
+  font-size: 0.95rem;
+}
+
+.review__deny {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.review__state {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.review__refund {
+  font-size: 0.84rem;
+  color: var(--cream-70);
+}
+
+.review__reason {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: rgba(243, 238, 229, 0.05);
+  font-size: 0.9rem;
+  color: var(--cream);
+}
+
+.review__reasonlabel {
+  font-family: var(--font-condensed);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tan);
+}
+
+.review__result {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #8FD39C;
+}
+
+.review__flag {
+  margin: 0;
+}
 
 .pill {
   display: inline-flex;
