@@ -19,8 +19,16 @@
  * major bump and nothing signed under v3.1-2026 is treated as having agreed to
  * it. Sections 3 through 18 shifted down to 4 through 19; the text of those
  * sections is unchanged apart from the cross reference added to section 2.
+ *
+ * v5.0-2026 adds section 4, Recurring Monthly Spots, for the permanent spot
+ * billed as a Square subscription. It is a major bump because it introduces an
+ * ongoing payment obligation that no earlier version described, and because the
+ * cancellation rule for a subscription is genuinely different from the one for
+ * a single date: a monthly vendor who cancels keeps the spot to the end of the
+ * period they have paid for, where a single date vendor who cancels simply
+ * forfeits the fee. Sections 4 through 19 shifted down to 5 through 20.
  */
-export const AGREEMENT_VERSION = "v4.0-2026";
+export const AGREEMENT_VERSION = "v5.0-2026";
 
 /**
  * How many numbered sections the agreement has. The form tells the vendor to
@@ -28,7 +36,7 @@ export const AGREEMENT_VERSION = "v4.0-2026";
  * from here rather than typed in as a literal that goes stale the next time a
  * section is added.
  */
-export const AGREEMENT_SECTION_COUNT = 19;
+export const AGREEMENT_SECTION_COUNT = 20;
 
 export const CONTRACTING_ENTITY = "Coyoteville Alice LLC";
 export const CONTRACTING_ENTITY_FULL =
@@ -122,10 +130,81 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         where Coyoteville declines to accept Vendor, which is Coyoteville&apos;s decision. No
         refund arises where Vendor withdraws after being accepted, which is Vendor&apos;s decision.
         Nothing in this section entitles Vendor to a refund in any circumstance addressed by
-        Section 4, Section 9, or Section 14, under which fees are not refunded.
+        Section 5, Section 10, or Section 15, under which fees are not refunded.
+      </p>
+      <p>
+        This section governs a single date, whether an event date or an ordinary open day.
+        Recurring monthly spots are governed by Section 4, which sets out its own cancellation
+        rule, and where the two differ Section 4 controls for a monthly spot.
       </p>
 
-      <h4>4. Permits, Licenses, and Food Handler Certification</h4>
+      <h4>4. Recurring Monthly Spots</h4>
+      <div className="agreement__box">
+        <p className="agreement__boxhd">Read this before you start a monthly spot</p>
+        <p>
+          A permanent spot is a <strong>recurring monthly subscription</strong>. Vendor authorizes
+          Coyoteville, through its payment processor, to store Vendor&apos;s card and{" "}
+          <strong>
+            charge the monthly fee automatically to that card every month, without further notice or
+            further authorization, until Vendor cancels.
+          </strong>{" "}
+          The fee is stated on the signup form before Vendor authorizes it, and the first charge is
+          taken when the application is approved, not when it is submitted.
+        </p>
+        <p>
+          The term is one month and{" "}
+          <strong>renews automatically for a further month on each billing date</strong> until
+          cancelled. Each renewal is charged to the card on file on the same day of the month,
+          falling back to the last day of a shorter month.
+        </p>
+      </div>
+      <p>
+        <strong>A permanent spot is a license to occupy, renewed monthly.</strong> It is not a
+        lease, a rental agreement, a tenancy, or any possessory or property interest in the
+        premises, and it creates no landlord and tenant relationship of any kind. Vendor acquires no
+        right of occupancy beyond the month it has paid for, no right to any particular space, and
+        no right to remain on the premises after this Agreement ends. Everything in Section 2 about
+        placement being determined solely by Coyoteville applies to a permanent spot in the same
+        way.
+      </p>
+      <p>
+        <strong>
+          Cancellation takes effect at the end of the paid period and never in the middle of one.
+        </strong>{" "}
+        Vendor may cancel at any time by emailing or telephoning Coyoteville using the contact
+        details on the site. Cancelling stops the next renewal. Vendor keeps the spot for the
+        remainder of the month already paid for and{" "}
+        <strong>no partial month is refunded, prorated, or credited</strong>, whatever date within
+        the month Vendor cancels on. Coyoteville may likewise end a monthly spot at the end of any
+        paid period.
+      </p>
+      <p>
+        <strong>If a monthly charge fails</strong>, Coyoteville and its payment processor may
+        reattempt the charge over the following days. Vendor remains responsible for the fee.
+        Coyoteville will notify Vendor at the email address on the application so the card can be
+        corrected, and Vendor keeps the spot through the period already paid for while the failure
+        is resolved. If payment is not completed, Coyoteville may suspend or end the monthly spot
+        at the end of the paid period and release the space to another vendor. Coyoteville is not
+        obliged to hold a space against unpaid fees.
+      </p>
+      <p>
+        Section 3 continues to apply to a monthly application in every respect other than
+        cancellation: it goes through the same review, no space exists until it is approved, and{" "}
+        <strong>
+          if Coyoteville denies a monthly application no charge is ever taken and the stored card is
+          released
+        </strong>
+        , so there is nothing to refund. The two rules do not conflict. A denial by Coyoteville
+        means Vendor was never billed. A cancellation by Vendor means Vendor was billed for the
+        month it cancelled in and keeps that month.
+      </p>
+      <p>
+        Coyoteville may change the monthly fee on thirty days written notice to the email address on
+        the application. Vendor&apos;s remedy if it does not accept a change is to cancel before the
+        next renewal, which Vendor may do at any time under this section.
+      </p>
+
+      <h4>5. Permits, Licenses, and Food Handler Certification</h4>
       <p>
         Vendor is solely responsible for obtaining, maintaining, and producing on demand every
         permit, license, certification, and registration required for its operation by the City of
@@ -178,7 +257,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </strong>
       </p>
 
-      <h4>5. Insurance</h4>
+      <h4>6. Insurance</h4>
       <p>
         Vendor will obtain and maintain at its own expense, for the entire time it is on the
         premises, commercial general liability insurance covering bodily injury, property damage,
@@ -195,7 +274,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         this Agreement, including its indemnification obligations.
       </p>
 
-      <h4>6. Equipment, Fire Safety, and Utilities</h4>
+      <h4>7. Equipment, Fire Safety, and Utilities</h4>
       <p>
         Vendor supplies all of its own equipment, including tent, canopy, weights or anchors,
         tables, chairs, signage, lighting, generator, fuel, potable water, refrigeration, cooking
@@ -214,7 +293,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         code official concerning the safety of its setup.
       </p>
 
-      <h4>7. Food Safety and Sanitation</h4>
+      <h4>8. Food Safety and Sanitation</h4>
       <p>
         Vendor is solely responsible for the safety, handling, temperature control, storage,
         preparation, labeling, and service of every product it sells or distributes, including
@@ -227,7 +306,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </strong>
       </p>
 
-      <h4>8. Waste, Gray Water, and Grease</h4>
+      <h4>9. Waste, Gray Water, and Grease</h4>
       <p>
         Discharging gray water, wastewater, grease, cooking oil, ice melt containing food residue,
         or any other liquid waste onto the ground, into storm drains, or anywhere on or near the
@@ -239,7 +318,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         penalty assessed against Coyoteville as a result.
       </p>
 
-      <h4>9. Conduct, Compliance, and Removal</h4>
+      <h4>10. Conduct, Compliance, and Removal</h4>
       <p>
         Vendor and its personnel will conduct themselves professionally and lawfully at all times,
         will comply with all applicable federal, state, and local laws and ordinances, including
@@ -256,7 +335,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </strong>
       </p>
 
-      <h4>10. Security and Personal Property</h4>
+      <h4>11. Security and Personal Property</h4>
       <p>
         Coyoteville provides no security, surveillance, storage, or safekeeping of any kind. All
         property Vendor brings to the premises, including inventory, equipment, cash, vehicles, and
@@ -268,7 +347,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </strong>
       </p>
 
-      <h4>11. Assumption of Risk</h4>
+      <h4>12. Assumption of Risk</h4>
       <div className="agreement__box">
         <p className="agreement__boxhd">Assumption of Risk</p>
         <p>
@@ -290,7 +369,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </p>
       </div>
 
-      <h4>12. Release of Liability</h4>
+      <h4>13. Release of Liability</h4>
       <div className="agreement__box">
         <p className="agreement__boxhd">Release and Waiver of Claims</p>
         <p>
@@ -311,7 +390,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </p>
       </div>
 
-      <h4>13. Indemnification</h4>
+      <h4>14. Indemnification</h4>
       <div className="agreement__box">
         <p className="agreement__boxhd">Indemnity, Including Indemnitee&apos;s Own Negligence</p>
         <p>
@@ -335,7 +414,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </p>
       </div>
 
-      <h4>14. Weather, Cancellation, and Force Majeure</h4>
+      <h4>15. Weather, Cancellation, and Force Majeure</h4>
       <p>
         Events are held rain or shine. Coyoteville may delay, suspend, relocate, shorten, or cancel
         any event, in whole or in part, for weather, safety, public health, governmental order,
@@ -353,7 +432,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         </strong>
       </p>
 
-      <h4>15. No Guarantee of Attendance or Sales</h4>
+      <h4>16. No Guarantee of Attendance or Sales</h4>
       <p>
         Coyoteville makes no representation, warranty, or guarantee regarding event attendance, foot
         traffic, weather, sales volume, revenue, the number or type of other vendors present, or the
@@ -361,7 +440,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         independent business judgment in deciding to participate.
       </p>
 
-      <h4>16. Media and Photo Release</h4>
+      <h4>17. Media and Photo Release</h4>
       <p>
         Vendor grants Coyoteville and its assigns an irrevocable, royalty free, perpetual right to
         photograph, film, record, and reproduce images and recordings of Vendor, its space,
@@ -371,7 +450,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         own employees and personnel.
       </p>
 
-      <h4>17. Governing Law, Venue, and Attorney Fees</h4>
+      <h4>18. Governing Law, Venue, and Attorney Fees</h4>
       <p>
         This Agreement is governed by the laws of the State of Texas without regard to conflict of
         law principles. Exclusive venue for any dispute lies in the state courts of Jim Wells
@@ -380,7 +459,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         recover its reasonable attorneys fees and costs.
       </p>
 
-      <h4>18. General Provisions</h4>
+      <h4>19. General Provisions</h4>
       <p>
         If any provision of this Agreement is held unenforceable, it will be modified to the minimum
         extent necessary to be enforceable, or severed, and the remainder will continue in full
@@ -392,7 +471,7 @@ export function VendorAgreement({ vendorName }: { vendorName?: string } = {}) {
         at the time of each event governs that event.
       </p>
 
-      <h4>19. Acknowledgment and Electronic Signature</h4>
+      <h4>20. Acknowledgment and Electronic Signature</h4>
       <div className="agreement__box">
         <p>
           Vendor has read this entire Agreement, understands it fully, and signs it freely and

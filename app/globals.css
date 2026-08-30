@@ -4153,6 +4153,7 @@ p {
 }
 
 .ash[data-tab="vendors"] .ash__panel[data-panel="vendors"],
+.ash[data-tab="calendar"] .ash__panel[data-panel="calendar"],
 .ash[data-tab="waitlist"] .ash__panel[data-panel="waitlist"],
 .ash[data-tab="money"] .ash__panel[data-panel="money"],
 .ash[data-tab="compose"] .ash__panel[data-panel="compose"] {
@@ -4445,6 +4446,402 @@ p {
    on a decision is holding capacity, so it gets to shout. */
 .badge--review { background: var(--ember); color: var(--black); font-weight: 700; }
 
+/* ------------------------------------------------- booking kind picker */
+
+.kindpick {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .kindpick {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.kindpick__opt {
+  display: grid;
+  gap: 0.25rem;
+  text-align: left;
+  padding: 0.9rem 1rem;
+  min-height: 64px;
+  border: 1px solid rgba(247, 240, 226, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(247, 240, 226, 0.04);
+  color: var(--cream);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease), background-color 0.15s var(--ease);
+}
+
+.kindpick__opt:hover {
+  border-color: rgba(240, 169, 75, 0.6);
+}
+
+.kindpick__opt.is-on {
+  border-color: var(--ember);
+  background: rgba(240, 169, 75, 0.12);
+  box-shadow: inset 0 0 0 1px var(--ember);
+}
+
+.kindpick__name {
+  font-family: var(--font-condensed);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.kindpick__opt.is-on .kindpick__name {
+  color: var(--ember);
+}
+
+.kindpick__note {
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--cream-70);
+}
+
+/* ------------------------------------------------------- day picker */
+
+.daypicker {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(247, 240, 226, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(247, 240, 226, 0.04);
+}
+
+.daypicker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.daypicker__nav {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border: 1px solid rgba(247, 240, 226, 0.22);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--cream);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.daypicker__nav:hover {
+  border-color: var(--ember);
+  color: var(--ember);
+}
+
+.daypicker__month {
+  font-family: var(--font-condensed);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.daypicker__weekdays,
+.daypicker__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.daypicker__weekdays span {
+  text-align: center;
+  font-family: var(--font-condensed);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--tan);
+}
+
+.daypicker__blank {
+  display: block;
+}
+
+/* Square-ish cells that stay tappable at 375px, where a seventh of the width
+   is about 44px, which is exactly the minimum target. */
+.daypicker__day {
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  min-height: 46px;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: rgba(247, 240, 226, 0.06);
+  color: var(--cream);
+  font: inherit;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.daypicker__day.is-open:hover {
+  border-color: var(--ember);
+}
+
+.daypicker__day.is-shut {
+  background: transparent;
+  color: rgba(247, 240, 226, 0.28);
+  cursor: not-allowed;
+}
+
+/* An event date is not "unavailable", it is somewhere else to go, so it reads
+   as a marked day rather than a dead one. */
+.daypicker__day.is-event {
+  color: rgba(240, 169, 75, 0.55);
+  background: rgba(240, 169, 75, 0.07);
+}
+
+.daypicker__day.is-selected {
+  background: var(--ember);
+  border-color: var(--ember);
+  color: var(--black);
+  font-weight: 700;
+}
+
+.daypicker__num {
+  font-family: var(--font-condensed);
+  font-size: 0.95rem;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.daypicker__note {
+  font-size: 0.52rem;
+  line-height: 1.1;
+  text-align: center;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.85;
+  /* One line only. A cell is too small to wrap in and a two line cell would
+     push the whole grid out of alignment. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-inline: 1px;
+}
+
+.daypicker__selected {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--cream);
+}
+
+/* ------------------------------------------------- recurring terms */
+
+.recurring {
+  border: 1px solid rgba(240, 169, 75, 0.45);
+  border-left: 4px solid var(--ember);
+  border-radius: var(--radius-sm);
+  background: rgba(240, 169, 75, 0.08);
+  padding: 1.1rem 1.15rem;
+}
+
+.recurring__hd {
+  margin: 0 0 0.8rem;
+  font-family: var(--font-condensed);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.recurring__facts {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.recurring__facts > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+@media (min-width: 640px) {
+  .recurring__facts > div {
+    grid-template-columns: 160px 1fr;
+    gap: 0.9rem;
+  }
+}
+
+.recurring__facts dt {
+  font-family: var(--font-condensed);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tan);
+}
+
+.recurring__facts dd {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  color: var(--cream);
+}
+
+/* The recurring consent is a different question from the agreement one, so it
+   does not look like one more line in the same stack. */
+.check--recurring {
+  border: 1px solid rgba(240, 169, 75, 0.45);
+  border-radius: var(--radius-sm);
+  background: rgba(240, 169, 75, 0.06);
+  padding: 0.9rem 1rem;
+}
+
+.cardfile {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.cardfile__box {
+  border: 1px solid rgba(247, 240, 226, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(247, 240, 226, 0.04);
+  padding: 0.9rem;
+  min-height: 96px;
+}
+
+/* ------------------------------------------------ permanent spot promo */
+
+.permanent {
+  position: relative;
+  background: var(--char-2);
+  padding-bottom: clamp(3.2rem, 7vw, 5rem);
+}
+
+.permanent .string-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+
+.permanent__in {
+  position: relative;
+  z-index: 3;
+  padding-top: clamp(3rem, 6vw, 4.5rem);
+}
+
+.permanent__prices {
+  display: grid;
+  gap: 1rem;
+  margin: 2rem 0;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 700px) {
+  .permanent__prices {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.permanent__price {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1.3rem 1.4rem;
+  border: 1px solid var(--hairline-dark);
+  border-left: 4px solid var(--rust);
+  border-radius: var(--radius-sm);
+  background: rgba(247, 240, 226, 0.05);
+}
+
+.permanent__amount {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 7vw, 3.2rem);
+  line-height: 0.95;
+  color: var(--ember);
+}
+
+.permanent__per {
+  font-family: var(--font-condensed);
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.permanent__maths {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--cream-70);
+}
+
+.permanent__list {
+  list-style: none;
+  padding: 0;
+  margin: 2rem 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 760px) {
+  .permanent__list {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.permanent__list li {
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  background: rgba(247, 240, 226, 0.04);
+}
+
+.permanent__list h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1.15rem;
+  color: var(--ember);
+}
+
+.permanent__list p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--cream-70);
+}
+
+.permanent__terms {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1.2rem 1.3rem;
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  background: rgba(11, 11, 12, 0.45);
+}
+
+.permanent__terms p {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: var(--cream-70);
+}
+
+.permanent__terms b {
+  color: var(--cream);
+}
+
+.permanent__cta {
+  margin: 2rem 0 0.5rem;
+}
+
+.permanent__hint {
+  margin: 0;
+}
+
 /* ------------------------------------------------------ review queue */
 
 /* The banner at the top of the tracker. Full bleed of the header, tappable
@@ -4605,6 +5002,223 @@ p {
 
 .review__flag {
   margin: 0;
+}
+
+.vcard__booking {
+  display: block;
+  margin-top: 0.15rem;
+  font-family: var(--font-condensed);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tan);
+}
+
+/* ------------------------------------------------ monthly subscription */
+
+.subs {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.subs__hd {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0;
+  font-family: var(--font-condensed);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.subs__facts {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.subs__facts > div {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 0.7rem;
+  align-items: baseline;
+}
+
+.subs__facts dt {
+  font-family: var(--font-condensed);
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tan);
+}
+
+.subs__facts dd {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--cream);
+}
+
+.subs__bad {
+  color: #ffcdb6;
+}
+
+.subs__cancel {
+  width: 100%;
+  min-height: 48px;
+  font-size: 0.9rem;
+}
+
+.subs__confirm {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(196, 85, 43, 0.6);
+  border-radius: var(--radius-sm);
+  background: rgba(196, 85, 43, 0.12);
+}
+
+.subs__confirm p {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+/* --------------------------------------------------- tracker calendar */
+
+.acal {
+  display: grid;
+  gap: 1rem;
+  padding-bottom: 1rem;
+}
+
+.acal__monthly {
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(240, 169, 75, 0.4);
+  border-left: 4px solid var(--ember);
+  border-radius: var(--radius-sm);
+  background: rgba(240, 169, 75, 0.08);
+}
+
+.acal__monthlyhd {
+  margin: 0 0 0.6rem;
+  font-family: var(--font-condensed);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.acal__monthly ul,
+.acal__days,
+.acal__vendors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acal__monthly ul,
+.acal__vendors {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.acal__days {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.acal__day {
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  background: rgba(243, 238, 229, 0.04);
+  padding: 0.8rem 0.9rem;
+}
+
+.acal__day.is-past {
+  opacity: 0.55;
+}
+
+.acal__date {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0 0 0.6rem;
+  font-family: var(--font-condensed);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+/* The long date on a wide screen, the short one on a phone, so the count
+   beside it never gets pushed onto a second line. */
+.acal__short {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .acal__long {
+    display: none;
+  }
+  .acal__short {
+    display: inline;
+  }
+}
+
+.acal__count {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--dust);
+  white-space: nowrap;
+}
+
+.acal__monthly ul button,
+.acal__vendors button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(243, 238, 229, 0.05);
+  color: var(--cream);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.acal__monthly ul button:hover,
+.acal__vendors button:hover {
+  background: rgba(243, 238, 229, 0.1);
+}
+
+.acal__name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acal__past {
+  width: 100%;
+  min-height: 46px;
+  font-size: 0.85rem;
+}
+
+.ash__calhint {
+  margin-top: 1rem;
 }
 
 .pill {
@@ -5395,6 +6009,7 @@ p {
    two scroll themselves. */
 @media (max-width: 899px) {
   .ash__panel[data-panel='waitlist'],
+  .ash__panel[data-panel='calendar'],
   .ash__panel[data-panel='money'] {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;

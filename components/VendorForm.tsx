@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   VendorAgreement,
   AGREEMENT_VERSION,
@@ -9,6 +9,17 @@ import {
   CONTRACTING_ENTITY,
 } from './VendorAgreement';
 import { REFUND_WINDOW, REVIEW_WINDOW } from '@/lib/approval';
+import CardOnFile, { type CardHandle } from './CardOnFile';
+import DayPicker from './DayPicker';
+import {
+  BOOKING_LABELS,
+  MONTHLY_PRICING,
+  addMonth,
+  formatDayLong,
+  todayKey,
+  type BookingKind,
+  type DayKey,
+} from '@/lib/booking';
 import StringLights from './StringLights';
 import Fireworks from './Fireworks';
 import NextSteps from './NextSteps';
@@ -211,6 +222,35 @@ export default function VendorForm({
   const [permitsConfirmed, setPermitsConfirmed] = useState(false);
   const [signature, setSignature] = useState('');
 
+  /* What is being booked. Prepaid vendors already paid for a specific event, so
+     they never see this and are pinned to 'event'. */
+  const [kind, setKind] = useState<BookingKind>('event');
+  const [day, setDay] = useState<DayKey | ''>('');
+  const [dayError, setDayError] = useState(false);
+
+  /* The recurring charge acknowledgement. Kept as its own piece of state and
+     its own tick box rather than folded into the agreement one, because
+     consenting to be billed every month should be a separate deliberate act
+     and it is recorded on the row as one. */
+  const [recurringAccepted, setRecurringAccepted] = useState(false);
+  const cardHandle = useRef<CardHandle | null>(null);
+  const onCardReady = useCallback((handle: CardHandle | null) => {
+    cardHandle.current = handle;
+  }, []);
+
+  const isMonthly = kind === 'monthly';
+  const isDay = kind === 'day';
+
+  /* Square's browser SDK needs the application and location ids in the page.
+     Both are public identifiers, which is why they are NEXT_PUBLIC_ and why
+     they can be read here directly: Next inlines them at build time, so there
+     is nothing to drill down from the server. The access token is a different
+     thing entirely and never leaves the server. */
+  const squareApplicationId = process.env.NEXT_PUBLIC_SQUARE_APPLICATION_ID ?? '';
+  const squareLocationId = process.env.NEXT_PUBLIC_SQUARE_LOCATION_ID ?? '';
+  const squareEnvironment =
+    process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
+
   // A health permit is required for any truck, and for any booth whose
   // vendor says they serve food. Checked again on the server.
   const permitRequired = spot === 'truck' || servesFood;
@@ -230,8 +270,13 @@ export default function VendorForm({
     );
   }, []);
 
-  const fee =
-    spot === 'truck'
+  const fee = isMonthly
+    ? spot === 'truck'
+      ? MONTHLY_PRICING.truck.price
+      : spot === 'booth'
+        ? MONTHLY_PRICING.booth.price
+        : null
+    : spot === 'truck'
       ? PRICING.truck.price
       : spot === 'booth'
         ? PRICING.booth.price
@@ -239,15 +284,27 @@ export default function VendorForm({
           ? PRICING.free.price
           : null;
 
+  /* The two dates a recurring charge has to state before anyone agrees to it:
+     when the first one lands and when the one after that does. The first is on
+     approval rather than today, which is the honest answer and also the more
+     reassuring one. */
+  const firstChargeNote = 'on the day we approve you, not today';
+  const nextChargeNote = fee ? `${fee} on the same date every month after that` : '';
+
   /**
    * What each spot type actually costs and requires, shown the moment it is
    * picked rather than left further down the page.
    */
-  const spotNote =
-    spot === 'truck'
-      ? `${PRICING.truck.price} per event. A Texas DSHS health permit is required, and food handler certificates on site.`
+  const spotNote = isMonthly
+    ? spot === 'truck'
+      ? `${MONTHLY_PRICING.truck.price} a month. A Texas DSHS health permit is required, and food handler certificates on site.`
       : spot === 'booth'
-        ? `${PRICING.booth.price} per event. No cooking or open flame in a booth space.`
+        ? `${MONTHLY_PRICING.booth.price} a month. No cooking or open flame in a booth space.`
+        : null
+    : spot === 'truck'
+      ? `${PRICING.truck.price} per ${isDay ? 'day' : 'event'}. A Texas DSHS health permit is required, and food handler certificates on site.`
+      : spot === 'booth'
+        ? `${PRICING.booth.price} per ${isDay ? 'day' : 'event'}. No cooking or open flame in a booth space.`
         : spot === 'free'
           ? 'Free. Alice organizations set up at no charge.'
           : null;
@@ -277,11 +334,61 @@ export default function VendorForm({
     form.delete('signed_date_display');
     if (prepaid && token) form.set('prepaid_token', token);
 
+    form.set('booking_kind', kind);
+    if (isDay) form.set('booking_date', day);
+    else form.delete('booking_date');
+
     if (!spot) {
       setStatus('error');
       setSpotError(true);
       setMessage('Pick a spot type before submitting.');
       return;
+    }
+
+    if (isDay && !day) {
+      setStatus('error');
+      setDayError(true);
+      setMessage('Pick a date on the calendar before submitting.');
+      return;
+    }
+
+    if (isMonthly) {
+      if (spot === 'free') {
+        setStatus('error');
+        setSpotError(true);
+        setMessage('A permanent monthly spot is a booth or a food truck.');
+        return;
+      }
+
+      if (!recurringAccepted) {
+        setStatus('error');
+        setMessage('Tick the box acknowledging the monthly charge before submitting.');
+        return;
+      }
+
+      /* Tokenise before anything is uploaded. A card that is going to be
+         refused should be refused now, not after a minute of photos have gone
+         up over a phone connection. */
+      if (!cardHandle.current) {
+        setStatus('error');
+        setMessage('The card form has not finished loading. Give it a moment and try again.');
+        return;
+      }
+
+      try {
+        const { token: cardToken, verificationToken } = await cardHandle.current.tokenize();
+        form.set('card_source_id', cardToken);
+        if (verificationToken) form.set('card_verification_token', verificationToken);
+        form.set('recurring_acknowledged', 'true');
+      } catch (err) {
+        setStatus('error');
+        setMessage(
+          err instanceof Error && err.message
+            ? err.message
+            : 'That card was not accepted. Check the details and try again.'
+        );
+        return;
+      }
     }
 
     // Drop empty file inputs so the server does not see zero byte parts.
@@ -453,6 +560,44 @@ export default function VendorForm({
         </p>
 
         <form className="form" onSubmit={onSubmit} noValidate={false}>
+          {/* What is being booked, asked first, because it changes the fee, the
+              date question and whether there is a card form further down.
+              Prepaid vendors already paid for one specific event and never see
+              this. */}
+          {!prepaid ? (
+            <div className="field">
+              <span className="label">What are you booking</span>
+              <div className="kindpick" role="radiogroup" aria-label="What are you booking">
+                {(['event', 'day', 'monthly'] as const).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="radio"
+                    aria-checked={kind === k}
+                    className={`kindpick__opt ${kind === k ? 'is-on' : ''}`}
+                    onClick={() => {
+                      setKind(k);
+                      setDayError(false);
+                      // A permanent spot has no free option, so a free
+                      // organisation switching to monthly has to pick again
+                      // rather than silently submitting something invalid.
+                      if (k === 'monthly' && spot === 'free') setSpot('');
+                    }}
+                  >
+                    <span className="kindpick__name">{BOOKING_LABELS[k]}</span>
+                    <span className="kindpick__note">
+                      {k === 'event'
+                        ? 'One of our event nights'
+                        : k === 'day'
+                          ? `Any other day we are open, ${PRICING.booth.price} booth, ${PRICING.truck.price} truck`
+                          : `${MONTHLY_PRICING.booth.price} or ${MONTHLY_PRICING.truck.price} a month, every day`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           <div className="form__row">
             <div className="field">
               <label className="label" htmlFor={`${uid}-business`}>
@@ -549,9 +694,29 @@ export default function VendorForm({
                 <option value="" disabled>
                   Choose one
                 </option>
-                <option value="booth">{PRICING.booth.label}, {PRICING.booth.price}</option>
-                <option value="truck">{PRICING.truck.label}, {PRICING.truck.price}</option>
-                <option value="free">{PRICING.free.label}, free</option>
+                {isMonthly ? (
+                  <>
+                    <option value="booth">
+                      {MONTHLY_PRICING.booth.label}, {MONTHLY_PRICING.booth.price} a month
+                    </option>
+                    <option value="truck">
+                      {MONTHLY_PRICING.truck.label}, {MONTHLY_PRICING.truck.price} a month
+                    </option>
+                  </>
+                ) : (
+                  <>
+                    <option value="booth">
+                      {PRICING.booth.label}, {PRICING.booth.price}
+                    </option>
+                    <option value="truck">
+                      {PRICING.truck.label}, {PRICING.truck.price}
+                    </option>
+                    {/* No free option on a permanent spot: a space held every
+                        day of the month is not something given away, and the
+                        server refuses it either way. */}
+                    <option value="free">{PRICING.free.label}, free</option>
+                  </>
+                )}
               </select>
 
               {spotError ? (
@@ -570,7 +735,21 @@ export default function VendorForm({
               )}
             </div>
 
-            {events && eventSlug && onEventChange ? (
+            {kind !== 'event' ? (
+              /* A day or monthly booking is not tied to an event, so the
+                 picker is replaced rather than left showing a choice that has
+                 no bearing on what is being bought. */
+              <div className="field">
+                <span className="label">When</span>
+                <p className="fieldnote">
+                  {isMonthly
+                    ? 'Every day, until you cancel. Event dates included at no extra charge.'
+                    : day
+                      ? formatDayLong(day)
+                      : 'Pick a date on the calendar below.'}
+                </p>
+              </div>
+            ) : events && eventSlug && onEventChange ? (
               <EventPicker
                 id={`${uid}-event`}
                 events={events}
@@ -706,6 +885,128 @@ export default function VendorForm({
             </div>
           </fieldset>
 
+          {/* ------------------------------------------------ calendar */}
+
+          {isDay ? (
+            <div className={`field ${dayError ? 'has-error' : ''}`}>
+              <span className="label">
+                Pick your date <span className="req">*</span>
+              </span>
+              <DayPicker
+                value={day}
+                spot={spot}
+                onChange={(picked) => {
+                  setDay(picked);
+                  setDayError(false);
+                }}
+              />
+              {dayError ? (
+                <span className="fielderror" role="alert">
+                  Pick a date before submitting.
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* --------------------------------------- recurring terms */}
+
+          {isMonthly ? (
+            <>
+              {/* Every fact about the charge, above the card form rather than
+                  below it. Someone should never have to enter a card to find
+                  out what it is about to be used for. */}
+              <div className="recurring">
+                <p className="recurring__hd">Your monthly charge</p>
+
+                <dl className="recurring__facts">
+                  <div>
+                    <dt>Amount</dt>
+                    <dd>
+                      <b>{fee ?? 'Pick a booth or a truck above'}</b>
+                      {fee ? ' per month' : ''}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>How often</dt>
+                    <dd>
+                      <b>Every month</b>, automatically, to the card you enter below
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>First charge</dt>
+                    <dd>
+                      <b>{firstChargeNote}</b>. Nothing is taken when you submit this form.
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Charges after that</dt>
+                    <dd>
+                      {nextChargeNote ||
+                        'The same amount on the same date each month'}. For example, approved on{' '}
+                      {formatDayLong(todayKey())} means the next charge on{' '}
+                      {formatDayLong(addMonth(todayKey()))}.
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>How to cancel</dt>
+                    <dd>
+                      Email <a href={`mailto:${supportEmail}`}>{supportEmail}</a> or call{' '}
+                      <a href="tel:5404479432">540 447 9432</a> and say you want to cancel. There is
+                      no notice period and no fee.{' '}
+                      <b>
+                        Cancelling stops the next charge. You keep the spot to the end of the month
+                        you have already paid for, and no part month is refunded.
+                      </b>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>If a payment fails</dt>
+                    <dd>
+                      We email you and try the card again over the following days. You keep your
+                      spot through the month you have paid for while you sort the card out.
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <CardOnFile
+                applicationId={squareApplicationId}
+                locationId={squareLocationId}
+                environment={squareEnvironment}
+                amountCents={
+                  spot === 'truck'
+                    ? MONTHLY_PRICING.truck.cents
+                    : spot === 'booth'
+                      ? MONTHLY_PRICING.booth.cents
+                      : 0
+                }
+                contactName={signature || 'Vendor'}
+                email=""
+                onReady={onCardReady}
+              />
+
+              {/* Its own box, separate from the agreement one below. Agreeing
+                  to the terms and agreeing to be billed every month are two
+                  different consents and are recorded as two. */}
+              <label className="check check--recurring">
+                <input
+                  type="checkbox"
+                  name="recurring_acknowledged"
+                  checked={recurringAccepted}
+                  onChange={(e) => setRecurringAccepted(e.target.checked)}
+                  required
+                />
+                <span>
+                  I understand this is a <b>recurring monthly charge of {fee ?? 'the monthly fee'}</b>,
+                  taken automatically from the card above every month starting when my application
+                  is approved, and continuing until I cancel. I understand that cancelling stops the
+                  next charge and that no part month is refunded.{' '}
+                  <span className="req">*</span>
+                </span>
+              </label>
+            </>
+          ) : null}
+
           {/* --------------------------------------------- agreement */}
 
           <div className="field">
@@ -819,9 +1120,17 @@ export default function VendorForm({
               the queue, so they do not see it. */}
           {!prepaid ? (
             <p className="formnote formnote--warn reviewnote" role="note">
-              <b>Paying does not confirm your spot.</b> It reserves your place in the review queue.
-              We review every application {REVIEW_WINDOW} and email you either way.{' '}
-              {spot === 'free' ? (
+              <b>
+                {isMonthly ? 'Entering a card does not confirm your spot.' : 'Paying does not confirm your spot.'}
+              </b>{' '}
+              It reserves your place in the review queue. We review every application{' '}
+              {REVIEW_WINDOW} and email you either way.{' '}
+              {isMonthly ? (
+                <>
+                  Nothing is charged until we approve you. If we cannot accommodate you, your card
+                  is released and never charged at all.
+                </>
+              ) : spot === 'free' ? (
                 <>
                   Nothing is charged for an Alice organization spot, so there is nothing to refund
                   if we cannot fit you in.
@@ -847,11 +1156,15 @@ export default function VendorForm({
                     : `Uploading ${progress}%`
                 : prepaid
                   ? 'Register my spot'
-                  : spot === 'free'
-                    ? 'Submit application'
-                    : fee
-                      ? `Sign and pay ${fee}`
-                      : 'Sign and pay'}
+                  : isMonthly
+                    ? fee
+                      ? `Apply for a ${fee} a month spot`
+                      : 'Apply for a permanent spot'
+                    : spot === 'free'
+                      ? 'Submit application'
+                      : fee
+                        ? `Sign and pay ${fee}`
+                        : 'Sign and pay'}
             </button>
             {sending ? (
               <span
@@ -875,11 +1188,15 @@ export default function VendorForm({
                     : 'Uploading. This can take a minute on a phone connection, so do not close this page.'
                 : prepaid
                 ? 'No payment is taken here. Your fee is already settled.'
-                : spot === 'free'
-                  ? 'Alice organizations set up at no charge, so there is no payment step.'
-                  : fee
-                    ? `You will be charged ${fee} at Square checkout, which puts you in the review queue. Nothing is taken before that.`
-                    : 'Pick a spot type above to see your fee.'}
+                : isMonthly
+                  ? fee
+                    ? `Your card is saved now and charged ${fee} only when we approve you. Nothing is taken today.`
+                    : 'Pick a booth or a truck above to see your monthly fee.'
+                  : spot === 'free'
+                    ? 'Alice organizations set up at no charge, so there is no payment step.'
+                    : fee
+                      ? `You will be charged ${fee} at Square checkout, which puts you in the review queue. Nothing is taken before that.`
+                      : 'Pick a spot type above to see your fee.'}
             </span>
           </div>
         </form>

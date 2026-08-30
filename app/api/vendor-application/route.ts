@@ -4,8 +4,20 @@ import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { getSquare, getSquareLocationId, isSquareConfigured } from '@/lib/square';
 import { getClientIp, rateLimit } from '@/lib/rate-limit';
 import { AGREEMENT_VERSION } from '@/components/VendorAgreement';
-import { EVENTS, PRICING, SITE_URL, priceForSpot } from '@/lib/seo';
+import { EVENTS, PRICING, SITE_URL } from '@/lib/seo';
 import { getScheduledEvent } from '@/lib/event-schedule';
+import {
+  MONTHLY_PRICING,
+  formatDayLong,
+  isBookingKind,
+  isDayKey,
+  isMonthlySpot,
+  priceForBooking,
+  type BookingKind,
+  type MonthlySpot,
+} from '@/lib/booking';
+import { canBook, getDayStatus, monthlyRoomFor, type DayStatus } from '@/lib/days';
+import { isSubscriptionsConfigured, storeCardOnFile } from '@/lib/subscriptions';
 import {
   MAX_PHOTOS,
   MAX_TOTAL_UPLOAD_BYTES,
@@ -48,7 +60,30 @@ type Stage =
   | 'db-insert'
   | 'upload-storage'
   | 'upload-record'
+  /** A day that is closed, past, an event date, or out of room. */
+  | 'day-unavailable'
+  /** Monthly signup reached with no Square plan variations configured. */
+  | 'subscription-config'
+  | 'subscription'
   | 'square';
+
+/** Why a day cannot be booked, in words a vendor can act on. */
+function dayRefusal(status: DayStatus): string {
+  switch (status.reason) {
+    case 'past':
+      return 'That date has already been. Pick one from today onward.';
+    case 'beyond-horizon':
+      return 'That date is further out than we are taking bookings for. Pick something sooner.';
+    case 'event':
+      return `${formatDayLong(status.day)} is ${status.eventName}. Event dates go through the event signup, not the day calendar.`;
+    case 'closed':
+      return `We are closed on ${formatDayLong(status.day)}. Pick another date.`;
+    case 'full':
+      return `${formatDayLong(status.day)} is fully booked. Pick another date.`;
+    default:
+      return 'That date is not available. Pick another one.';
+  }
+}
 
 function logFailure(
   stage: Stage,
@@ -113,9 +148,21 @@ function validate(body: Payload) {
   const signature_name = str(body.signature_name);
   const signed_date = str(body.signed_date);
 
+  // What is being booked. Anything unrecognised falls back to an event, which
+  // is what every request looked like before daily and monthly existed.
+  const raw_kind = str(body.booking_kind) || 'event';
+  const booking_kind: BookingKind = isBookingKind(raw_kind) ? raw_kind : 'event';
+  const booking_date = str(body.booking_date);
+
   const waiver_accepted = body.waiver_accepted === true;
   const permits_confirmed = body.permits_confirmed === true;
   const serves_food = body.serves_food === true;
+  const recurring_acknowledged = body.recurring_acknowledged === true;
+
+  // Single use card token from the Web Payments SDK. Never a card number: by
+  // the time it reaches this server it has already been tokenised in the page.
+  const card_source_id = str(body.card_source_id);
+  const card_verification_token = str(body.card_verification_token);
 
   if (business_name.length < 2 || business_name.length > 120) {
     errors.push('Give us your business name.');
@@ -137,8 +184,28 @@ function validate(body: Payload) {
     errors.push('Pick a spot type.');
   }
 
-  if (!EVENTS.some((e) => e.slug === event_slug)) {
-    errors.push('Pick an event.');
+  if (booking_kind === 'event') {
+    if (!EVENTS.some((e) => e.slug === event_slug)) {
+      errors.push('Pick an event.');
+    }
+  } else if (booking_kind === 'day') {
+    if (!isDayKey(booking_date)) {
+      errors.push('Pick a date on the calendar.');
+    }
+  } else {
+    // Monthly. A permanent spot is a booth or a truck; there is no recurring
+    // free organisation spot, because a free spot costs nothing to hold.
+    if (!isMonthlySpot(spot_type)) {
+      errors.push('A permanent monthly spot is a booth or a food truck.');
+    }
+    if (!recurring_acknowledged) {
+      errors.push(
+        'Tick the box acknowledging the monthly recurring charge before we can take your application.'
+      );
+    }
+    if (!card_source_id) {
+      errors.push('Enter a card. A permanent spot is billed monthly to a card on file.');
+    }
   }
 
   if (sells.length < 2 || sells.length > 300) {
@@ -169,7 +236,11 @@ function validate(body: Payload) {
       phone,
       email,
       spot_type,
-      event_slug,
+      // Only the column that belongs to this kind is carried through, which is
+      // the same rule the database check constraint enforces.
+      event_slug: booking_kind === 'event' ? event_slug : null,
+      booking_kind,
+      booking_date: booking_kind === 'day' ? booking_date : null,
       sells,
       notes: notes || null,
       signature_name,
@@ -177,6 +248,9 @@ function validate(body: Payload) {
       waiver_accepted,
       permits_confirmed,
       serves_food,
+      recurring_acknowledged,
+      card_source_id,
+      card_verification_token,
     },
   };
 }
@@ -186,7 +260,12 @@ function validate(body: Payload) {
  * always taken. Files are handled separately; checkbox fields arrive as the
  * strings "true" and "false" and are coerced back to booleans here.
  */
-const BOOLEAN_FIELDS = new Set(['waiver_accepted', 'permits_confirmed', 'serves_food']);
+const BOOLEAN_FIELDS = new Set([
+  'waiver_accepted',
+  'permits_confirmed',
+  'serves_food',
+  'recurring_acknowledged',
+]);
 
 function fieldsFromFormData(form: FormData): Payload {
   const body: Payload = {};
@@ -349,23 +428,68 @@ export async function POST(request: Request) {
   // The deadline comes from the schedule rather than the compiled calendar, so
   // a cutoff moved in the events table is honoured by the server too and not
   // only by the countdown.
-  const event = await getScheduledEvent(value.event_slug);
-  if (!event || !event.isPublished) {
-    return bad('Pick an event.');
-  }
-  if (event.deadlinePassed) {
-    logFailure('deadline', { eventSlug: event.slug });
-    return bad(
-      `Signup for ${event.name} closed on ${event.signupClosesDisplay} Central. Join the waitlist and we will contact you if a spot opens.`,
-      409
-    );
-  }
-  if (event.isFull === true) {
-    logFailure('full', { eventSlug: event.slug });
-    return bad(
-      `${event.name} is full. Join the waitlist and we will contact you if a spot opens.`,
-      409
-    );
+  /* What the vendor is buying decides which gate applies. An event has a
+     deadline and a waitlist; an ordinary day has the availability calendar; a
+     permanent spot has neither, because it is not tied to a date at all. */
+  let event: Awaited<ReturnType<typeof getScheduledEvent>> = null;
+  let bookingLabel = '';
+
+  if (value.booking_kind === 'event') {
+    event = await getScheduledEvent(value.event_slug ?? '');
+    if (!event || !event.isPublished) {
+      return bad('Pick an event.');
+    }
+    if (event.deadlinePassed) {
+      logFailure('deadline', { eventSlug: event.slug });
+      return bad(
+        `Signup for ${event.name} closed on ${event.signupClosesDisplay} Central. Join the waitlist and we will contact you if a spot opens.`,
+        409
+      );
+    }
+    if (event.isFull === true) {
+      logFailure('full', { eventSlug: event.slug });
+      return bad(
+        `${event.name} is full. Join the waitlist and we will contact you if a spot opens.`,
+        409
+      );
+    }
+    bookingLabel = event.name;
+  } else if (value.booking_kind === 'day') {
+    const day = value.booking_date as string;
+    const status = await getDayStatus(day);
+
+    if (!status.bookable) {
+      logFailure('day-unavailable', { day, reason: status.reason });
+      return bad(dayRefusal(status), 409);
+    }
+    if (!canBook(status, value.spot_type)) {
+      logFailure('day-unavailable', { day, reason: 'type full', spotType: value.spot_type });
+      return bad(
+        `${formatDayLong(day)} has no ${value.spot_type === 'truck' ? 'truck' : 'booth'} spots left. Pick another date.`,
+        409
+      );
+    }
+    bookingLabel = formatDayLong(day);
+  } else {
+    // Monthly. Capacity is checked against the permanent holders rather than
+    // against any one date, because the spot is held every day.
+    if (!isSubscriptionsConfigured()) {
+      logFailure('subscription-config', { spotType: value.spot_type });
+      return bad(
+        'Monthly spots are not connected yet. Email us and we will set one up for you.',
+        503
+      );
+    }
+
+    const room = await monthlyRoomFor(value.spot_type);
+    if (!room.available) {
+      logFailure('full', { kind: 'monthly', spotType: value.spot_type });
+      return bad(
+        `Every permanent ${value.spot_type === 'truck' ? 'truck' : 'booth'} spot is taken right now. Email us and we will put you next in line.`,
+        409
+      );
+    }
+    bookingLabel = MONTHLY_PRICING[value.spot_type as MonthlySpot].label;
   }
 
   // Validate uploads before writing anything, so a bad file does not leave a
@@ -401,14 +525,46 @@ export async function POST(request: Request) {
     return bad('The application form is not connected yet. Email us and we will get you set.', 503);
   }
 
-  const amountCents = priceForSpot(value.spot_type);
+  const amountCents = priceForBooking(value.booking_kind, value.spot_type);
   if (amountCents === null) {
     return bad('Pick a spot type.');
   }
 
+  const isMonthly = value.booking_kind === 'monthly';
+  // A monthly spot is never free and never goes to Square checkout, so the
+  // free path is only about the no-charge organisation spots.
   const isFree = amountCents === 0;
   const signedDate = resolveSignedDate(value.signed_date);
   const supabase = getSupabaseAdmin();
+
+  /* The card goes on file before the row is written.
+     A stored card with no application behind it is an orphan Square customer,
+     which is untidy. An application whose card failed is worse: it would sit in
+     the review queue looking ready to approve, and approving it would try to
+     start a subscription against nothing. So the card is proved first and the
+     row is only written once there is something real to bill. Nothing is
+     charged here; the subscription starts on approval. */
+  let storedCard: { customerId: string; cardId: string } | null = null;
+
+  if (isMonthly) {
+    const card = await storeCardOnFile({
+      sourceId: value.card_source_id,
+      verificationToken: value.card_verification_token || undefined,
+      businessName: value.business_name,
+      contactName: value.contact_name,
+      email: value.email,
+      phone: value.phone,
+      // Random rather than the row id, because the row does not exist yet.
+      reference: randomUUID(),
+    });
+
+    if (!card.ok) {
+      logFailure('subscription', { stage: 'card-on-file' });
+      return bad(card.error, 402);
+    }
+
+    storedCard = { customerId: card.value.customerId, cardId: card.value.cardId };
+  }
 
   const { data: inserted, error: insertError } = await supabase
     .from('vendor_applications')
@@ -419,6 +575,8 @@ export async function POST(request: Request) {
       email: value.email,
       spot_type: value.spot_type,
       event_slug: value.event_slug,
+      booking_kind: value.booking_kind,
+      booking_date: value.booking_date,
       sells: value.sells,
       notes: value.notes,
 
@@ -435,8 +593,26 @@ export async function POST(request: Request) {
       serves_food: value.serves_food,
 
       amount_cents: amountCents,
+      /* A monthly row stays 'unpaid' until Square's first invoice settles.
+         Nothing has been taken: the card is authorised and held, which is what
+         the vendor was told would happen, and the charge only follows an
+         approval. Capacity for a permanent spot is counted off the booking kind
+         and the review decision rather than off this column, so holding it at
+         unpaid does not hand the space back. */
       payment_status: isFree ? 'not_required' : 'unpaid',
       payment_method: 'online',
+
+      ...(isMonthly
+        ? {
+            monthly_amount_cents: amountCents,
+            recurring_acknowledged: true,
+            square_customer_id: storedCard?.customerId ?? null,
+            square_card_id: storedCard?.cardId ?? null,
+            // 'pending' here is the subscription, not the review: it has not
+            // been created with Square yet and will not be until approval.
+            subscription_status: 'pending',
+          }
+        : {}),
       /* Everyone goes through review, including the free Alice organisation
          spots. They used to be approved on submission because there was no
          payment to wait on, but the queue is about who sets up on the lot, not
@@ -455,8 +631,10 @@ export async function POST(request: Request) {
     );
   }
 
-  // The counts on the front page changed.
-  invalidateSpots(value.event_slug);
+  // The counts on the front page changed. A day or monthly booking is not
+  // scoped to one event, and a monthly one moves every event's meter, so those
+  // clear the whole cache rather than one slug.
+  invalidateSpots(value.booking_kind === 'event' ? value.event_slug ?? undefined : undefined);
 
   // Store the files under the application id. Uploading after the insert keeps
   // the keys tied to a real row rather than leaving orphaned objects behind.
@@ -539,6 +717,49 @@ export async function POST(request: Request) {
     }
   }
 
+  /* Everything the review emails need about this application, whichever kind
+     it is. event_name carries whatever the vendor actually booked: an event
+     name, a date, or the permanent spot, so one template reads correctly for
+     all three without branching on the kind. */
+  const emailShape = {
+    id: inserted.id,
+    business_name: value.business_name,
+    contact_name: value.contact_name,
+    phone: value.phone,
+    email: value.email,
+    spot_type: value.spot_type,
+    event_slug: value.event_slug ?? '',
+    event_name: bookingLabel,
+    sells: value.sells,
+    notes: value.notes,
+    serves_food: value.serves_food,
+    permit_uploaded: Boolean(paths.permit_path),
+    signature_name: value.signature_name,
+    signed_at: new Date().toISOString(),
+    agreement_version: AGREEMENT_VERSION,
+    amount_cents: amountCents,
+    booking_kind: value.booking_kind,
+    booking_when:
+      value.booking_kind === 'day' && value.booking_date
+        ? formatDayLong(value.booking_date)
+        : value.booking_kind === 'monthly'
+          ? 'every day, until you cancel'
+          : undefined,
+  };
+
+  /* A permanent spot takes no payment now. The card is on file, the
+     subscription starts on approval, and until then this is an application like
+     any other sitting in the queue. */
+  if (isMonthly) {
+    await notifyPaymentReceived({
+      ...emailShape,
+      payment_status: 'unpaid',
+      payment_method: 'online',
+    });
+
+    return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl: null });
+  }
+
   // Alice organizations set up at no charge, so they skip checkout.
   //
   // There is no payment to wait on, so they join the review queue right here.
@@ -546,22 +767,7 @@ export async function POST(request: Request) {
   // actually settles.
   if (isFree) {
     await notifyPaymentReceived({
-      id: inserted.id,
-      business_name: value.business_name,
-      contact_name: value.contact_name,
-      phone: value.phone,
-      email: value.email,
-      spot_type: value.spot_type,
-      event_slug: value.event_slug,
-      event_name: event.name,
-      sells: value.sells,
-      notes: value.notes,
-      serves_food: value.serves_food,
-      permit_uploaded: Boolean(paths.permit_path),
-      signature_name: value.signature_name,
-      signed_at: new Date().toISOString(),
-      agreement_version: AGREEMENT_VERSION,
-      amount_cents: amountCents,
+      ...emailShape,
       payment_status: 'not_required',
       payment_method: 'online',
     });
@@ -582,22 +788,7 @@ export async function POST(request: Request) {
   // actually land, because telling someone their spot is confirmed before they
   // have paid would be wrong.
   await notifyRegistrationStarted({
-    id: inserted.id,
-    business_name: value.business_name,
-    contact_name: value.contact_name,
-    phone: value.phone,
-    email: value.email,
-    spot_type: value.spot_type,
-    event_slug: value.event_slug,
-    event_name: event.name,
-    sells: value.sells,
-    notes: value.notes,
-    serves_food: value.serves_food,
-    permit_uploaded: Boolean(paths.permit_path),
-    signature_name: value.signature_name,
-    signed_at: new Date().toISOString(),
-    agreement_version: AGREEMENT_VERSION,
-    amount_cents: amountCents,
+    ...emailShape,
     payment_status: 'unpaid',
     payment_method: 'online',
   });
@@ -617,13 +808,15 @@ export async function POST(request: Request) {
         referenceId: inserted.id,
         lineItems: [
           {
-            name: `${spotLabel}, ${event ? event.name : 'Coyoteville event'}`,
+            // bookingLabel is the event name or the date, whichever this is, so
+            // the Square receipt names the thing the vendor actually bought.
+            name: `${spotLabel}, ${bookingLabel || 'Coyoteville'}`,
             quantity: '1',
             basePriceMoney: {
               amount: BigInt(amountCents),
               currency: 'USD',
             },
-            note: `${event ? event.displayDate : ''} at Coyoteville, 150 N. Stadium Road, Alice TX.`.trim(),
+            note: `${event ? event.displayDate : bookingLabel} at Coyoteville, 150 N. Stadium Road, Alice TX.`.trim(),
           },
         ],
       },

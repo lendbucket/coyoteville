@@ -3,6 +3,7 @@ import { cache } from 'react';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { NEXT_EVENT } from './seo';
 import { RELEASING_STATUSES } from './approval';
+import { getMonthlyHolders } from './days';
 
 /**
  * Live spot counts.
@@ -208,7 +209,7 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
   try {
     const supabase = getSupabaseAdmin();
 
-    const [counts, rowsResult] = await Promise.all([
+    const [counts, rowsResult, monthly] = await Promise.all([
       fetchEventCounts(supabase, eventSlug),
       supabase
         .from('vendor_applications')
@@ -216,6 +217,11 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
         .eq('event_slug', eventSlug)
         .in('payment_status', CLAIMED_STATES as unknown as string[])
         .not('approval_status', 'in', `(${RELEASED_STATES.join(',')})`),
+      /* Permanent vendors are included in every event at no extra charge, so
+         their space is already spoken for on an event night and has to come off
+         the top here as well as off the daily calendar. Without this the event
+         meter would offer room that a monthly vendor is standing in. */
+      getMonthlyHolders(),
     ]);
 
     if (rowsResult.error) throw rowsResult.error;
@@ -230,8 +236,10 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
       else if (row.spot_type === 'free') freeClaimed += 1;
     }
 
-    const booth = line(counts.boothCapacity, boothWebsite, counts.boothOffline);
-    const truck = line(counts.truckCapacity, truckWebsite, counts.truckOffline);
+    // Monthly holders ride in alongside the offline count: both are vendors
+    // holding a space who did not book this event through the form.
+    const booth = line(counts.boothCapacity, boothWebsite, counts.boothOffline + monthly.booth);
+    const truck = line(counts.truckCapacity, truckWebsite, counts.truckOffline + monthly.truck);
 
     const capacityKnown = counts.boothCapacity !== null || counts.truckCapacity !== null;
 

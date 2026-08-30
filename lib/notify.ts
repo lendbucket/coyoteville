@@ -5,6 +5,12 @@ import { supportEmail } from './support';
 import type { RegistrationEmail } from './notify-types';
 import { renderVendorConfirmation } from './email/vendor-confirmation';
 import { renderPaymentReceived, renderVendorDenied, type DeniedEmail } from './email/vendor-review';
+import {
+  renderSubscriptionPaymentFailed,
+  renderSubscriptionRenewed,
+  type PaymentFailedEmail,
+  type RenewalEmail,
+} from './email/subscription';
 import { renderAdminNotification, type NotificationStage } from './email/admin-notification';
 import {
   renderWaitlistJoined,
@@ -243,6 +249,57 @@ export async function notifyDenied(r: DeniedEmail): Promise<void> {
   }
 
   await sendPair(r.id, r.email, renderVendorDenied(r, supportEmail()), null, r.email);
+}
+
+/* -------------------------------------------------- recurring monthly */
+
+/**
+ * A monthly charge went through.
+ *
+ * Vendor only. A recurring charge that lands with no email behind it is the
+ * commonest way a subscription turns into a chargeback, and the owner does not
+ * need a message every month per vendor telling them a card worked.
+ */
+export async function notifySubscriptionRenewed(r: RenewalEmail): Promise<void> {
+  if (!isEmailConfigured()) {
+    console.warn('email not configured, skipping renewal receipt', { application: r.id });
+    return;
+  }
+
+  await sendPair(r.id, r.email, renderSubscriptionRenewed(r, supportEmail()), null, r.email);
+}
+
+/**
+ * A monthly charge failed.
+ *
+ * Both sides get this one. The vendor has to fix the card, and the owner needs
+ * to know a permanent spot is unpaid before the vendor turns up to it.
+ */
+export async function notifyPaymentFailed(r: PaymentFailedEmail): Promise<void> {
+  if (!isEmailConfigured()) {
+    console.warn('email not configured, skipping payment failure notice', { application: r.id });
+    return;
+  }
+
+  const vendor = renderSubscriptionPaymentFailed(r, supportEmail());
+
+  const owner = {
+    subject: `Monthly payment FAILED, ${r.business_name}, attempt ${r.attempt}`,
+    html: `<p style="font-family:sans-serif;font-size:15px;">
+      <b>${r.business_name}</b> did not pay this month. Attempt ${r.attempt}.<br />
+      Spot: ${r.spot_type === 'truck' ? 'permanent food truck' : 'permanent booth'}<br />
+      Amount: $${(r.amount_cents / 100).toFixed(2)}<br />
+      Contact: ${r.contact_name}, ${r.phone}, ${r.email}<br />
+      They keep the spot until ${r.paid_through ?? 'the end of the paid period'}.
+    </p>`,
+    text:
+      `${r.business_name} did not pay this month. Attempt ${r.attempt}.\n` +
+      `Spot: ${r.spot_type}\nAmount: $${(r.amount_cents / 100).toFixed(2)}\n` +
+      `Contact: ${r.contact_name}, ${r.phone}, ${r.email}\n` +
+      `They keep the spot until ${r.paid_through ?? 'the end of the paid period'}.\n`,
+  };
+
+  await sendPair(r.id, r.email, vendor, owner, r.email);
 }
 
 /**

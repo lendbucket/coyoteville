@@ -19,6 +19,22 @@ export type VendorCardRow = {
   paymentMethod: string | null;
   amountLabel: string;
   approvalStatus: string;
+  /** 'event', 'day' or 'monthly'. Decides which controls the sheet shows. */
+  bookingKind: string;
+  /** What they booked, already formatted: an event name, a date, or the plan. */
+  bookingLabel: string;
+  /** The raw YYYY-MM-DD for a day booking, which the calendar groups on. */
+  bookingDay: string | null;
+  /** Monthly only. Null on everything else. */
+  subscriptionStatus: string | null;
+  /** Paid through, formatted. Also the date a cancellation takes effect. */
+  subscriptionPeriodEnd: string | null;
+  /** True when a cancellation is booked and the spot is running out its month. */
+  subscriptionCanceling: boolean;
+  /** The monthly fee, formatted. Empty on a one-off booking. */
+  monthlyLabel: string;
+  /** Consecutive failed charges. Zero when the card is working. */
+  failedPayments: number;
   /** The reason typed at denial. Shown back so the decision is auditable. */
   denialReason: string | null;
   /** What was actually sent back, formatted. Empty when nothing was. */
@@ -42,13 +58,28 @@ export type VendorCardRow = {
   lastEmail: { to: string; at: string; subject: string } | null;
 };
 
-export type FilterKey = 'all' | 'review' | 'paid' | 'unpaid' | 'truck' | 'booth' | 'free';
+export type FilterKey =
+  | 'all'
+  | 'review'
+  | 'paid'
+  | 'unpaid'
+  | 'kind:event'
+  | 'kind:day'
+  | 'kind:monthly'
+  | 'truck'
+  | 'booth'
+  | 'free';
 
 /* 'Review' sits first because it is the only chip that is a job rather than a
-   view, and the whole point of the queue is that it cannot be missed. */
+   view, and the whole point of the queue is that it cannot be missed. The kind
+   chips come next: with day and monthly bookings in the same list, "what am I
+   looking at" is now asked more often than "what did they book". */
 export const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'review', label: 'Review' },
   { key: 'all', label: 'All' },
+  { key: 'kind:event', label: 'Events' },
+  { key: 'kind:day', label: 'Daily' },
+  { key: 'kind:monthly', label: 'Monthly' },
   { key: 'paid', label: 'Paid' },
   { key: 'unpaid', label: 'Unpaid' },
   { key: 'truck', label: 'Trucks' },
@@ -67,7 +98,12 @@ export function isSettled(row: VendorCardRow): boolean {
  * never disagree with the banner.
  */
 export function needsReview(row: VendorCardRow): boolean {
-  return isSettled(row) && row.approvalStatus === 'pending';
+  /* A monthly application is meant to be unpaid at this stage: its card is
+     authorised and held, and approving it is what takes the first charge. So it
+     joins the queue on submission rather than on payment, which is the same
+     rule the server counts by. */
+  const ready = isSettled(row) || row.bookingKind === 'monthly';
+  return ready && row.approvalStatus === 'pending';
 }
 
 export function matchesFilter(row: VendorCardRow, filter: FilterKey): boolean {
@@ -75,6 +111,7 @@ export function matchesFilter(row: VendorCardRow, filter: FilterKey): boolean {
   if (filter === 'review') return needsReview(row);
   if (filter === 'paid') return isSettled(row);
   if (filter === 'unpaid') return row.paymentStatus === 'unpaid';
+  if (filter.startsWith('kind:')) return row.bookingKind === filter.slice(5);
   return row.spotType === filter;
 }
 

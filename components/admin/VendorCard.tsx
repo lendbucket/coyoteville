@@ -74,6 +74,13 @@ export default function VendorCard({
           {row.contactName}
           {row.sells ? ` · ${row.sells}` : ''}
         </span>
+
+        {/* What they booked, only where it is not obvious. In an event scope
+            every row is the same event and saying so on each one is noise; a
+            day or a permanent spot is the thing you are scanning for. */}
+        {row.bookingKind !== 'event' ? (
+          <span className="vcard__booking">{row.bookingLabel}</span>
+        ) : null}
       </button>
 
       <a

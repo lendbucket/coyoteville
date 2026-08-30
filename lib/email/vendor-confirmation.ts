@@ -90,6 +90,16 @@ export function renderVendorConfirmation(
   text: string;
 } {
   const needsPermit = r.spot_type === 'truck' || r.serves_food;
+
+  /* When they are actually setting up.
+     This used to be NEXT_EVENT for everybody, which is correct for an event
+     booking and wrong for the other two: a vendor approved for one ordinary
+     Tuesday, or for a permanent spot, was being told the date of an event they
+     had not booked. The caller passes what was really booked and the calendar
+     is only consulted when it did not. */
+  const monthly = r.booking_kind === 'monthly';
+  const whenLabel = r.booking_when || NEXT_EVENT.displayDate;
+  const gatesLabel = monthly ? 'Every day we are open' : NEXT_EVENT.displayTime;
   const logo = LOGO_URL;
   const lights = `${SITE_URL}/email/lights.png`;
 
@@ -116,7 +126,7 @@ export function renderVendorConfirmation(
 <title>Your Coyoteville spot is confirmed</title>
 </head>
 <body style="margin:0;padding:0;background-color:${BLACK};">
-${preheader(`Your spot is confirmed for ${NEXT_EVENT.displayDate}. Setup opens at 8 AM.`)}
+${preheader(`Your spot is confirmed for ${whenLabel}. Setup opens at 8 AM.`)}
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${BLACK};">
 <tr><td align="center" style="padding:0;">
@@ -145,7 +155,7 @@ ${preheader(`Your spot is confirmed for ${NEXT_EVENT.displayDate}. Setup opens a
   <tr>
     <td align="center" style="padding:0 24px 26px;background-color:${BLACK};">
       <div style="font-family:${BODY};font-size:16px;line-height:24px;color:${MUTED};">
-        We have your signed agreement. Here is everything you need for ${esc(NEXT_EVENT.displayDate)}.
+        We have your signed agreement. Here is everything you need for ${esc(whenLabel)}.
       </div>
     </td>
   </tr>
@@ -159,8 +169,8 @@ ${preheader(`Your spot is confirmed for ${NEXT_EVENT.displayDate}. Setup opens a
             ${detailRow('Business', r.business_name)}
             ${detailRow('Spot', spotLabel(r.spot_type))}
             ${detailRow('Event', r.event_name)}
-            ${detailRow('Date', NEXT_EVENT.displayDate)}
-            ${detailRow('Gates open', NEXT_EVENT.displayTime)}
+            ${detailRow(monthly ? 'Runs' : 'Date', whenLabel)}
+            ${detailRow('Gates open', gatesLabel)}
             ${detailRow('Where', `${ADDRESS.street}, ${ADDRESS.city}, ${ADDRESS.state}`, true)}
           </table>
         </td></tr>
@@ -291,13 +301,13 @@ ${preheader(`Your spot is confirmed for ${NEXT_EVENT.displayDate}. Setup opens a
   const text = [
     'YOUR SPOT IS CONFIRMED',
     '',
-    `We have your signed agreement. Here is everything you need for ${NEXT_EVENT.displayDate}.`,
+    `We have your signed agreement. Here is everything you need for ${whenLabel}.`,
     '',
     `Business:    ${r.business_name}`,
     `Spot:        ${spotLabel(r.spot_type)}`,
     `Event:       ${r.event_name}`,
-    `Date:        ${NEXT_EVENT.displayDate}`,
-    `Gates open:  ${NEXT_EVENT.displayTime}`,
+    `${monthly ? 'Runs:        ' : 'Date:        '}${whenLabel}`,
+    `Gates open:  ${gatesLabel}`,
     `Where:       ${ADDRESS.street}, ${ADDRESS.city}, ${ADDRESS.state}`,
     '',
     'WHAT TO BRING',
@@ -341,7 +351,7 @@ ${preheader(`Your spot is confirmed for ${NEXT_EVENT.displayDate}. Setup opens a
   ].join('\n');
 
   return {
-    subject: `Your spot is confirmed for ${NEXT_EVENT.displayDate}`,
+    subject: `Your spot is confirmed for ${whenLabel}`,
     html,
     text,
   };

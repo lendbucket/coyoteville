@@ -21,6 +21,13 @@ export type RevenueRow = {
   approval_status: string;
   square_order_id: string | null;
   created_at: string;
+  /**
+   * 'event', 'day' or 'monthly'. Absent on a row read by an older caller, which
+   * is why it is optional: nothing in this file needs it, and it rides along
+   * only so the tracker can tell a monthly application waiting on review apart
+   * from an abandoned checkout.
+   */
+  booking_kind?: string;
 };
 
 export type RevenueLine = {

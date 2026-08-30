@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import AdminRowControls from '../AdminRowControls';
 import AdminSendPhotos from '../AdminSendPhotos';
 import ReviewControls from './ReviewControls';
+import SubscriptionControls from './SubscriptionControls';
 import { isSettled, type VendorCardRow } from './types';
 
 /**
@@ -151,6 +152,21 @@ export default function VendorSheet({
             />
           </div>
 
+          {row.bookingKind === 'monthly' ? (
+            <div className="sheet__block">
+              <SubscriptionControls
+                id={row.id}
+                businessName={row.businessName}
+                status={row.subscriptionStatus}
+                periodEnd={row.subscriptionPeriodEnd}
+                canceling={row.subscriptionCanceling}
+                monthlyLabel={row.monthlyLabel}
+                failedPayments={row.failedPayments}
+                approved={row.approvalStatus === 'approved'}
+              />
+            </div>
+          ) : null}
+
           <div className="sheet__block">
             <AdminSendPhotos
               id={row.id}
@@ -161,6 +177,10 @@ export default function VendorSheet({
           </div>
 
           <dl className="sheet__facts">
+            <div>
+              <dt>Booked</dt>
+              <dd>{row.bookingLabel}</dd>
+            </div>
             <div>
               <dt>Sells</dt>
               <dd>

@@ -6,12 +6,14 @@ import AdminRevenue from '../AdminRevenue';
 import AdminAbandoned from '../AdminAbandoned';
 import AdminSendAllPhotos from '../AdminSendAllPhotos';
 import AdminWaitlist from '../AdminWaitlist';
+import AdminCalendar from './AdminCalendar';
 import VendorCard from './VendorCard';
 import VendorSheet from './VendorSheet';
 import Composer from './Composer';
 import { FILTERS, matchesFilter, matchesQuery, type FilterKey, type VendorCardRow } from './types';
 import type { RevenueSummary } from '@/lib/revenue';
 import type { WaitlistEntry } from '@/lib/waitlist';
+import { DAY_SCOPE, MONTHLY_SCOPE, SCOPE_LABELS } from '@/lib/admin-scope';
 
 /**
  * The tracker shell.
@@ -29,6 +31,7 @@ import type { WaitlistEntry } from '@/lib/waitlist';
 
 const TABS = [
   { key: 'vendors', label: 'Vendors' },
+  { key: 'calendar', label: 'Calendar' },
   { key: 'waitlist', label: 'Waitlist' },
   { key: 'money', label: 'Money' },
   { key: 'compose', label: 'Compose' },
@@ -39,6 +42,8 @@ type TabKey = (typeof TABS)[number]['key'];
 function TabIcon({ tab }: { tab: TabKey }) {
   const paths: Record<TabKey, string> = {
     vendors: 'M16 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-8 1a3 3 0 1 0-3-3 3 3 0 0 0 3 3Zm0 2c-2.3 0-6 1.2-6 3.5V20h7v-2.5c0-.9.5-1.9 1.3-2.7A9.6 9.6 0 0 0 8 14Zm8 0c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4Z',
+    calendar:
+      'M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7ZM5 9h14v10H5V9Zm2 2v2h2v-2H7Zm4 0v2h2v-2h-2Zm4 0v2h2v-2h-2Z',
     waitlist: 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 10.6 4 2.3-.8 1.4L11 13V6h2Z',
     money: 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm.9 15.3v1.4h-1.6v-1.4a4 4 0 0 1-2.9-1.7l1.3-1.1a2.7 2.7 0 0 0 2.3 1.2c1 0 1.7-.4 1.7-1.2s-.6-1-2-1.4c-1.7-.5-3-1.1-3-2.9a2.9 2.9 0 0 1 2.6-2.8V6h1.6v1.4a3.6 3.6 0 0 1 2.5 1.5l-1.3 1.1a2.3 2.3 0 0 0-1.9-1c-1 0-1.5.5-1.5 1.1s.6 1 2 1.4c1.8.5 3 1.2 3 3a3 3 0 0 1-2.8 2.8Z',
     compose: 'M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25ZM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z',
@@ -184,13 +189,18 @@ export default function AdminShell({
             name="event"
             defaultValue={filters.event}
             onChange={(e) => e.currentTarget.form?.requestSubmit()}
-            aria-label="Event"
+            aria-label="What to show"
           >
             {events.map((e) => (
               <option key={e.slug} value={e.slug}>
                 {e.name}
               </option>
             ))}
+            {/* Not events, but the same question: which set of vendors am I
+                looking at. Kept in the same control rather than added as a
+                second one beside it. */}
+            <option value={DAY_SCOPE}>{SCOPE_LABELS[DAY_SCOPE]}</option>
+            <option value={MONTHLY_SCOPE}>{SCOPE_LABELS[MONTHLY_SCOPE]}</option>
           </select>
           <a className="ash__export" href={exportHref}>
             CSV
@@ -335,6 +345,40 @@ export default function AdminShell({
             />
           </div>
         </div>
+      </section>
+
+      {/* ------------------------------------------------------- calendar */}
+      <section className="ash__panel" data-panel="calendar" aria-label="Calendar">
+        <AdminCalendar
+          bookings={rows
+            .filter((r) => r.bookingKind === 'day' && r.bookingDay)
+            .map((r) => ({
+              id: r.id,
+              day: r.bookingDay as string,
+              businessName: r.businessName,
+              contactName: r.contactName,
+              phone: r.phone,
+              spotType: r.spotType,
+              spotTypeLabel: r.spotTypeLabel,
+              spotNumber: r.spotNumber,
+              approvalStatus: r.approvalStatus,
+              paymentStatus: r.paymentStatus,
+            }))}
+          monthly={rows
+            .filter((r) => r.bookingKind === 'monthly' && r.approvalStatus === 'approved')
+            .map((r) => ({
+              id: r.id,
+              businessName: r.businessName,
+              spotTypeLabel: r.spotTypeLabel,
+              spotNumber: r.spotNumber,
+              subscriptionStatus: r.subscriptionStatus,
+            }))}
+          onOpen={setOpenId}
+        />
+        <p className="hint ash__calhint">
+          Showing the scope picked above. Switch it to <b>Daily bookings</b> to see every day at
+          once.
+        </p>
       </section>
 
       {/* ------------------------------------------------------- waitlist */}

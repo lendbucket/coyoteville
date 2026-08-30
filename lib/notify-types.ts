@@ -24,4 +24,16 @@ export type RegistrationEmail = {
   amount_cents: number;
   payment_status: string;
   payment_method: 'online' | 'offline' | null;
+  /**
+   * 'event', 'day' or 'monthly'. Optional so the older callers that only ever
+   * dealt with events do not have to be touched, and absent means 'event'.
+   */
+  booking_kind?: string;
+  /**
+   * When they are actually setting up, written out: an event date, one
+   * ordinary day, or "every day". The confirmation email used to take this
+   * from the next event on the calendar, which is right for an event booking
+   * and wrong for the other two, so it is passed in rather than assumed.
+   */
+  booking_when?: string;
 };

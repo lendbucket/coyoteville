@@ -5,6 +5,11 @@ import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { EVENTS, SITE_URL } from '@/lib/seo';
 import { invalidateSpots } from '@/lib/spots';
 import { notifyPaymentReceived } from '@/lib/notify';
+import {
+  handleInvoiceFailed,
+  handleInvoicePaid,
+  handleSubscriptionUpdated,
+} from '@/lib/subscription-events';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -39,6 +44,110 @@ function verify(rawBody: string, providedSignature: string, signatureKey: string
     .digest('base64');
 
   return signaturesMatch(expected, providedSignature);
+}
+
+/**
+ * The recurring billing events.
+ *
+ * `invoice.payment_made` is a monthly charge landing. The failure comes through
+ * as `invoice.scheduled_charge_failed`, and Square also raises `invoice.updated`
+ * with a FAILED status on some accounts, so both are watched and the invoice
+ * status is what actually decides which way it is handled.
+ *
+ * `subscription.updated` carries state changes, of which the one that matters
+ * is a cancellation finally taking effect at the end of a paid period.
+ */
+const SUBSCRIPTION_EVENTS = new Set([
+  'invoice.payment_made',
+  'invoice.scheduled_charge_failed',
+  'invoice.updated',
+  'subscription.updated',
+]);
+
+type SquareSubscriptionEvent = {
+  type?: string;
+  data?: {
+    object?: {
+      invoice?: {
+        id?: string;
+        status?: string;
+        subscription_id?: string;
+        payment_requests?: { due_date?: string; computed_amount_money?: { amount?: number } }[];
+      };
+      subscription?: {
+        id?: string;
+        status?: string;
+        charged_through_date?: string;
+        canceled_date?: string;
+      };
+    };
+  };
+};
+
+/**
+ * Recurring billing.
+ *
+ * Always answers 200 unless something is genuinely retryable. Square redelivers
+ * against a non 2xx for days, and an invoice for a subscription that is not ours
+ * would otherwise be redelivered forever.
+ */
+async function handleSubscriptionEvent(event: SquareSubscriptionEvent) {
+  const invoice = event.data?.object?.invoice;
+  const subscription = event.data?.object?.subscription;
+
+  try {
+    if (event.type === 'subscription.updated' && subscription?.id) {
+      const result = await handleSubscriptionUpdated({
+        subscriptionId: subscription.id,
+        status: subscription.status ?? null,
+        chargedThroughDate: subscription.charged_through_date ?? null,
+        canceledDate: subscription.canceled_date ?? null,
+      });
+
+      return NextResponse.json({
+        received: true,
+        ...(result.handled ? { applicationId: result.applicationId } : { ignored: 'not ours' }),
+      });
+    }
+
+    const subscriptionId = invoice?.subscription_id;
+    if (!subscriptionId) {
+      // A one-off invoice raised somewhere else on the same Square account.
+      return NextResponse.json({ received: true, ignored: 'invoice with no subscription' });
+    }
+
+    const status = (invoice?.status ?? '').toUpperCase();
+    const paid = status === 'PAID';
+    const failed = event.type === 'invoice.scheduled_charge_failed' || status === 'FAILED';
+
+    if (!paid && !failed) {
+      // DRAFT, UNPAID, SCHEDULED and the rest are steps on the way to one of
+      // the two outcomes worth acting on.
+      return NextResponse.json({ received: true, ignored: `invoice ${status || 'unknown'}` });
+    }
+
+    const result = paid
+      ? await handleInvoicePaid({
+          subscriptionId,
+          // Square puts the period this invoice covers on the payment request.
+          paidThrough: invoice?.payment_requests?.[0]?.due_date ?? null,
+          invoiceStatus: status || 'PAID',
+        })
+      : await handleInvoiceFailed({
+          subscriptionId,
+          invoiceStatus: status || 'FAILED',
+          retryDate: invoice?.payment_requests?.[0]?.due_date ?? null,
+        });
+
+    return NextResponse.json({
+      received: true,
+      ...(result.handled ? { applicationId: result.applicationId } : { ignored: 'not ours' }),
+    });
+  } catch (err) {
+    console.error('subscription webhook handler error', event.type, err);
+    // Retryable: a database blip should get another delivery.
+    return NextResponse.json({ error: 'Handler error.' }, { status: 500 });
+  }
 }
 
 type SquarePaymentEvent = {
@@ -84,6 +193,14 @@ export async function POST(request: Request) {
     event = JSON.parse(rawBody) as SquarePaymentEvent;
   } catch {
     return NextResponse.json({ error: 'Invalid payload.' }, { status: 400 });
+  }
+
+  /* Recurring billing arrives as invoice and subscription events rather than as
+     payments, because Square bills a subscription by raising an invoice each
+     period. Routed off to their own handlers before the one-off payment path,
+     which knows nothing about subscriptions. */
+  if (SUBSCRIPTION_EVENTS.has(event.type ?? '')) {
+    return handleSubscriptionEvent(event as SquareSubscriptionEvent);
   }
 
   if (event.type !== 'payment.updated') {

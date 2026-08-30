@@ -173,13 +173,23 @@ export function renderPaymentReceived(
   SUPPORT: string
 ): { subject: string; html: string; text: string } {
   const free = r.payment_status === 'not_required' || r.amount_cents === 0;
-  const paidLine = free ? 'No charge, Alice organization' : `${money(r.amount_cents)} received`;
+  /* A permanent monthly spot reaches this point with a card on file and
+     nothing charged, which is the whole design: the subscription starts on
+     approval. Saying "received" here would be a lie, and the worst possible
+     one to tell somebody who has just handed over a card. */
+  const authorized = !free && r.payment_status === 'unpaid';
+
+  const paidLine = free
+    ? 'No charge, Alice organization'
+    : authorized
+      ? `${money(r.amount_cents)} a month, card saved, nothing charged`
+      : `${money(r.amount_cents)} received`;
 
   const details = [
     detailRow('Business', r.business_name),
     detailRow('Spot requested', spotLabel(r.spot_type)),
     detailRow('Event', r.event_name),
-    detailRow('Payment', paidLine),
+    detailRow(authorized ? 'Card' : 'Payment', paidLine),
     detailRow('Status', 'Waiting on review', true),
   ].join('');
 
@@ -188,11 +198,17 @@ export function renderPaymentReceived(
         `<b style="color:${CREAM};">This is not a confirmed spot yet.</b> We review every application ${esc(REVIEW_WINDOW)} and email you either way.`,
         'If we can fit you in, you get a confirmation with everything you need for the day. Nothing has been charged, so there is nothing to refund if we cannot.',
       ]
-    : [
-        `<b style="color:${CREAM};">Your payment reserves your place in the review queue. It does not confirm your spot.</b>`,
-        `We review every application ${esc(REVIEW_WINDOW)}. If we can fit you in, you get a confirmation email with everything you need for the day.`,
-        `<b style="color:${CREAM};">If we cannot accommodate you, you are refunded in full, automatically.</b> You do not have to ask for it, and it takes ${esc(REFUND_WINDOW)} to appear on your statement.`,
-      ];
+    : authorized
+      ? [
+          `<b style="color:${CREAM};">Your card is saved but has not been charged.</b> Entering it reserves your place in the review queue. It does not confirm your spot.`,
+          `We review every application ${esc(REVIEW_WINDOW)}. If we can fit you in, the first monthly charge of ${esc(money(r.amount_cents))} is taken that day and you get a confirmation email.`,
+          `<b style="color:${CREAM};">If we cannot accommodate you, your card is released without ever being charged.</b> There is nothing to refund because nothing was taken.`,
+        ]
+      : [
+          `<b style="color:${CREAM};">Your payment reserves your place in the review queue. It does not confirm your spot.</b>`,
+          `We review every application ${esc(REVIEW_WINDOW)}. If we can fit you in, you get a confirmation email with everything you need for the day.`,
+          `<b style="color:${CREAM};">If we cannot accommodate you, you are refunded in full, automatically.</b> You do not have to ask for it, and it takes ${esc(REFUND_WINDOW)} to appear on your statement.`,
+        ];
 
   const body = [
     panel('What happens next', reviewLines, EMBER),
@@ -225,7 +241,7 @@ export function renderPaymentReceived(
     `Business:        ${r.business_name}`,
     `Spot requested:  ${spotLabel(r.spot_type)}`,
     `Event:           ${r.event_name}`,
-    `Payment:         ${paidLine}`,
+    `${authorized ? 'Card:           ' : 'Payment:        '} ${paidLine}`,
     'Status:          Waiting on review',
     '',
     'WHAT HAPPENS NEXT',
@@ -234,11 +250,17 @@ export function renderPaymentReceived(
           `This is not a confirmed spot yet. We review every application ${REVIEW_WINDOW} and email you either way.`,
           'Nothing has been charged, so there is nothing to refund if we cannot fit you in.',
         ]
-      : [
-          'Your payment reserves your place in the review queue. It does not confirm your spot.',
-          `We review every application ${REVIEW_WINDOW}. If we can fit you in, you get a confirmation email with everything you need for the day.`,
-          `If we cannot accommodate you, you are refunded in full, automatically. You do not have to ask for it, and it takes ${REFUND_WINDOW} to appear on your statement.`,
-        ]),
+      : authorized
+        ? [
+            'Your card is saved but has not been charged. Entering it reserves your place in the review queue. It does not confirm your spot.',
+            `We review every application ${REVIEW_WINDOW}. If we can fit you in, the first monthly charge of ${money(r.amount_cents)} is taken that day and you get a confirmation email.`,
+            'If we cannot accommodate you, your card is released without ever being charged. There is nothing to refund because nothing was taken.',
+          ]
+        : [
+            'Your payment reserves your place in the review queue. It does not confirm your spot.',
+            `We review every application ${REVIEW_WINDOW}. If we can fit you in, you get a confirmation email with everything you need for the day.`,
+            `If we cannot accommodate you, you are refunded in full, automatically. You do not have to ask for it, and it takes ${REFUND_WINDOW} to appear on your statement.`,
+          ]),
     '',
     'NOTHING TO DO RIGHT NOW',
     'Hold off on buying stock or booking help for this date until the confirmation email arrives.',

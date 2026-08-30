@@ -11,6 +11,7 @@ import Stats from '@/components/Stats';
 import About from '@/components/About';
 import VendorSpotlight from '@/components/VendorSpotlight';
 import Pricing from '@/components/Pricing';
+import PermanentSpot from '@/components/PermanentSpot';
 import HowItWorks from '@/components/HowItWorks';
 import EventCountdownSection from '@/components/EventCountdownSection';
 import PastVendors from '@/components/PastVendors';
@@ -72,6 +73,9 @@ export default async function HomePage() {
         <About />
         <VendorSpotlight />
         <Pricing />
+        {/* Straight after the per event prices, because the argument for a
+            permanent spot is entirely a comparison against them. */}
+        <PermanentSpot />
         <HowItWorks />
         <EventCountdownSection />
         <PastVendors />

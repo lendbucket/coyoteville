@@ -113,7 +113,10 @@ create table if not exists public.vendor_applications (
   phone                 text        not null,
   email                 text        not null,
   spot_type             text        not null,
-  event_slug            text        not null,
+  -- Null for a day or monthly booking, which are not tied to an event. The
+  -- shape check further down is what actually enforces which kinds may leave
+  -- it empty.
+  event_slug            text,
   sells                 text        not null,
   notes                 text,
 
@@ -171,11 +174,75 @@ create table if not exists public.vendor_applications (
   -- is still freed; this is what tells the admin to go and refund by hand.
   refund_error          text,
 
+  -- What kind of booking this is.
+  --
+  --   'event'   one of the dates in the events table. event_slug is set.
+  --   'day'     one ordinary open day. booking_date is set, event_slug is not.
+  --   'monthly' a permanent spot on a recurring Square subscription. Neither
+  --             event_slug nor booking_date is set: it is every day until it
+  --             is cancelled.
+  --
+  -- One table rather than three because everything downstream of a signup is
+  -- identical whichever it is: the same signed agreement, the same uploads, the
+  -- same review queue, the same tracker.
+  booking_kind          text        not null default 'event',
+  -- The single date a 'day' booking is for.
+  booking_date          date,
+
+  -- recurring monthly spot
+  --
+  -- The card is stored on a Square customer at signup and nothing is charged.
+  -- The subscription is created only when the application is approved, so an
+  -- application that is denied has never been billed and there is nothing to
+  -- refund, only a card on file to delete.
+  square_customer_id     text,
+  square_card_id         text,
+  square_subscription_id text,
+  subscription_status    text,
+  monthly_amount_cents   integer,
+  subscription_started_at        timestamptz,
+  -- Paid through this date. A cancellation takes effect here, never before.
+  subscription_period_end        date,
+  subscription_canceled_at       timestamptz,
+  -- Cancelled by the admin but still inside a paid period. The vendor keeps
+  -- the spot until subscription_period_end and is not refunded a part month.
+  subscription_cancel_at_period_end boolean not null default false,
+  -- Consecutive failed charges. Reset to zero by a successful one.
+  failed_payment_count   integer     not null default 0,
+  last_invoice_status    text,
+  last_invoice_at        timestamptz,
+  -- The separate tick box for the recurring charge, kept apart from the
+  -- agreement box on purpose so consent to being billed every month is its own
+  -- recorded act rather than a side effect of accepting the terms.
+  recurring_acknowledged boolean     not null default false,
+
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now(),
 
   constraint vendor_applications_spot_type_check
     check (spot_type in ('booth', 'truck', 'free')),
+
+  constraint vendor_applications_booking_kind_check
+    check (booking_kind in ('event', 'day', 'monthly')),
+
+  -- Each kind carries exactly the scheduling column that means something for
+  -- it. Without this a 'day' row with no date, or an 'event' row with one,
+  -- would sit in the table looking valid and break every count that reads it.
+  constraint vendor_applications_booking_shape_check
+    check (
+      (booking_kind = 'event'   and event_slug is not null and booking_date is null)
+      or (booking_kind = 'day'     and booking_date is not null)
+      or (booking_kind = 'monthly' and booking_date is null)
+    ),
+
+  constraint vendor_applications_subscription_status_check
+    check (
+      subscription_status is null
+      or subscription_status in ('pending', 'active', 'past_due', 'canceled', 'paused')
+    ),
+
+  constraint vendor_applications_failed_payment_check
+    check (failed_payment_count >= 0),
 
   constraint vendor_applications_payment_status_check
     check (payment_status in ('unpaid', 'paid', 'not_required', 'expired', 'refunded')),
@@ -278,6 +345,89 @@ comment on column public.vendor_applications.denial_reason is
 comment on column public.vendor_applications.refund_error is
   'Set when the automatic refund failed. The denial stands and the spot is freed regardless; this is the flag to go and refund by hand in Square.';
 
+-- Daily and monthly bookings. Added with the recurring spot work. Everything
+-- that already existed was an event booking, which is what the default says,
+-- so nothing needs backfilling beyond dropping the not null on event_slug.
+alter table public.vendor_applications add column if not exists booking_kind text not null default 'event';
+alter table public.vendor_applications add column if not exists booking_date date;
+alter table public.vendor_applications add column if not exists square_customer_id     text;
+alter table public.vendor_applications add column if not exists square_card_id         text;
+alter table public.vendor_applications add column if not exists square_subscription_id text;
+alter table public.vendor_applications add column if not exists subscription_status    text;
+alter table public.vendor_applications add column if not exists monthly_amount_cents   integer;
+alter table public.vendor_applications add column if not exists subscription_started_at timestamptz;
+alter table public.vendor_applications add column if not exists subscription_period_end date;
+alter table public.vendor_applications add column if not exists subscription_canceled_at timestamptz;
+alter table public.vendor_applications add column if not exists subscription_cancel_at_period_end boolean not null default false;
+alter table public.vendor_applications add column if not exists failed_payment_count   integer not null default 0;
+alter table public.vendor_applications add column if not exists last_invoice_status    text;
+alter table public.vendor_applications add column if not exists last_invoice_at        timestamptz;
+alter table public.vendor_applications add column if not exists recurring_acknowledged boolean not null default false;
+
+alter table public.vendor_applications alter column event_slug drop not null;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'vendor_applications_booking_kind_check'
+  ) then
+    alter table public.vendor_applications
+      add constraint vendor_applications_booking_kind_check
+      check (booking_kind in ('event', 'day', 'monthly'));
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint where conname = 'vendor_applications_booking_shape_check'
+  ) then
+    alter table public.vendor_applications
+      add constraint vendor_applications_booking_shape_check
+      check (
+        (booking_kind = 'event'   and event_slug is not null and booking_date is null)
+        or (booking_kind = 'day'     and booking_date is not null)
+        or (booking_kind = 'monthly' and booking_date is null)
+      );
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint where conname = 'vendor_applications_subscription_status_check'
+  ) then
+    alter table public.vendor_applications
+      add constraint vendor_applications_subscription_status_check
+      check (
+        subscription_status is null
+        or subscription_status in ('pending', 'active', 'past_due', 'canceled', 'paused')
+      );
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint where conname = 'vendor_applications_failed_payment_check'
+  ) then
+    alter table public.vendor_applications
+      add constraint vendor_applications_failed_payment_check
+      check (failed_payment_count >= 0);
+  end if;
+end $$;
+
+comment on column public.vendor_applications.booking_kind is
+  'event, day or monthly. An event booking carries event_slug, a day booking carries booking_date, a monthly one carries neither and runs until its subscription is cancelled.';
+comment on column public.vendor_applications.square_card_id is
+  'Card stored on file at signup. Nothing is charged then: the subscription is created only on approval, so a denied monthly application has never been billed and the card is simply deleted.';
+comment on column public.vendor_applications.subscription_period_end is
+  'Paid through this date. A cancellation takes effect here and never mid period, and no part month is refunded.';
+
+-- The daily calendar and the monthly roster are both hot reads.
+create index if not exists vendor_applications_booking_day_idx
+  on public.vendor_applications (booking_date, spot_type, payment_status)
+  where booking_kind = 'day';
+
+create index if not exists vendor_applications_monthly_idx
+  on public.vendor_applications (subscription_status, created_at desc)
+  where booking_kind = 'monthly';
+
+create unique index if not exists vendor_applications_subscription_key
+  on public.vendor_applications (square_subscription_id)
+  where square_subscription_id is not null;
+
 -- Upload columns were added after the first release.
 alter table public.vendor_applications add column if not exists logo_path    text;
 alter table public.vendor_applications add column if not exists photo_paths  text[] not null default '{}';
@@ -340,6 +490,53 @@ create index if not exists vendor_applications_payment_link_idx
   on public.vendor_applications (square_payment_link_id)
   where square_payment_link_id is not null;
 
+-- ------------------------------------------------------ day availability ---
+-- Coyoteville is open seven days a week, event or not, so a vendor can book any
+-- ordinary day. That means the calendar has to be able to say no.
+--
+-- This table holds exceptions only. A day with no row here is open at the house
+-- capacity, which is where the great majority of the year sits, so writing a
+-- row per day for years ahead would be a table full of nothing. Put a row in to
+-- close a day, or to give it a capacity that is not the usual one.
+--
+-- Event days are not managed here. They come out of the events table and are
+-- excluded from daily booking entirely, because a vendor wanting an event date
+-- should be going through the event signup where the deadline and the waitlist
+-- apply.
+
+create table if not exists public.day_availability (
+  day             date primary key,
+  is_open         boolean not null default true,
+  -- Null means "use the house number". Zero is a real answer meaning none of
+  -- that type is offered on this day, which is not the same thing.
+  booth_capacity  integer,
+  truck_capacity  integer,
+  -- Shown to the admin in the tracker, never to a vendor.
+  note            text,
+
+  created_at      timestamptz not null default now(),
+  updated_at      timestamptz not null default now(),
+
+  constraint day_availability_booth_capacity_check
+    check (booth_capacity is null or booth_capacity >= 0),
+  constraint day_availability_truck_capacity_check
+    check (truck_capacity is null or truck_capacity >= 0)
+);
+
+comment on table public.day_availability is
+  'Exceptions to the ordinary open day. A day with no row is open at the house capacity; add a row to close a day or to change its capacity.';
+comment on column public.day_availability.is_open is
+  'False closes the day to daily bookings entirely. The calendar greys it out and the API refuses it.';
+comment on column public.day_availability.booth_capacity is
+  'Null means use the house booth number. Zero means no booths that day, which is a different statement.';
+
+create index if not exists day_availability_open_idx
+  on public.day_availability (day)
+  where is_open is false;
+
+-- Its updated_at trigger is created further down, with the others, because
+-- touch_updated_at() is not defined until after this point in the file.
+
 -- ----------------------------------------------------------- subscribers ---
 
 create table if not exists public.subscribers (
@@ -385,6 +582,11 @@ create trigger vendor_applications_touch_updated_at
 drop trigger if exists subscribers_touch_updated_at on public.subscribers;
 create trigger subscribers_touch_updated_at
   before update on public.subscribers
+  for each row execute function public.touch_updated_at();
+
+drop trigger if exists day_availability_touch_updated_at on public.day_availability;
+create trigger day_availability_touch_updated_at
+  before update on public.day_availability
   for each row execute function public.touch_updated_at();
 
 -- ------------------------------------------------------------ run sheet ---
@@ -552,11 +754,13 @@ alter table public.events              enable row level security;
 alter table public.vendor_applications enable row level security;
 alter table public.subscribers         enable row level security;
 alter table public.waitlist            enable row level security;
+alter table public.day_availability    enable row level security;
 
 alter table public.events              force row level security;
 alter table public.vendor_applications force row level security;
 alter table public.subscribers         force row level security;
 alter table public.waitlist            force row level security;
+alter table public.day_availability    force row level security;
 
 -- Published events are the only thing safe to read publicly, and only if you
 -- decide to fetch them from the browser later. Drop this policy if you would
@@ -576,6 +780,10 @@ revoke all on public.vendor_applications from anon, authenticated;
 revoke all on public.subscribers         from anon, authenticated;
 revoke all on public.waitlist            from anon, authenticated;
 revoke all on public.event_roster        from anon, authenticated;
+-- Availability is read through the server like everything else. The calendar
+-- picker fetches it from a route handler, not from the browser with the anon
+-- key, so it needs no policy of its own.
+revoke all on public.day_availability    from anon, authenticated;
 
 -- ----------------------------------------------------------------- seed ---
 

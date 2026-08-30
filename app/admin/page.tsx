@@ -11,6 +11,8 @@ import { lastMediaSendFrom } from '@/lib/media-log';
 import { lastComposeSendFrom } from '@/lib/compose-log';
 import { getWaitlist } from '@/lib/waitlist';
 import { EVENTS, PRICING, nextEventByDate } from '@/lib/seo';
+import { formatDayLong, isDayKey } from '@/lib/booking';
+import { SCOPE_LABELS, isEventScope } from '@/lib/admin-scope';
 
 export const dynamic = 'force-dynamic';
 
@@ -95,13 +97,23 @@ export default async function AdminPage({
   /* ------------------------------------------------------------ tracker */
 
   const filters = normaliseFilters(searchParams);
+  const eventScoped = isEventScope(filters.event);
+
+  /* The waitlist and the abandoned checkout list are both keyed on an event.
+     Neither means anything under the day or monthly scopes, so they are not
+     queried at all there rather than run against a slug that matches nothing
+     and quietly return empty. */
   const [view, abandoned, waitlist] = await Promise.all([
     getAdminView(filters),
-    getAbandoned(filters.event),
-    getWaitlist(filters.event),
+    eventScoped ? getAbandoned(filters.event) : Promise.resolve([]),
+    eventScoped ? getWaitlist(filters.event) : Promise.resolve([]),
   ]);
 
   const selectedEvent = EVENTS.find((e) => e.slug === filters.event) ?? EVENTS[0];
+  // What the scope is called, for the composer's merge fields and the empty
+  // states, so neither claims to be showing an event it is not.
+  const scopeName = eventScoped ? selectedEvent.name : SCOPE_LABELS[filters.event];
+  const scopeDate = eventScoped ? selectedEvent.displayDate : '';
 
   // Vendors on this event carrying anything worth handing to whoever posts.
   // Permits are deliberately not counted: they are never sent.
@@ -137,6 +149,22 @@ export default async function AdminPage({
     paymentMethod: r.payment_method,
     amountLabel: r.amount_cents ? money(r.amount_cents) : '',
     approvalStatus: r.approval_status,
+    bookingKind: r.booking_kind,
+    bookingLabel:
+      r.booking_kind === 'day' && r.booking_date
+        ? formatDayLong(r.booking_date)
+        : r.booking_kind === 'monthly'
+          ? 'Permanent monthly spot'
+          : (EVENTS.find((e) => e.slug === r.event_slug)?.name ?? 'Event'),
+    bookingDay: r.booking_date,
+    subscriptionStatus: r.subscription_status,
+    subscriptionPeriodEnd:
+      r.subscription_period_end && isDayKey(r.subscription_period_end)
+        ? formatDayLong(r.subscription_period_end)
+        : null,
+    subscriptionCanceling: Boolean(r.subscription_cancel_at_period_end),
+    monthlyLabel: r.monthly_amount_cents ? money(r.monthly_amount_cents) : '',
+    failedPayments: r.failed_payment_count ?? 0,
     denialReason: r.denial_reason,
     refundLabel: r.refund_amount_cents ? money(r.refund_amount_cents) : '',
     refundError: r.refund_error,
@@ -165,8 +193,8 @@ export default async function AdminPage({
         waitlist={waitlist}
         counts={view.counts}
         available={view.available}
-        eventName={selectedEvent.name}
-        eventDate={selectedEvent.displayDate}
+        eventName={scopeName}
+        eventDate={scopeDate}
         eventSlug={filters.event}
         events={EVENTS.map((e) => ({ slug: e.slug, name: e.name }))}
         filters={filters}
