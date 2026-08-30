@@ -4,6 +4,7 @@ import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { NEXT_EVENT } from './seo';
 import { RELEASING_STATUSES } from './approval';
 import { getMonthlyHolders } from './days';
+import { reviewCapacity, reviewSlotsLeft } from './booking';
 
 /**
  * Live spot counts.
@@ -52,6 +53,20 @@ export type SpotLine = {
   offline: number;
   /** Null when capacity is unknown. Never negative, never above capacity. */
   remaining: number | null;
+  /**
+   * The unclamped count, which is what the review slot arithmetic runs on.
+   * `claimed` is clamped for display and would quietly hide an oversubscription
+   * from the very calculation that exists to prevent one.
+   */
+  held: number;
+  /** capacity + the buffer. Null when capacity is unknown. */
+  reviewCapacity: number | null;
+  /**
+   * How many more applications of this type will be accepted before signup
+   * shuts and sends people to the waitlist. Null when capacity is unknown, in
+   * which case nothing is capped because there is no number to cap against.
+   */
+  reviewRemaining: number | null;
 };
 
 export type SpotsSnapshot = {
@@ -71,7 +86,15 @@ export type SpotsSnapshot = {
 };
 
 function emptySnapshot(eventSlug: string): SpotsSnapshot {
-  const blank: SpotLine = { capacity: null, claimed: 0, offline: 0, remaining: null };
+  const blank: SpotLine = {
+    capacity: null,
+    claimed: 0,
+    offline: 0,
+    remaining: null,
+    held: 0,
+    reviewCapacity: null,
+    reviewRemaining: null,
+  };
   return {
     eventSlug,
     available: false,
@@ -94,6 +117,9 @@ function line(capacity: number | null, website: number, offline: number): SpotLi
     claimed: capacity === null ? total : Math.min(total, capacity),
     offline: offlineCount,
     remaining: capacity === null ? null : Math.max(0, capacity - total),
+    held: total,
+    reviewCapacity: capacity === null ? null : reviewCapacity(capacity),
+    reviewRemaining: capacity === null ? null : reviewSlotsLeft(capacity, total),
   };
 }
 
@@ -262,6 +288,22 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
         claimed: totalClaimed,
         offline: booth.offline + truck.offline,
         remaining: totalCapacity === null ? null : Math.max(0, totalCapacity - totalClaimed),
+        held: booth.held + truck.held,
+        /* The two per type caps added together, not the buffer applied once to
+           the combined capacity. The buffer is per type per date, so a lot with
+           twenty booths and fourteen trucks has two separate five slot queues
+           and not one of five. */
+        reviewCapacity:
+          booth.reviewCapacity === null && truck.reviewCapacity === null
+            ? null
+            : (booth.reviewCapacity ?? 0) + (truck.reviewCapacity ?? 0),
+        /* The pair, not the sum against a combined cap. A vendor is refused on
+           the type they asked for, so an event with booths spare and no truck
+           room has slots left and is not full. */
+        reviewRemaining:
+          booth.reviewRemaining === null && truck.reviewRemaining === null
+            ? null
+            : (booth.reviewRemaining ?? 0) + (truck.reviewRemaining ?? 0),
         percent:
           totalCapacity && totalCapacity > 0
             ? Math.min(100, Math.round((totalClaimed / totalCapacity) * 100))
@@ -292,6 +334,30 @@ export const getSpots = cache(
     return value;
   }
 );
+
+/**
+ * Whether one more application of a type will be accepted for an event.
+ *
+ * Per type, because a vendor is refused on the type they asked for. An event
+ * with booths spare and no truck room is open to one and shut to the other,
+ * and refusing both would send away business we have space for.
+ *
+ * Free organisation spots consume no booth or truck capacity, so nothing caps
+ * them here, the same rule the meter follows.
+ */
+export function reviewSlotFor(
+  spots: SpotsSnapshot,
+  spotType: string
+): { open: boolean; remaining: number | null } {
+  if (spotType === 'free') return { open: true, remaining: null };
+
+  const line = spotType === 'truck' ? spots.truck : spots.booth;
+
+  // No capacity set means no number to cap against, so nothing is refused.
+  if (line.reviewRemaining === null) return { open: true, remaining: null };
+
+  return { open: line.reviewRemaining > 0, remaining: line.reviewRemaining };
+}
 
 /** Drop the cached snapshot, so an admin edit shows up immediately. */
 export function invalidateSpots(eventSlug?: string): void {

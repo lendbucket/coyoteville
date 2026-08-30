@@ -73,6 +73,20 @@ export type AdminView = {
   counts: { total: number; paid: number; unpaid: number; pending: number };
   /** Event wide, never the filtered slice. Null when the read failed. */
   revenue: RevenueSummary | null;
+  /**
+   * How much more the queue will take before signup shuts and sends people to
+   * the waitlist, per spot type.
+   *
+   * Null under the day and monthly scopes, where the number is per date rather
+   * than per event and belongs on the calendar instead. Also null when no
+   * capacity is set, because there is then nothing to cap against.
+   */
+  reviewSlots: ReviewSlots | null;
+};
+
+export type ReviewSlots = {
+  booth: { remaining: number; capacity: number; held: number };
+  truck: { remaining: number; capacity: number; held: number };
 };
 
 const EMPTY_COUNTS = { total: 0, paid: 0, unpaid: 0, pending: 0 };
@@ -167,7 +181,13 @@ function scopeFilter(scope: string): { column: string; value: string } {
  */
 export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
   if (!isSupabaseConfigured()) {
-    return { available: false, rows: [], counts: { ...EMPTY_COUNTS }, revenue: null };
+    return {
+      available: false,
+      rows: [],
+      counts: { ...EMPTY_COUNTS },
+      revenue: null,
+      reviewSlots: null,
+    };
   }
 
   try {
@@ -238,10 +258,33 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
         truck: spots.truck.capacity,
         booth: spots.booth.capacity,
       }),
+      reviewSlots:
+        isEventScope(filters.event) &&
+        spots.booth.reviewCapacity !== null &&
+        spots.truck.reviewCapacity !== null
+          ? {
+              booth: {
+                remaining: spots.booth.reviewRemaining ?? 0,
+                capacity: spots.booth.reviewCapacity,
+                held: spots.booth.held,
+              },
+              truck: {
+                remaining: spots.truck.reviewRemaining ?? 0,
+                capacity: spots.truck.reviewCapacity,
+                held: spots.truck.held,
+              },
+            }
+          : null,
     };
   } catch (err) {
     console.error('admin view failed', err);
-    return { available: false, rows: [], counts: { ...EMPTY_COUNTS }, revenue: null };
+    return {
+      available: false,
+      rows: [],
+      counts: { ...EMPTY_COUNTS },
+      revenue: null,
+      reviewSlots: null,
+    };
   }
 }
 

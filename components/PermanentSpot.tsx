@@ -1,6 +1,5 @@
 import StringLights from './StringLights';
 import { MONTHLY_PRICING } from '@/lib/booking';
-import { PRICING } from '@/lib/seo';
 
 /**
  * The permanent monthly spot.
@@ -11,11 +10,12 @@ import { PRICING } from '@/lib/seo';
  * and a link" is checkable. "Maximum exposure" is not, and it is the kind of
  * line that makes a local business stop believing the rest of the page.
  *
- * The maths is on the page on purpose. A truck at $600 is twelve nights at the
- * ordinary rate, and there are far more than twelve nights in a month, so
- * anybody who turns up regularly is better off. Saying so is more persuasive
- * than any amount of describing the value, and it is the argument the owner
- * would make standing in the lot.
+ * The price is flat and is deliberately NOT sold as a discount on the daily
+ * rate. Doing the break even arithmetic on the page invites a vendor to work
+ * out whether they turn up often enough to win, which frames the whole thing as
+ * a gamble on their own attendance and makes the low volume vendor feel like
+ * they are being caught out. What they are actually buying is a space nobody
+ * else can take and their name in front of the town every day. Sell that.
  */
 
 const BENEFITS: { title: string; body: string }[] = [
@@ -71,16 +71,16 @@ export default function PermanentSpot({ id = 'permanent' }: { id?: string }) {
             <span className="permanent__amount">{MONTHLY_PRICING.truck.price}</span>
             <span className="permanent__per">a month, food truck</span>
             <span className="permanent__maths">
-              Twelve nights at {PRICING.truck.price} and you have covered it. There are a lot more
-              than twelve nights in a month.
+              Flat. Every day we are open, every event that month, and your business promoted
+              daily.
             </span>
           </div>
           <div className="permanent__price">
             <span className="permanent__amount">{MONTHLY_PRICING.booth.price}</span>
             <span className="permanent__per">a month, vendor booth</span>
             <span className="permanent__maths">
-              Fourteen days at {PRICING.booth.price} and you are even. Everything after that is
-              yours.
+              Flat. The same space held for you, the same promotion, the same first pick of the
+              lot.
             </span>
           </div>
         </div>

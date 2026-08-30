@@ -41,11 +41,17 @@ export default function AdminCalendar({
   bookings,
   monthly,
   onOpen,
+  slots,
 }: {
   bookings: CalendarBooking[];
   /** Permanent vendors, who are on every one of these days by definition. */
   monthly: CalendarMonthly[];
   onOpen: (id: string) => void;
+  /**
+   * Review slots left per day. Null outside the day scope, where the numbers
+   * would be measured against a different date to the one being listed.
+   */
+  slots: Record<string, { boothLeft: number; truckLeft: number }> | null;
 }) {
   const [showPast, setShowPast] = useState(false);
 
@@ -104,6 +110,25 @@ export default function AdminCalendar({
                   {list.length} {list.length === 1 ? 'vendor' : 'vendors'}
                 </span>
               </p>
+
+              {/* How much more this date will take before signup shuts on it.
+                  Beside the day rather than in a panel of its own, because the
+                  question it answers is about this day and gets asked while
+                  looking at who is already on it. */}
+              {slots?.[day] ? (
+                <p className="acal__slots">
+                  <span className={slots[day].boothLeft === 0 ? 'is-shut' : ''}>
+                    {slots[day].boothLeft === 0
+                      ? 'Booths shut'
+                      : `${slots[day].boothLeft} booth ${slots[day].boothLeft === 1 ? 'slot' : 'slots'}`}
+                  </span>
+                  <span className={slots[day].truckLeft === 0 ? 'is-shut' : ''}>
+                    {slots[day].truckLeft === 0
+                      ? 'Trucks shut'
+                      : `${slots[day].truckLeft} truck ${slots[day].truckLeft === 1 ? 'slot' : 'slots'}`}
+                  </span>
+                </p>
+              ) : null}
 
               <ul className="acal__vendors">
                 {list.map((booking) => (

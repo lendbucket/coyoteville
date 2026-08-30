@@ -26,7 +26,7 @@ import {
   validateUpload,
   type ValidatedUpload,
 } from '@/lib/uploads';
-import { invalidateSpots } from '@/lib/spots';
+import { getSpots, invalidateSpots, reviewSlotFor } from '@/lib/spots';
 import { notifyPaymentReceived, notifyRegistrationStarted } from '@/lib/notify';
 
 export const runtime = 'nodejs';
@@ -53,14 +53,14 @@ type Stage =
   | 'parse'
   | 'validation'
   | 'deadline'
-  /** Every booth and truck spot for the event was already claimed. */
+  /** No review slots left for the type asked for, so intake has shut. */
   | 'full'
   | 'upload-validation'
   | 'db-config'
   | 'db-insert'
   | 'upload-storage'
   | 'upload-record'
-  /** A day that is closed, past, an event date, or out of room. */
+  /** A day that is closed, past, an event date, or out of review slots. */
   | 'day-unavailable'
   /** Monthly signup reached with no Square plan variations configured. */
   | 'subscription-config'
@@ -79,7 +79,7 @@ function dayRefusal(status: DayStatus): string {
     case 'closed':
       return `We are closed on ${formatDayLong(status.day)}. Pick another date.`;
     case 'full':
-      return `${formatDayLong(status.day)} is fully booked. Pick another date.`;
+      return `We have taken all the applications we can review for ${formatDayLong(status.day)}. Pick another date.`;
     default:
       return 'That date is not available. Pick another one.';
   }
@@ -453,6 +453,21 @@ export async function POST(request: Request) {
         409
       );
     }
+
+    /* Per type, because the event as a whole having room says nothing about the
+       type this vendor asked for. Booths can be taking applications while the
+       trucks are done, and refusing both would send away business there is
+       space for. This is the gate that stops a payment being taken for a queue
+       that is already deeper than it is worth reviewing. */
+    const slot = reviewSlotFor(await getSpots(event.slug), value.spot_type);
+    if (!slot.open) {
+      logFailure('full', { eventSlug: event.slug, spotType: value.spot_type, reason: 'no review slots' });
+      return bad(
+        `We have taken all the ${value.spot_type === 'truck' ? 'food truck' : 'booth'} applications we can review for ${event.name}. Join the waitlist and we will contact you if a spot opens.`,
+        409
+      );
+    }
+
     bookingLabel = event.name;
   } else if (value.booking_kind === 'day') {
     const day = value.booking_date as string;
@@ -463,9 +478,9 @@ export async function POST(request: Request) {
       return bad(dayRefusal(status), 409);
     }
     if (!canBook(status, value.spot_type)) {
-      logFailure('day-unavailable', { day, reason: 'type full', spotType: value.spot_type });
+      logFailure('day-unavailable', { day, reason: 'no review slots', spotType: value.spot_type });
       return bad(
-        `${formatDayLong(day)} has no ${value.spot_type === 'truck' ? 'truck' : 'booth'} spots left. Pick another date.`,
+        `We have taken all the ${value.spot_type === 'truck' ? 'food truck' : 'booth'} applications we can review for ${formatDayLong(day)}. Pick another date, or email us to go on the list for this one.`,
         409
       );
     }

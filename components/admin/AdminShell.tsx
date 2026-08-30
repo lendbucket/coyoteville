@@ -12,6 +12,7 @@ import VendorSheet from './VendorSheet';
 import Composer from './Composer';
 import { FILTERS, matchesFilter, matchesQuery, type FilterKey, type VendorCardRow } from './types';
 import type { RevenueSummary } from '@/lib/revenue';
+import type { ReviewSlots } from '@/lib/admin-data';
 import type { WaitlistEntry } from '@/lib/waitlist';
 import { DAY_SCOPE, MONTHLY_SCOPE, SCOPE_LABELS } from '@/lib/admin-scope';
 
@@ -77,6 +78,8 @@ export default function AdminShell({
   waitlist,
   abandoned,
   counts,
+  reviewSlots,
+  dayStatuses,
   eventName,
   eventDate,
   eventSlug,
@@ -92,6 +95,10 @@ export default function AdminShell({
   waitlist: WaitlistEntry[];
   abandoned: React.ComponentProps<typeof AdminAbandoned>['rows'];
   counts: { total: number; paid: number; unpaid: number; pending: number };
+  /** Null under the day and monthly scopes, and when no capacity is set. */
+  reviewSlots: ReviewSlots | null;
+  /** Review slots per day, keyed by date. Only loaded under the day scope. */
+  dayStatuses: Record<string, { boothLeft: number; truckLeft: number }> | null;
   eventName: string;
   eventDate: string;
   eventSlug: string;
@@ -235,6 +242,33 @@ export default function AdminShell({
             </span>
           </button>
         ) : null}
+
+        {/* How much more the queue will take before signup shuts. Two numbers
+            because they run out separately: booths can still be open while the
+            trucks are done. Shown whether or not anything is pending, since
+            "nothing waiting and no room left to take any" is a different state
+            from "nothing waiting" and the difference decides whether to go
+            looking for vendors. */}
+        {reviewSlots ? (
+          <ul className="ash__slots" aria-label="Review slots left">
+            {(
+              [
+                ['Booths', reviewSlots.booth],
+                ['Trucks', reviewSlots.truck],
+              ] as const
+            ).map(([label, line]) => (
+              <li key={label} className={line.remaining === 0 ? 'is-shut' : ''}>
+                <b>{line.remaining}</b>
+                <span>
+                  {label} · {line.remaining === 0 ? 'signup shut' : 'review slots left'}
+                </span>
+                <i>
+                  {line.held} of {line.capacity} taken
+                </i>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </header>
 
       {/* -------------------------------------------------------- vendors */}
@@ -374,6 +408,7 @@ export default function AdminShell({
               subscriptionStatus: r.subscriptionStatus,
             }))}
           onOpen={setOpenId}
+          slots={dayStatuses}
         />
         <p className="hint ash__calhint">
           Showing the scope picked above. Switch it to <b>Daily bookings</b> to see every day at

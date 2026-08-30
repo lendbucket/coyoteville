@@ -33,19 +33,27 @@ export type DayCell = {
   reason: string | null;
   eventName: string | null;
   eventSlug: string | null;
-  boothRemaining: number;
-  truckRemaining: number;
+  /** Still taking booth applications for this date. */
+  boothOpen: boolean;
+  /** Still taking food truck applications for this date. */
+  truckOpen: boolean;
 };
 
 type MonthData = { days: DayCell[]; loading: boolean; error: string | null };
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-/** Whether this spot type in particular can go on this day. */
+/**
+ * Whether this spot type in particular can go on this day.
+ *
+ * The server sends a boolean per type rather than a count, because the count
+ * that matters is review slots and not spaces, and a vendor has no use for
+ * either number: the question is whether this date takes their application.
+ */
 function openForSpot(cell: DayCell, spot: string): boolean {
   if (!cell.bookable) return false;
-  if (spot === 'truck') return cell.truckRemaining > 0;
-  if (spot === 'booth') return cell.boothRemaining > 0;
+  if (spot === 'truck') return cell.truckOpen;
+  if (spot === 'booth') return cell.boothOpen;
   // Free organisation spots do not consume booth or truck capacity.
   return true;
 }
@@ -56,7 +64,7 @@ function shortReason(cell: DayCell, spot: string): string {
   if (cell.reason === 'full') return 'Full';
   if (cell.reason === 'past') return 'Past';
   if (cell.reason === 'beyond-horizon') return 'Too far out';
-  if (!openForSpot(cell, spot)) return spot === 'truck' ? 'No truck room' : 'No booth room';
+  if (!openForSpot(cell, spot)) return spot === 'truck' ? 'Trucks shut' : 'Booths shut';
   return '';
 }
 

@@ -4912,6 +4912,82 @@ p {
   font-weight: 700;
 }
 
+/* How deep the queue can still get, per type. Two tiles rather than a sentence,
+   because it is read at a glance and the two numbers run out separately. */
+.ash__slots {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin: 0.7rem 0 0;
+  padding: 0;
+}
+
+.ash__slots li {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  background: rgba(243, 238, 229, 0.04);
+}
+
+.ash__slots b {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--cream);
+}
+
+.ash__slots span {
+  font-family: var(--font-condensed);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tan);
+}
+
+.ash__slots i {
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--dust);
+}
+
+/* Nothing more is being taken for this type, which is a state worth seeing
+   from across the lot rather than reading. */
+.ash__slots li.is-shut {
+  border-color: rgba(196, 85, 43, 0.55);
+  background: rgba(196, 85, 43, 0.12);
+}
+
+.ash__slots li.is-shut b,
+.ash__slots li.is-shut span {
+  color: #ffcdb6;
+}
+
+.acal__slots {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin: -0.3rem 0 0.6rem;
+}
+
+.acal__slots span {
+  padding: 0.12rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(243, 238, 229, 0.07);
+  font-family: var(--font-condensed);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tan);
+}
+
+.acal__slots span.is-shut {
+  background: rgba(196, 85, 43, 0.18);
+  color: #ffcdb6;
+}
+
 /* An ember edge on the card itself, so the queue is findable by eye when the
    list is scrolled past the chips. */
 .vcard--review {

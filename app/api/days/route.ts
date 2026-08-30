@@ -54,14 +54,20 @@ export async function GET(request: Request) {
     from,
     to,
     horizon,
+    /* Whether each type is still being taken, not how many spaces are left.
+       Those are different numbers, because intake runs a small buffer past
+       capacity so the review queue has something to choose between, and the
+       picker's only question is whether this date can be submitted. Publishing
+       the count would also tell anybody who asked exactly how full each date
+       is, which is the admin's business and not a vendor's. */
     days: days.map((d) => ({
       day: d.day,
       bookable: d.bookable,
       reason: d.reason,
       eventName: d.eventName,
       eventSlug: d.eventSlug,
-      boothRemaining: d.booth.remaining,
-      truckRemaining: d.truck.remaining,
+      boothOpen: d.bookable && d.booth.reviewRemaining > 0,
+      truckOpen: d.bookable && d.truck.reviewRemaining > 0,
     })),
   });
 }

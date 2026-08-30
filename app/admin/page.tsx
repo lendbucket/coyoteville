@@ -12,7 +12,8 @@ import { lastComposeSendFrom } from '@/lib/compose-log';
 import { getWaitlist } from '@/lib/waitlist';
 import { EVENTS, PRICING, nextEventByDate } from '@/lib/seo';
 import { formatDayLong, isDayKey } from '@/lib/booking';
-import { SCOPE_LABELS, isEventScope } from '@/lib/admin-scope';
+import { DAY_SCOPE, SCOPE_LABELS, isEventScope } from '@/lib/admin-scope';
+import { bookingWindow, getDayStatuses } from '@/lib/days';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,6 +110,26 @@ export default async function AdminPage({
     eventScoped ? getWaitlist(filters.event) : Promise.resolve([]),
   ]);
 
+  /* Review slots per day, for the calendar. Only loaded under the day scope:
+     it is two more queries across the whole booking window, and under an event
+     or monthly scope the calendar is not the panel being used. */
+  const dayStatuses = eventScoped
+    ? null
+    : filters.event === DAY_SCOPE
+      ? await (async () => {
+          const window = bookingWindow();
+          const statuses = await getDayStatuses(window.from, window.to);
+          const map: Record<string, { boothLeft: number; truckLeft: number }> = {};
+          for (const status of statuses) {
+            map[status.day] = {
+              boothLeft: status.booth.reviewRemaining,
+              truckLeft: status.truck.reviewRemaining,
+            };
+          }
+          return map;
+        })()
+      : null;
+
   const selectedEvent = EVENTS.find((e) => e.slug === filters.event) ?? EVENTS[0];
   // What the scope is called, for the composer's merge fields and the empty
   // states, so neither claims to be showing an event it is not.
@@ -192,6 +213,8 @@ export default async function AdminPage({
         revenue={view.revenue}
         waitlist={waitlist}
         counts={view.counts}
+        reviewSlots={view.reviewSlots}
+        dayStatuses={dayStatuses}
         available={view.available}
         eventName={scopeName}
         eventDate={scopeDate}

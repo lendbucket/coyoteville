@@ -51,15 +51,57 @@ export const DAY_CAPACITY = {
  */
 export const DAY_BOOKING_HORIZON_DAYS = 120;
 
+/* --------------------------------------------------------- review slots */
+
+/**
+ * How far past capacity applications are accepted before signup shuts.
+ *
+ * Two different limits are at work and they are not the same number:
+ *
+ *   Capacity is how many vendors can be APPROVED. It is the physical lot and
+ *   nothing changes it. The spots meter counts a paid but unreviewed
+ *   application against it, so the queue can never be approved past the room
+ *   that exists.
+ *
+ *   Review slots are how many applications are TAKEN. Stopping intake dead on
+ *   capacity would mean the first twenty booths through the door are the
+ *   twenty that get in, which is a queue with no choice in it, and the whole
+ *   point of reviewing is choosing. A small buffer means there is something to
+ *   choose between without the queue turning into a pile nobody can work
+ *   through, and without taking money from far more people than can be
+ *   accommodated and refunding most of it.
+ *
+ * Five per spot type per day is deliberately small for that second reason.
+ */
+export const PENDING_REVIEW_BUFFER = 5;
+
+/** How many applications of one type are accepted for one date. */
+export function reviewCapacity(capacity: number): number {
+  return Math.max(0, capacity) + PENDING_REVIEW_BUFFER;
+}
+
+/**
+ * Review slots left for one spot type on one date.
+ *
+ * `held` is pending plus approved: everything sitting in the queue or already
+ * through it. Denied and cancelled rows are not held and are not counted, which
+ * is what makes a denial free a review slot at the same instant it frees the
+ * spot.
+ */
+export function reviewSlotsLeft(capacity: number, held: number): number {
+  return Math.max(0, reviewCapacity(capacity) - Math.max(0, held));
+}
+
 /* -------------------------------------------------------------- monthly */
 
 /**
  * The permanent spot.
  *
- * Priced per month, not per day. A truck at $600 works out well under the daily
- * rate if they turn up even half the month, which is the argument the promo
- * section makes, and it is stated in the same place the fee is defined so the
- * two cannot drift.
+ * A flat monthly fee, set on its own terms and never derived from the daily
+ * rate. It is not a bulk discount and must not be sold as one: what it buys is
+ * a space nobody else can take, inclusion in every event that month, and daily
+ * promotion, none of which a vendor can get by booking days one at a time at
+ * any price.
  */
 export const MONTHLY_PRICING = {
   booth: { cents: 35000, price: '$350', label: 'Permanent Booth' },

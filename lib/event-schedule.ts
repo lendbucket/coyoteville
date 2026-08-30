@@ -140,7 +140,17 @@ async function decorate(event: EventConfig, row: EventRow | undefined, now: numb
 
   const spots = await getSpots(event.slug);
   const remaining = spots.capacityKnown ? spots.total.remaining : null;
-  const isFull = remaining === null ? null : remaining <= 0;
+
+  /* Full means no more applications are being taken, which is not the same as
+     no spots left. Intake runs a few past capacity so the review queue has
+     something to choose between, so this is measured against the review slots
+     rather than against the physical room. The spots meter still counts against
+     capacity, so an event can honestly read as sold out while its last few
+     review slots are open, and that is the intended state: the spots really are
+     spoken for, and the applications still coming in are the ones that get a
+     look if any of those fall through. */
+  const reviewRemaining = spots.capacityKnown ? spots.total.reviewRemaining : null;
+  const isFull = reviewRemaining === null ? null : reviewRemaining <= 0;
 
   const isPublished = row?.is_published ?? true;
   const deadlinePassed = now >= signupClosesAtMs;

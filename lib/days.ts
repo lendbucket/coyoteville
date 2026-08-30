@@ -6,6 +6,8 @@ import {
   DAY_BOOKING_HORIZON_DAYS,
   DAY_CAPACITY,
   addDays,
+  reviewCapacity,
+  reviewSlotsLeft,
   todayKey,
   type DayKey,
 } from './booking';
@@ -27,6 +29,24 @@ import {
  * cancelled one releases it immediately.
  */
 
+/**
+ * One spot type on one day.
+ *
+ * `remaining` is physical room and is what the meter means. `reviewRemaining`
+ * is how many more applications will be taken, which runs a small buffer past
+ * capacity so the review queue has something to choose between. Intake is
+ * gated on the second; approving is gated on the first.
+ */
+export type DayLine = {
+  capacity: number;
+  claimed: number;
+  remaining: number;
+  /** Unclamped pending plus approved, which the slot arithmetic runs on. */
+  held: number;
+  reviewCapacity: number;
+  reviewRemaining: number;
+};
+
 export type DayStatus = {
   day: DayKey;
   /** False for a closed day, an event date, or one outside the window. */
@@ -36,8 +56,8 @@ export type DayStatus = {
   /** Set when the date is one of the calendar events, so the UI can link to it. */
   eventName: string | null;
   eventSlug: string | null;
-  booth: { capacity: number; claimed: number; remaining: number };
-  truck: { capacity: number; claimed: number; remaining: number };
+  booth: DayLine;
+  truck: DayLine;
   /** Admin only. Never rendered to a vendor. */
   note: string | null;
 };
@@ -128,6 +148,14 @@ export async function getDayStatuses(
          exist, so on a read failure every day comes back closed rather than
          optimistically open. */
       console.error('day availability read failed', err);
+      const shut: DayLine = {
+        capacity: 0,
+        claimed: 0,
+        remaining: 0,
+        held: 0,
+        reviewCapacity: 0,
+        reviewRemaining: 0,
+      };
       const closed: DayStatus[] = [];
       for (let d = from; d <= to; d = addDays(d, 1)) {
         closed.push({
@@ -136,8 +164,8 @@ export async function getDayStatuses(
           reason: 'closed',
           eventName: null,
           eventSlug: null,
-          booth: { capacity: 0, claimed: 0, remaining: 0 },
-          truck: { capacity: 0, claimed: 0, remaining: 0 },
+          booth: { ...shut },
+          truck: { ...shut },
           note: null,
         });
       }
@@ -158,15 +186,21 @@ export async function getDayStatuses(
     const boothTaken = (boothClaimed.get(day) ?? 0) + monthly.booth;
     const truckTaken = (truckClaimed.get(day) ?? 0) + monthly.truck;
 
-    const booth = {
+    const booth: DayLine = {
       capacity: boothCapacity,
       claimed: Math.min(boothTaken, boothCapacity),
       remaining: Math.max(0, boothCapacity - boothTaken),
+      held: boothTaken,
+      reviewCapacity: reviewCapacity(boothCapacity),
+      reviewRemaining: reviewSlotsLeft(boothCapacity, boothTaken),
     };
-    const truck = {
+    const truck: DayLine = {
       capacity: truckCapacity,
       claimed: Math.min(truckTaken, truckCapacity),
       remaining: Math.max(0, truckCapacity - truckTaken),
+      held: truckTaken,
+      reviewCapacity: reviewCapacity(truckCapacity),
+      reviewRemaining: reviewSlotsLeft(truckCapacity, truckTaken),
     };
 
     let reason: DayStatus['reason'] = null;
@@ -174,7 +208,10 @@ export async function getDayStatuses(
     else if (day > horizon) reason = 'beyond-horizon';
     else if (event) reason = 'event';
     else if (exception && exception.is_open === false) reason = 'closed';
-    else if (booth.remaining === 0 && truck.remaining === 0) reason = 'full';
+    /* Full means nothing more is being taken, which is not the same as no room
+       left. Intake runs a few past capacity so there is a queue to choose from,
+       so this is measured against the review slots. */
+    else if (booth.reviewRemaining === 0 && truck.reviewRemaining === 0) reason = 'full';
 
     out.push({
       day,
@@ -206,11 +243,19 @@ export async function getDayStatus(day: DayKey, now: number = Date.now()): Promi
  */
 export function canBook(status: DayStatus, spotType: string): boolean {
   if (!status.bookable) return false;
-  if (spotType === 'truck') return status.truck.remaining > 0;
-  if (spotType === 'booth') return status.booth.remaining > 0;
+  // Review slots, not physical room: intake is what this gates.
+  if (spotType === 'truck') return status.truck.reviewRemaining > 0;
+  if (spotType === 'booth') return status.booth.reviewRemaining > 0;
   // Free organisation spots do not consume booth or truck capacity, the same
   // rule the event meter follows.
   return spotType === 'free';
+}
+
+/** Review slots left for one type on one day, or null for a free spot. */
+export function reviewSlotsOn(status: DayStatus, spotType: string): number | null {
+  if (spotType === 'truck') return status.truck.reviewRemaining;
+  if (spotType === 'booth') return status.booth.reviewRemaining;
+  return null;
 }
 
 /** The window the calendar draws, as day keys. */
