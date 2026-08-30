@@ -24,11 +24,26 @@ export default function AdminRowControls({
   const [status, setStatus] = useState(approvalStatus);
   const [spot, setSpot] = useState(spotNumber ?? '');
   const [saved, setSaved] = useState<'idle' | 'ok' | 'error'>('idle');
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function save(patch: { approval_status?: string; spot_number?: string }) {
+  /**
+    * Save one field, rolling the control back if it does not land.
+    *
+    * The select and the input update before the request finishes, which is
+    * right for a tool used one handed at a gate. What was wrong was leaving
+    * them on the new value when the save failed: the row then showed a
+    * decision the database never took, and the only sign was the word
+    * "Failed". The previous value is captured here and put back, and the
+    * server's own message is shown rather than a generic one.
+    */
+  async function save(
+    patch: { approval_status?: string; spot_number?: string },
+    rollback: () => void
+  ) {
     setBusy(true);
     setSaved('idle');
+    setError(null);
 
     try {
       const res = await fetch('/api/admin/update', {
@@ -37,12 +52,23 @@ export default function AdminRowControls({
         body: JSON.stringify({ id, ...patch }),
       });
 
-      if (!res.ok) throw new Error('save failed');
+      const data = (await res.json().catch(() => null)) as
+        | { ok?: boolean; error?: string }
+        | null;
+
+      if (!res.ok || !data?.ok) {
+        rollback();
+        setSaved('error');
+        setError(data?.error ?? `That did not save (${res.status}).`);
+        return;
+      }
 
       setSaved('ok');
       startTransition(() => router.refresh());
     } catch {
+      rollback();
       setSaved('error');
+      setError('Could not reach the server. Check your connection and try again.');
     } finally {
       setBusy(false);
     }
@@ -58,8 +84,9 @@ export default function AdminRowControls({
           disabled={busy || pending}
           onChange={(e) => {
             const next = e.target.value;
+            const previous = status;
             setStatus(next);
-            save({ approval_status: next });
+            save({ approval_status: next }, () => setStatus(previous));
           }}
         >
           <option value="pending">Pending</option>
@@ -81,14 +108,24 @@ export default function AdminRowControls({
           placeholder="B-12"
           onChange={(e) => setSpot(e.target.value)}
           onBlur={() => {
-            if ((spotNumber ?? '') !== spot.trim()) save({ spot_number: spot.trim() });
+            const next = spot.trim();
+            const previous = spot;
+            if ((spotNumber ?? '') !== next) {
+              save({ spot_number: next }, () => setSpot(spotNumber ?? previous));
+            }
           }}
         />
       </label>
 
       <span className="arow__saved" role="status">
-        {busy || pending ? 'Saving…' : saved === 'ok' ? 'Saved' : saved === 'error' ? 'Failed' : ''}
+        {busy || pending ? 'Saving…' : saved === 'ok' ? 'Saved' : ''}
       </span>
+
+      {error ? (
+        <p className="arow__error" role="alert">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

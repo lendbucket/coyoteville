@@ -305,17 +305,25 @@ export default function AdminShell({
         </div>
 
         <div className="fchips" role="group" aria-label="Filter">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              className={`fchip ${filter === f.key ? 'is-on' : ''}`}
-              aria-pressed={filter === f.key}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-            </button>
-          ))}
+          {FILTERS.map((f) => {
+            /* The two chips that are a job rather than a view carry their
+               count, so the number is on screen wherever the list is. */
+            const badge =
+              f.key === 'review' ? counts.pending : f.key === 'cash' ? counts.unreconciled : 0;
+
+            return (
+              <button
+                key={f.key}
+                type="button"
+                className={`fchip ${filter === f.key ? 'is-on' : ''}`}
+                aria-pressed={filter === f.key}
+                onClick={() => setFilter(f.key)}
+              >
+                {f.label}
+                {badge > 0 ? <span className="fchip__count">{badge}</span> : null}
+              </button>
+            );
+          })}
         </div>
 
         {selectMode ? (

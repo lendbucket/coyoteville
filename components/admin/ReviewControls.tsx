@@ -24,6 +24,7 @@ export default function ReviewControls({
   businessName,
   approvalStatus,
   amountLabel,
+  amountCents,
   denialReason,
   refundLabel,
   refundError,
@@ -33,6 +34,8 @@ export default function ReviewControls({
   approvalStatus: string;
   /** The fee, already formatted. Empty for a free spot. */
   amountLabel: string;
+  /** The fee in cents, so the confirmation can state it to the penny. */
+  amountCents: number;
   denialReason: string | null;
   refundLabel: string;
   refundError: string | null;
@@ -41,6 +44,7 @@ export default function ReviewControls({
   const [refreshing, startTransition] = useTransition();
 
   const [denying, setDenying] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState<'approve' | 'deny' | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +52,14 @@ export default function ReviewControls({
 
   const pending = approvalStatus === 'pending';
   const reasonOk = reason.trim().length >= 10;
+
+  /* The refund, to the penny. amountLabel is rounded for the badge and a
+     confirmation that moves money says the exact figure. */
+  const refundDollars = `$${(Math.max(0, amountCents) / 100).toFixed(2)}`;
+  const refundSentence = amountCents
+    ? `This refunds ${refundDollars} to ${businessName} through Square and frees the spot.`
+    : `There is no fee to refund. This frees the spot and tells ${businessName} why.`;
+  const confirmLabel = amountCents ? `Yes, refund ${refundDollars}` : 'Yes, deny this application';
 
   async function decide(decision: 'approve' | 'deny') {
     if (busy) return;
@@ -90,6 +102,7 @@ export default function ReviewControls({
       }
 
       setDenying(false);
+      setConfirming(false);
       setReason('');
       startTransition(() => router.refresh());
     } catch {
@@ -172,31 +185,59 @@ export default function ReviewControls({
             minimum.
           </span>
 
-          <div className="review__row">
-            <button
-              className="btn btn--rust review__btn"
-              type="button"
-              disabled={!reasonOk || busy !== null}
-              onClick={() => decide('deny')}
-            >
-              {busy === 'deny'
-                ? 'Denying and refunding…'
-                : amountLabel
-                  ? `Deny and refund ${amountLabel}`
-                  : 'Deny this application'}
-            </button>
-            <button
-              className="btn btn--ghost review__btn"
-              type="button"
-              disabled={busy !== null}
-              onClick={() => {
-                setDenying(false);
-                setReason('');
-              }}
-            >
-              Back
-            </button>
-          </div>
+          {/* A confirmation stands between the reason and the refund, because
+              pressing Deny moves real money out of the business and there is
+              no undo for a Square refund. It states the amount to the penny
+              rather than the rounded figure on the badge. */}
+          {confirming ? (
+            <div className="review__confirm" role="alertdialog" aria-label="Confirm denial">
+              <p className="review__confirmtext">
+                {refundSentence}
+                <br />
+                {businessName} is emailed your reason word for word. This cannot be undone.
+              </p>
+              <div className="review__row">
+                <button
+                  className="btn btn--rust review__btn"
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => decide('deny')}
+                >
+                  {busy === 'deny' ? 'Denying and refunding…' : confirmLabel}
+                </button>
+                <button
+                  className="btn btn--ghost review__btn"
+                  type="button"
+                  disabled={busy !== null}
+                  onClick={() => setConfirming(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="review__row">
+              <button
+                className="btn btn--rust review__btn"
+                type="button"
+                disabled={!reasonOk || busy !== null}
+                onClick={() => setConfirming(true)}
+              >
+                {amountLabel ? `Deny and refund ${amountLabel}` : 'Deny this application'}
+              </button>
+              <button
+                className="btn btn--ghost review__btn"
+                type="button"
+                disabled={busy !== null}
+                onClick={() => {
+                  setDenying(false);
+                  setReason('');
+                }}
+              >
+                Back
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="review__row">

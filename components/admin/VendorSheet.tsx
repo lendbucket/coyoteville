@@ -140,6 +140,7 @@ export default function VendorSheet({
               businessName={row.businessName}
               approvalStatus={row.approvalStatus}
               amountLabel={row.amountLabel}
+              amountCents={row.amountCents}
               denialReason={row.denialReason}
               refundLabel={row.refundLabel}
               refundError={row.refundError}

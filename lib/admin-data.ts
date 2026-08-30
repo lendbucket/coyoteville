@@ -111,8 +111,24 @@ export type AdminView = {
 };
 
 export type ReviewSlots = {
-  booth: { remaining: number; capacity: number; held: number };
-  truck: { remaining: number; capacity: number; held: number };
+  booth: ReviewSlotLine;
+  truck: ReviewSlotLine;
+};
+
+export type ReviewSlotLine = {
+  /** Applications of this type still accepted before signup shuts. */
+  remaining: number;
+  /**
+   * Spots that exist: the plain booth_capacity or truck_capacity column.
+   *
+   * Not capacity plus the review buffer, which is what this used to carry. The
+   * buffer is how far past capacity applications keep being taken so there is
+   * something to choose between; printing it as the denominator told the admin
+   * a twenty two booth lot had twenty seven booths.
+   */
+  capacity: number;
+  /** Rows of this type not denied, plus any permanent monthly vendors. */
+  held: number;
 };
 
 const EMPTY_COUNTS = { total: 0, paid: 0, unpaid: 0, pending: 0, signed: 0, unreconciled: 0 };
@@ -309,17 +325,17 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
       }),
       reviewSlots:
         isEventScope(filters.event) &&
-        spots.booth.reviewCapacity !== null &&
-        spots.truck.reviewCapacity !== null
+        spots.booth.capacity !== null &&
+        spots.truck.capacity !== null
           ? {
               booth: {
                 remaining: spots.booth.reviewRemaining ?? 0,
-                capacity: spots.booth.reviewCapacity,
+                capacity: spots.booth.capacity,
                 held: spots.booth.held,
               },
               truck: {
                 remaining: spots.truck.reviewRemaining ?? 0,
-                capacity: spots.truck.reviewCapacity,
+                capacity: spots.truck.capacity,
                 held: spots.truck.held,
               },
             }

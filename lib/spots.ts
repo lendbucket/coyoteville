@@ -2,7 +2,6 @@ import 'server-only';
 import { cache } from 'react';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { NEXT_EVENT } from './seo';
-import { RELEASING_STATUSES } from './approval';
 import { getMonthlyHolders } from './days';
 import { reviewCapacity, reviewSlotsLeft } from './booking';
 
@@ -22,25 +21,46 @@ import { reviewCapacity, reviewSlotsLeft } from './booking';
  * before any refund has settled, because the spot is free the moment the
  * decision is made and the next vendor should be able to have it.
  *
- * On top of that, booth_claimed_offline and truck_claimed_offline on the events
- * row hold vendors who committed by phone or on Facebook rather than through
- * the form. Claimed for a type is the website count plus that number.
+ * booth_claimed_offline and truck_claimed_offline are deliberately NOT part of
+ * this. They were a manual tally of vendors who committed by phone or on
+ * Facebook, added on top of the row count, and every offline vendor who then
+ * registered through the prepaid link both inserted a row and decremented the
+ * tally. The two halves of that only stayed in step by hand, and they did not:
+ * the meter was counting the same vendors twice. Taken is the rows, and only
+ * the rows.
  *
- * IMPORTANT: decrement the offline count when one of those vendors later
- * registers through the site. Their application starts counting on its own at
- * that point, and leaving the offline number alone counts them twice and shows
- * the event fuller than it is.
- *
- * Capacity comes from booth_capacity and truck_capacity. If neither is set the
- * snapshot reports capacityKnown false and the UI shows a count with no
- * percentage, rather than inventing a denominator.
+ * Capacity comes from booth_capacity and truck_capacity, plainly. Not capacity
+ * plus the review buffer: the buffer decides how many applications are accepted
+ * before signup shuts, which is a different question from how many spots exist,
+ * and showing it as the denominator told the admin the lot was bigger than it
+ * is. If neither capacity is set the snapshot reports capacityKnown false and
+ * the UI shows a count with no percentage rather than inventing a denominator.
  */
 
-/** Payment states that mean the spot is actually held. */
-const CLAIMED_STATES = ['paid', 'not_required'] as const;
+/**
+ * The one decision that hands a spot back.
+ *
+ * Everything else counts, including a row still waiting on review and a row
+ * whose checkout was never finished. A spot is taken until it is refused.
+ *
+ * Named rather than inlined because it is the whole capacity rule: widening or
+ * narrowing what releases a spot is a one line change here and nowhere else.
+ */
+const RELEASES_SPOT = 'denied';
 
-/** Decisions that hand the spot back, whatever the payment status says. */
-const RELEASED_STATES = RELEASING_STATUSES;
+/**
+ * Whether a free Alice organisation spot consumes a booth.
+ *
+ * It does. An org sets up in a booth footprint, so a lot with twenty two booths
+ * and two orgs has twenty left to sell. Counting them separately made the meter
+ * offer room that is physically occupied, which is the one failure this meter
+ * exists to prevent.
+ *
+ * They are still reported on their own as freeClaimed, so the split is visible
+ * and this is one constant to flip if the orgs turn out to stand somewhere that
+ * is not a booth.
+ */
+const FREE_CONSUMES_BOOTH = true;
 
 export type SpotLine = {
   capacity: number | null;
@@ -49,7 +69,11 @@ export type SpotLine = {
    * page never reads "22 of 20 claimed" when an offline number is stale.
    */
   claimed: number;
-  /** The offline portion of the claimed figure, for reconciling the numbers. */
+  /**
+   * The part of the claimed figure that is not this event's own rows: the
+   * permanent monthly vendors. Kept separate so the meter can be reconciled
+   * against a plain count of the event's applications.
+   */
   offline: number;
   /** Null when capacity is unknown. Never negative, never above capacity. */
   remaining: number | null;
@@ -106,10 +130,16 @@ function emptySnapshot(eventSlug: string): SpotsSnapshot {
   };
 }
 
-function line(capacity: number | null, website: number, offline: number): SpotLine {
-  // A negative offline number is a data entry slip, not a credit against real
-  // applications, so it floors at zero.
-  const offlineCount = Math.max(0, offline);
+/**
+ * One spot type.
+ *
+ * `alsoHolding` is the permanent monthly vendors. They hold a space at every
+ * event by definition and carry no event_slug of their own, so they are not in
+ * the event's rows and have to be added here or the meter offers room somebody
+ * is standing in. It is not the old offline tally, which is gone.
+ */
+function line(capacity: number | null, website: number, alsoHolding: number): SpotLine {
+  const offlineCount = Math.max(0, alsoHolding);
   const total = website + offlineCount;
 
   return {
@@ -180,8 +210,12 @@ async function fetchEventCounts(
       return {
         boothCapacity: data?.booth_capacity ?? null,
         truckCapacity: data?.truck_capacity ?? null,
-        boothOffline: data?.booth_claimed_offline ?? 0,
-        truckOffline: data?.truck_claimed_offline ?? 0,
+        /* Read and deliberately discarded. The capacity meter no longer
+           counts them; see the note at the top of this file. They are left in
+           the select so the column-missing fallback below keeps working on a
+           database that predates them. */
+        boothOffline: 0,
+        truckOffline: 0,
       };
     }
 
@@ -237,12 +271,14 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
 
     const [counts, rowsResult, monthly] = await Promise.all([
       fetchEventCounts(supabase, eventSlug),
+      /* Every row for the event that has not been refused. Payment status is
+         deliberately not filtered on: an unfinished checkout is still holding
+         the spot it picked until somebody denies it. */
       supabase
         .from('vendor_applications')
         .select('spot_type')
         .eq('event_slug', eventSlug)
-        .in('payment_status', CLAIMED_STATES as unknown as string[])
-        .not('approval_status', 'in', `(${RELEASED_STATES.join(',')})`),
+        .neq('approval_status', RELEASES_SPOT),
       /* Permanent vendors are included in every event at no extra charge, so
          their space is already spoken for on an event night and has to come off
          the top here as well as off the daily calendar. Without this the event
@@ -262,10 +298,10 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
       else if (row.spot_type === 'free') freeClaimed += 1;
     }
 
-    // Monthly holders ride in alongside the offline count: both are vendors
-    // holding a space who did not book this event through the form.
-    const booth = line(counts.boothCapacity, boothWebsite, counts.boothOffline + monthly.booth);
-    const truck = line(counts.truckCapacity, truckWebsite, counts.truckOffline + monthly.truck);
+    const boothTaken = boothWebsite + (FREE_CONSUMES_BOOTH ? freeClaimed : 0);
+
+    const booth = line(counts.boothCapacity, boothTaken, monthly.booth);
+    const truck = line(counts.truckCapacity, truckWebsite, monthly.truck);
 
     const capacityKnown = counts.boothCapacity !== null || counts.truckCapacity !== null;
 

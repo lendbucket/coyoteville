@@ -4091,6 +4091,12 @@ p {
 /* ------------------------------------------------------------------ top */
 
 .ash__top {
+  /* Sticky so the review queue does not scroll out of sight. A spot sitting
+     unreviewed is holding capacity, and the one failure worth designing
+     against is not noticing it. */
+  position: sticky;
+  top: 0;
+  z-index: 30;
   padding: calc(env(safe-area-inset-top, 0px) + 0.7rem) 0.85rem 0.5rem;
   background: var(--black);
   border-bottom: 1px solid rgba(243, 238, 229, 0.12);
@@ -6479,4 +6485,52 @@ p {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--dust);
+}
+
+/* Count on a filter chip that represents outstanding work. */
+.fchip__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  margin-left: 0.35rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--ember);
+  color: var(--black);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.fchip.is-on .fchip__count {
+  background: var(--black);
+  color: var(--ember);
+}
+
+/* The real reason a row edit did not save, rather than the word "Failed". */
+.arow__error {
+  flex-basis: 100%;
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #ff9b7a;
+}
+
+/* Confirmation in front of a refund. */
+.review__confirm {
+  margin-top: 0.85rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(196, 85, 43, 0.6);
+  border-left: 4px solid var(--rust);
+  border-radius: var(--radius-sm);
+  background: rgba(196, 85, 43, 0.12);
+}
+
+.review__confirmtext {
+  margin: 0 0 0.8rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--cream);
 }
