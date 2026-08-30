@@ -44,16 +44,53 @@ const nextConfig = {
   compress: true,
 
   /**
-   * The signed agreement PDF reads its fonts and the logo off disk. Neither is
-   * imported, so nothing traces them into the function bundle on its own, and
-   * without this the routes deploy and then fail at render time with a missing
-   * file. Listed per route rather than globally so the rest of the site does not
-   * carry a quarter of a megabyte of fonts it never opens.
+   * Runtime assets the PDF routes read that nothing imports, so the tracer
+   * never sees them and the function deploys without them.
+   *
+   * Two separate problems, both of which only show up in the deployed bundle:
+   *
+   * 1. Our own brand fonts and the logo, read off disk by lib/agreement/pdf.
+   *
+   * 2. pdfkit's standard fonts. Those are not required by path but through a
+   *    Node subpath import, "#standard-fonts/Helvetica", resolved against
+   *    pdfkit's own package.json at runtime. Static analysis cannot follow
+   *    that, so the tracer bundles pdfkit's entry and package.json and none of
+   *    the fonts, and the route 500s with MODULE_NOT_FOUND on the first
+   *    render. Every text run in these documents is set in a registered font,
+   *    but pdfkit still loads Helvetica as the document default, so the path
+   *    is reached on every PDF.
+   *
+   *    The whole directory is included rather than the faces we expect to
+   *    need. The import map resolves to .cjs under `require` and .mjs under
+   *    `import`, the traced entry here is pdfkit.node.mjs while production
+   *    failed asking for Helvetica.cjs, and the .cjs files pull a shared
+   *    chunk of their own. Picking a face and an extension would be guessing
+   *    at which condition wins in an environment we cannot inspect, which is
+   *    the mistake that produced the outage. It is 190KB for all fourteen.
+   *
+   * The ICC profile is named explicitly. The tracer does currently resolve it
+   * out of a `new URL('./data/...', __filename)`, but that is a heuristic and
+   * this is three kilobytes. The .afm files next to it are deliberately not
+   * included: the metrics are inlined in the standard-fonts modules and
+   * nothing reads them at runtime.
+   *
+   * Listed per route rather than globally so the rest of the site does not
+   * carry any of it.
    */
   experimental: {
     outputFileTracingIncludes: {
-      '/api/admin/agreement': ['./lib/agreement/fonts/**', './public/logo.png'],
-      '/api/admin/agreements': ['./lib/agreement/fonts/**', './public/logo.png'],
+      '/api/admin/agreement': [
+        './lib/agreement/fonts/**',
+        './public/logo.png',
+        './node_modules/pdfkit/js/standard-fonts/**',
+        './node_modules/pdfkit/js/data/sRGB_IEC61966_2_1.icc',
+      ],
+      '/api/admin/agreements': [
+        './lib/agreement/fonts/**',
+        './public/logo.png',
+        './node_modules/pdfkit/js/standard-fonts/**',
+        './node_modules/pdfkit/js/data/sRGB_IEC61966_2_1.icc',
+      ],
     },
   },
 

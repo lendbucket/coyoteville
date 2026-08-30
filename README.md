@@ -359,6 +359,32 @@ disk, and `next.config.js` traces them and `public/logo.png` into those two rout
 Nothing is fetched at render time, so a PDF produced during a network blip is the same
 document as one produced on a good day.
 
+### Why the PDF routes need explicit tracing
+
+pdfkit loads its standard fonts through a Node subpath import,
+`#standard-fonts/Helvetica`, resolved against pdfkit's own `package.json` at
+runtime. Next's output file tracing cannot follow that, so it bundles the entry
+and none of the fonts. Every local check passes, because a development machine
+has the whole of `node_modules`, and the route 500s with `MODULE_NOT_FOUND` on
+its first request in production.
+
+pdfkit loads Helvetica on every document whether or not anything uses it:
+`initFonts` defaults to it and react-pdf does not override that. So the fonts
+are needed even though all our type is set in registered faces, and no amount
+of embedding our own fonts removes the dependency.
+
+`experimental.outputFileTracingIncludes` in `next.config.js` covers it, for
+every route that renders a PDF. To check:
+
+```bash
+npm run check:pdf-bundle
+```
+
+It reads the tracer's own manifest, then copies only the traced files somewhere
+clean and renders a PDF there with all fourteen standard faces. If an asset is
+missing it fails in the same way production did. It runs as a `postbuild` step,
+so this cannot ship broken twice.
+
 ---
 
 ## Pricing and free spots
