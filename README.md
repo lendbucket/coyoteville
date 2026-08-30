@@ -284,15 +284,76 @@ A failed send is logged and never fails a registration. If `RESEND_API_KEY` or
 `FROM_EMAIL` is missing the send is skipped with a warning and everything else
 works normally.
 
-## Prepaid registration link
+## Prepaid registration link, removed
 
-For vendors who committed and paid off the site. Lives at `/r/<token>`, is not
-linked from anywhere, is excluded from the sitemap, and is `noindex, nofollow`.
-A token that does not match returns a real 404, so the response looks the same
-as any route that does not exist.
+There used to be a hidden registration link at `/r/<token>` for vendors who had
+paid off the site. It took no payment and the database function behind it
+stamped the row `payment_status = 'paid'`, `paid_at = now()` and
+`approval_status = 'approved'` on the strength of the form being submitted.
 
-Deliberately **not** listed in `robots.txt`. Putting a secret path in a public
-file advertises it. The same reasoning applies to `/admin`.
+It was built for the August 28 launch event. The token went to eighteen vendors
+and kept working afterwards, and one of them used it to register for the
+September event, producing a row that said paid and approved with no money
+behind it.
+
+**The route and its page are deleted, not flagged off.** There is no token check
+left, no environment variable, and no database call on `/r/<anything>`: it
+renders a notice pointing at the ordinary signup. Bringing it back means writing
+the route again, which is the intended cost. A feature flag would have been one
+dashboard edit from live, and the people holding the old link are exactly the
+people who would find it.
+
+Still in place on purpose:
+
+- `register_prepaid_vendor` in the database. Nothing calls it. Dropping it
+  would be a schema change to delete a function that is already unreachable.
+- The eighteen `payment_method = 'offline'` rows. Real vendors and real records
+  for August 28, and the tracker reconciles cash received against them.
+
+With the link gone, nothing in the application can create a new offline row. See
+"Recording cash" below before assuming that is fine.
+
+## Recording cash
+
+The tracker records what was actually collected against an offline row:
+`amount_received_cents` and `amount_received_at`, entered in dollars in the
+vendor sheet, kept apart from `amount_cents` so booked money and money in hand
+are two different numbers. The revenue strip shows both and flags rows that say
+paid with nothing counted against them.
+
+**It only works on rows that are already `payment_method = 'offline'`.** The
+gate in `app/api/admin/update/route.ts` checks the stored payment method, so an
+online row cannot be typed over: Square already has the last word on what it
+took.
+
+With the prepaid link removed, **nothing in the application creates an offline
+row.** Every remaining writer of `payment_method` sets `'online'`:
+`app/api/vendor-application` on insert and `app/api/square-webhook` on
+settlement. So the feature still matters for the eighteen August 28 rows, which
+have never been reconciled, and there is no way to add a nineteenth.
+
+That is a gap, not a decision. A vendor who walks up on the night and pays cash
+cannot be entered at all. Three ways to close it, smallest first:
+
+1. **Let the tracker change the payment method.** `/api/admin/update` already
+   takes a patch and already checks the admin session; it would accept
+   `payment_method` alongside the fields it has, and the sheet would offer
+   "paid cash at the gate" on an unpaid row. Smallest change, and it only helps
+   a vendor who already applied through the site and never paid.
+2. **An admin-side add-vendor form.** A cut-down version of the vendor form,
+   behind the admin session, writing the row directly with
+   `payment_method = 'offline'` and `approval_status = 'approved'`. Handles a
+   true walk-up with no prior application. Needs the agreement to be signed
+   somehow, which is the hard part: the signature record is what the PDF is
+   built from, and a row with no signature is a vendor with no agreement.
+3. **Bring back a token link with the payment lie fixed.** Rejected for now.
+   The thing that made the old one dangerous was the database function stamping
+   paid and approved without evidence, and that function is still there.
+
+Option 1 is the recommendation if the goal is only to stop losing cash from
+vendors who applied and did not pay. Option 2 is the recommendation if walk-ups
+with no application need to exist at all, and it should be scoped as its own
+piece of work because of the agreement problem.
 
 Three variables:
 

@@ -1,29 +1,40 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import DeadlineBarMount from '@/components/DeadlineBarMount';
+import Link from 'next/link';
 import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
-import VendorForm from '@/components/VendorForm';
-import { checkPrepaidGate, tokenMatches } from '@/lib/prepaid';
-import { EVENT_TIMEZONE, NEXT_EVENT } from '@/lib/seo';
+import StringLights from '@/components/StringLights';
 import { supportEmail } from '@/lib/support';
 
 /**
- * Hidden prepaid vendor registration.
+ * The retired prepaid registration link.
  *
- * Not linked from anywhere, kept out of the sitemap, and marked noindex. A
- * token that does not match returns a real 404 rather than a redirect, so the
- * response is indistinguishable from a route that does not exist.
+ * This route used to register vendors who had paid off the site: no payment
+ * step, and a database function that stamped the row paid and approved on the
+ * strength of the form being submitted. It existed for the August 28 launch
+ * event, the token went to eighteen vendors, and it kept working afterwards.
+ * One vendor registered through it for the September event, which produced a
+ * row saying paid and approved with no money behind it.
  *
- * The link alone is the credential, and links get forwarded, so the expiry and
- * the registration cap in lib/prepaid stand behind it. Both are re-checked by
- * the API route, which is what actually enforces them.
+ * So the entry point is gone rather than gated. There is no token check here,
+ * no environment variable, and no database call: the page renders the same
+ * notice whatever is in the URL, because there is nothing left to protect and
+ * nothing left to switch back on. Turning it on again means writing the route
+ * again, which is the point. A flag would have been one dashboard edit away
+ * from live, and the eighteen people holding the old link are exactly the
+ * people who would find it.
+ *
+ * What is deliberately NOT removed:
+ *   - register_prepaid_vendor in the database. Dropping it would be a schema
+ *     change to remove a function nothing calls.
+ *   - The eighteen offline rows. Real vendors, real records for August 28, and
+ *     the tracker reconciles cash against them.
+ *
+ * Anyone arriving here is a vendor holding a link that was handed to them
+ * personally, so this points them at the ordinary signup rather than 404ing.
  */
-export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Vendor registration',
-  description: 'Private registration link for vendors who have already paid for a Coyoteville spot.',
+  title: 'This registration link has been retired',
   robots: {
     index: false,
     follow: false,
@@ -32,61 +43,44 @@ export const metadata: Metadata = {
   },
 };
 
-function formatDeadline(ms: number): string {
-  return new Intl.DateTimeFormat('en-US', {
-    timeZone: EVENT_TIMEZONE,
-    dateStyle: 'long',
-    timeStyle: 'short',
-  }).format(new Date(ms));
-}
-
-export default async function PrepaidPage({ params }: { params: { token: string } }) {
-  // Wrong or missing token is a 404, not a hint that the route exists.
-  if (!tokenMatches(params.token)) notFound();
-
-  const gate = await checkPrepaidGate(NEXT_EVENT.slug);
+export default function RetiredPrepaidPage() {
   const email = supportEmail();
-
-  const closedBody =
-    gate.reason === 'expired' ? (
-      <>
-        This registration link expired
-        {gate.expiresAtMs ? ` on ${formatDeadline(gate.expiresAtMs)} Central` : ''}. Email{' '}
-        <a href={`mailto:${email}`}>{email}</a> and we will sort your spot out directly.
-      </>
-    ) : gate.reason === 'full' ? (
-      <>
-        Every prepaid spot for {NEXT_EVENT.name} has been registered. Email{' '}
-        <a href={`mailto:${email}`}>{email}</a> if you believe this is wrong.
-      </>
-    ) : (
-      <>
-        This registration link is not available right now. Email{' '}
-        <a href={`mailto:${email}`}>{email}</a> and we will get you registered.
-      </>
-    );
 
   return (
     <>
-      <DeadlineBarMount />
       <Nav />
 
       <main id="main">
-        <VendorForm
-          endpoint="/api/prepaid-registration"
-          prepaid
-          token={params.token}
-          signupClosed={!gate.open}
-          supportEmail={email}
-          closedTitle={
-            gate.reason === 'expired'
-              ? 'This registration link has expired'
-              : gate.reason === 'full'
-                ? 'Prepaid registration is full'
-                : 'Registration is not open'
-          }
-          closedBody={closedBody}
-        />
+        <section className="section apply" aria-labelledby="retired-title">
+          <StringLights tone="dark" variant="top" swags={5} sag={30} id="retired-lights" />
+
+          <div className="shell">
+            <p className="eyebrow">Vendor registration</p>
+            <h2 id="retired-title">This registration link has been retired</h2>
+
+            <p className="lede muted">
+              It was for the August 28 Tailgate Kickoff and is no longer in use. Nothing you do
+              here will register you.
+            </p>
+
+            <p className="lede muted">
+              To book a spot at the next event, apply the normal way. It takes a couple of
+              minutes and you pay at the end.
+            </p>
+
+            <p className="retired__cta">
+              <Link className="btn btn--amber" href="/#apply">
+                Apply for a spot
+              </Link>
+            </p>
+
+            <p className="hint">
+              Already paid us for a date and not sure where you stand? Email{' '}
+              <a href={`mailto:${email}`}>{email}</a> and we will sort it out directly rather
+              than sending you round the form again.
+            </p>
+          </div>
+        </section>
       </main>
 
       <Footer />
