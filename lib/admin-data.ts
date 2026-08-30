@@ -70,7 +70,19 @@ export type AdminView = {
    * number on this page that is a job rather than a fact. Unpaid rows are not
    * in it: nobody is waiting on the admin until the money has landed.
    */
-  counts: { total: number; paid: number; unpaid: number; pending: number };
+  counts: {
+    total: number;
+    paid: number;
+    unpaid: number;
+    pending: number;
+    /**
+     * Rows in the scope carrying a signed agreement. Counted off the unfiltered
+     * read rather than the visible list, because the bulk agreement download
+     * archives the whole scope: a number that moved with the search box would
+     * promise a different archive than the one the button produces.
+     */
+    signed: number;
+  };
   /** Event wide, never the filtered slice. Null when the read failed. */
   revenue: RevenueSummary | null;
   /**
@@ -89,11 +101,11 @@ export type ReviewSlots = {
   truck: { remaining: number; capacity: number; held: number };
 };
 
-const EMPTY_COUNTS = { total: 0, paid: 0, unpaid: 0, pending: 0 };
+const EMPTY_COUNTS = { total: 0, paid: 0, unpaid: 0, pending: 0, signed: 0 };
 
 /** Columns the revenue summary reads, on top of the ones the tracker shows. */
 const REVENUE_COLUMNS =
-  'spot_type, amount_cents, payment_status, payment_method, approval_status, square_order_id, created_at, booking_kind';
+  'spot_type, amount_cents, payment_status, payment_method, approval_status, square_order_id, created_at, booking_kind, waiver_accepted, agreement_version';
 
 const COLUMNS = [
   'id',
@@ -231,12 +243,20 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
 
     if (countResult.error) throw countResult.error;
 
-    const allRows = (countResult.data ?? []) as unknown as RevenueRow[];
+    const allRows = (countResult.data ?? []) as unknown as (RevenueRow & {
+      waiver_accepted: boolean;
+      agreement_version: string | null;
+    })[];
 
     let paid = 0;
     let unpaid = 0;
     let pending = 0;
+    let signed = 0;
     for (const row of allRows) {
+      // What the bulk agreement download will actually find: signed, and
+      // stamped with the version it was signed under.
+      if (row.waiver_accepted && row.agreement_version) signed += 1;
+
       const settled = row.payment_status === 'paid' || row.payment_status === 'not_required';
       if (settled) paid += 1;
       else if (row.payment_status === 'unpaid') unpaid += 1;
@@ -253,7 +273,7 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
     return {
       available: true,
       rows,
-      counts: { total: allRows.length, paid, unpaid, pending },
+      counts: { total: allRows.length, paid, unpaid, pending, signed },
       revenue: summariseRevenue(allRows, {
         truck: spots.truck.capacity,
         booth: spots.booth.capacity,

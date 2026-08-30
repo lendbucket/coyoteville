@@ -1,5 +1,6 @@
 'use client';
 
+import { AgreementRowButton } from './AgreementDownload';
 import { isSettled, needsReview, type VendorCardRow } from './types';
 
 /**
@@ -82,6 +83,10 @@ export default function VendorCard({
           <span className="vcard__booking">{row.bookingLabel}</span>
         ) : null}
       </button>
+
+      {/* Only where there is something to produce. An unsigned row has no
+          agreement, and an icon that always errors is worse than no icon. */}
+      {row.signed ? <AgreementRowButton id={row.id} businessName={row.businessName} /> : null}
 
       <a
         className="vcard__call"

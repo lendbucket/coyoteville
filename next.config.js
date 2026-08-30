@@ -43,6 +43,20 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
 
+  /**
+   * The signed agreement PDF reads its fonts and the logo off disk. Neither is
+   * imported, so nothing traces them into the function bundle on its own, and
+   * without this the routes deploy and then fail at render time with a missing
+   * file. Listed per route rather than globally so the rest of the site does not
+   * carry a quarter of a megabyte of fonts it never opens.
+   */
+  experimental: {
+    outputFileTracingIncludes: {
+      '/api/admin/agreement': ['./lib/agreement/fonts/**', './public/logo.png'],
+      '/api/admin/agreements': ['./lib/agreement/fonts/**', './public/logo.png'],
+    },
+  },
+
   async headers() {
     return [
       {

@@ -7,6 +7,7 @@ import AdminAbandoned from '../AdminAbandoned';
 import AdminSendAllPhotos from '../AdminSendAllPhotos';
 import AdminWaitlist from '../AdminWaitlist';
 import AdminCalendar from './AdminCalendar';
+import { AgreementBulkDownload } from './AgreementDownload';
 import VendorCard from './VendorCard';
 import VendorSheet from './VendorSheet';
 import Composer from './Composer';
@@ -94,7 +95,7 @@ export default function AdminShell({
   revenue: RevenueSummary | null;
   waitlist: WaitlistEntry[];
   abandoned: React.ComponentProps<typeof AdminAbandoned>['rows'];
-  counts: { total: number; paid: number; unpaid: number; pending: number };
+  counts: { total: number; paid: number; unpaid: number; pending: number; signed: number };
   /** Null under the day and monthly scopes, and when no capacity is set. */
   reviewSlots: ReviewSlots | null;
   /** Review slots per day, keyed by date. Only loaded under the day scope. */
@@ -376,6 +377,15 @@ export default function AdminShell({
               event={eventSlug}
               vendorCount={mediaVendorCount}
               fileCount={mediaFileCount}
+            />
+
+            {/* Archiving the whole scope in one go. Sits with the other bulk
+                action rather than in the header, which is for the controls that
+                change what is on screen. */}
+            <AgreementBulkDownload
+              eventSlug={eventSlug}
+              scopeName={eventName}
+              signedCount={counts.signed}
             />
           </div>
         </div>

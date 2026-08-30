@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import AdminRowControls from '../AdminRowControls';
 import AdminSendPhotos from '../AdminSendPhotos';
+import { AgreementSheetButton } from './AgreementDownload';
 import ReviewControls from './ReviewControls';
 import SubscriptionControls from './SubscriptionControls';
 import { isSettled, type VendorCardRow } from './types';
@@ -208,6 +209,11 @@ export default function VendorSheet({
                     Signed by <b>{row.signatureName}</b>
                     <br />
                     {row.signedAt} · {row.agreementVersion}
+                    <AgreementSheetButton
+                      id={row.id}
+                      businessName={row.businessName}
+                      version={row.agreementVersion}
+                    />
                   </>
                 ) : (
                   <span className="sheet__missing">Not signed</span>

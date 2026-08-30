@@ -6282,3 +6282,94 @@ p {
   align-items: center;
   justify-content: center;
 }
+
+/* ------------------------------------------------------------
+   Signed agreement downloads.
+
+   The row icon, the button in the detail sheet, and the bulk archive. All
+   three produce the same artifact: the PDF of the version that vendor signed.
+   ------------------------------------------------------------ */
+
+.vcard__doc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid rgba(243, 238, 229, 0.12);
+  background: none;
+  /* Cream rather than ember. Calling a vendor is the thing done at the gate;
+     this is the thing done at a desk, and it should not compete. */
+  color: var(--cream-deep);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vcard__doc:active {
+  background: rgba(243, 238, 229, 0.1);
+}
+
+.vcard__doc:disabled {
+  cursor: default;
+  color: var(--dust);
+}
+
+.vcard__docbusy {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(243, 238, 229, 0.28);
+  border-top-color: var(--ember);
+  border-radius: 50%;
+  animation: vcard-doc-spin 0.7s linear infinite;
+}
+
+@keyframes vcard-doc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vcard__docbusy {
+    animation-duration: 2.4s;
+  }
+}
+
+.agrdl {
+  margin-top: 0.7rem;
+}
+
+.agrdl__btn {
+  min-height: 44px;
+}
+
+.agrdl__note {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--dust);
+}
+
+.agrdl__error {
+  margin: 0.45rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #ff9b7a;
+}
+
+.agrbulk {
+  margin-top: 1rem;
+}
+
+.agrbulk__btn {
+  min-height: 44px;
+}
+
+.agrbulk__note,
+.agrbulk__quiet {
+  margin: 0.45rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--dust);
+}

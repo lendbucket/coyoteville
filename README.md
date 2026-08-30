@@ -25,10 +25,14 @@ app/
     subscribe/                  email list upsert
 components/
   StringLights.tsx              the festoon lights SVG
-  Waiver.tsx                    waiver text plus WAIVER_VERSION
+  VendorAgreement.tsx           renders the current agreement version
   VendorForm.tsx                the application form
   ...
 lib/
+  agreement/                    the agreement as data, one file per version
+    versions/                   never edited, never removed
+    registry.ts                 version -> text and counterparty
+    pdf.tsx                     the signed agreement as a branded PDF
   seo.ts                        every site constant, price and JSON-LD schema
   supabase.ts                   server only client, service role
   square.ts                     server only client
@@ -284,21 +288,48 @@ counter inside the same transaction as the insert, through the
 `register_prepaid_vendor` function. Without that they would be counted twice on
 the live meter.
 
-## The waiver
+## The agreement
 
-`components/Waiver.tsx` holds the waiver text and exports `WAIVER_VERSION`.
+The Vendor Participation Agreement is data, not markup. `lib/agreement/versions`
+holds one file per version ever issued, `lib/agreement/current.ts` points at the
+one that is live, and `components/VendorAgreement.tsx` renders that on the signing
+page. The signed PDF in the tracker renders the same files.
 
-Every signed application stores that version string, the typed signature, the date,
+Every signed application stores the version string, the typed signature, the date,
 a server timestamp, the signer IP and the user agent. That is the record that makes a
 typed name a binding electronic signature under the Texas Uniform Electronic
-Transactions Act.
+Transactions Act. The version string is stamped server side in the API route, never
+taken from the browser.
 
-**If you change one word of the waiver, bump `WAIVER_VERSION`.** Old rows keep
-pointing at the version they actually agreed to. Do not edit the text in place
-without bumping, or your older records stop being auditable.
+**Changing the agreement means adding a version, never editing one.** Write a new
+file under `lib/agreement/versions`, point `current.ts` at it, and add it to
+`lib/agreement/registry.ts`. Nothing under `versions/` is ever edited in place and
+nothing is ever removed: a row signed under v3.0-2026 resolves to the v3.0-2026 file,
+and the day someone disputes that agreement is the day that text has to still exist,
+several versions later.
 
-The version string is stamped server side in the API route, never taken from the
-browser.
+The registry also carries the counterparty for each version, because it is not the
+same counterparty throughout. Anything signed under v2.0-2026 contracted with Reyna
+Title LLC d/b/a Coyoteville; v3.0-2026 onward is Coyoteville Alice LLC. Each PDF names
+the entity that was contracting when its version was live.
+
+### Signed agreement PDFs
+
+The tracker renders a branded PDF of any signed agreement, server side and behind the
+admin session, at `/api/admin/agreement?id=<row>`. `/api/admin/agreements?event=<scope>`
+zips every signed agreement in the current scope with a manifest. Both refuse rather
+than substitute: a row stamped with a version the codebase has no text for produces an
+error, never the current text under an older version's name.
+
+The conspicuous provisions — release, indemnity, assumption of risk, acknowledgment —
+keep their border, bold, capitals and larger size in the PDF. That is a legal
+requirement rather than styling; see the note above `.agreement__box` in
+`app/globals.css`.
+
+The brand faces are committed as TrueType under `lib/agreement/fonts` and read off
+disk, and `next.config.js` traces them and `public/logo.png` into those two routes.
+Nothing is fetched at render time, so a PDF produced during a network blip is the same
+document as one produced on a good day.
 
 ---
 
