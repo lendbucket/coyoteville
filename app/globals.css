@@ -2231,9 +2231,9 @@ p {
   background: rgba(240, 169, 75, 0.07);
   border-left: 3px solid var(--ember);
   padding: 16px 20px;
-}
   font-size: 12px;
   line-height: 1.4;
+}
 
 .pill b {
   display: block;
@@ -2539,17 +2539,17 @@ p {
   background: var(--rust);
   color: var(--cream);
   font-size: 24px;
-}
   line-height: 1.25;
   letter-spacing: -0.02em;
+}
 
 .adminlogin__title {
   margin: 0;
   font-size: 20px;
   color: var(--cream);
-}
   line-height: 1.25;
   letter-spacing: -0.01em;
+}
 
 .adminlogin__where {
   margin: 8px 0 0;
@@ -2558,8 +2558,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tan);
-}
   line-height: 1.5;
+}
 
 /* Wrong password, rate limit, missing password on the server. Left aligned
    because it is a sentence, not a label. */
@@ -2580,8 +2580,8 @@ p {
 .adminlogin__input {
   font-size: 16px;
   min-height: 48px;
-}
   line-height: 1.4;
+}
 
 .adminlogin__input:focus {
   outline: none;
@@ -2627,8 +2627,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dust);
-}
   line-height: 1.4;
+}
 
 .adminlogin__foot b {
   color: var(--cream-70);
@@ -2696,16 +2696,16 @@ p {
   font-size: 20px;
   line-height: 1.25;
   color: var(--ember);
-}
   letter-spacing: -0.01em;
+}
 
 .admin__counts span {
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dust);
-}
   line-height: 1.4;
+}
 
 /* Two up on a phone. Stacked, the three fields and the button row ran to about
    300px, which on its own pushed the vendor list off the bottom of the screen.
@@ -2848,8 +2848,8 @@ p {
   text-transform: uppercase;
   color: var(--dust);
   margin-bottom: 4px;
-}
   line-height: 1.4;
+}
 
 .arow__facts dd {
   margin: 0;
@@ -2896,8 +2896,8 @@ p {
   text-transform: uppercase;
   color: var(--dust);
   margin-top: 4px;
-}
   line-height: 1.4;
+}
 
 .arow__notes {
   margin: 16px 0 0;
@@ -2928,8 +2928,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dust);
-}
   line-height: 1.4;
+}
 
 .arow__saved {
   font-size: 0.82rem;
@@ -3594,8 +3594,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dust);
-}
   line-height: 1.4;
+}
 
 .sendphotos__panel,
 .sendall__panel {
@@ -4137,8 +4137,8 @@ p {
   font-size: 24px;
   line-height: 1.25;
   color: var(--cream);
-}
   letter-spacing: -0.02em;
+}
 
 .ash__signout,
 .ash__export {
@@ -4232,8 +4232,8 @@ p {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   cursor: pointer;
-}
   line-height: 1.5;
+}
 
 .ash__select.is-on {
   background: var(--ember);
@@ -4268,8 +4268,8 @@ p {
   letter-spacing: 0.03em;
   white-space: nowrap;
   cursor: pointer;
-}
   line-height: 1.4;
+}
 
 .fchip.is-on {
   background: var(--ember);
@@ -4299,8 +4299,8 @@ p {
   border-radius: var(--radius-sm);
   font-size: 14px;
   color: var(--cream);
-}
   line-height: 1.5;
+}
 
 .ash__selbar > div {
   display: flex;
@@ -4316,8 +4316,8 @@ p {
   color: var(--cream-deep);
   font-size: 14px;
   cursor: pointer;
-}
   line-height: 1.5;
+}
 
 .ash__selbar button.is-primary {
   background: var(--ember);
@@ -4346,8 +4346,8 @@ p {
   text-transform: uppercase;
   color: var(--dust);
   transition: height 0.15s ease;
-}
   line-height: 1.4;
+}
 
 .vlist {
   list-style: none;
@@ -4367,8 +4367,8 @@ p {
   font-family: var(--font-body);
   font-size: 14px;
   color: var(--dust);
-}
   line-height: 1.5;
+}
 
 /* ------------------------------------------------------------ the card */
 
@@ -4479,8 +4479,8 @@ p {
   white-space: nowrap;
   background: rgba(243, 238, 229, 0.1);
   color: var(--cream-deep);
-}
   line-height: 1.4;
+}
 
 /* Colour is a signal, not decoration.
 
@@ -4943,8 +4943,8 @@ p {
   color: var(--black);
   font-size: 20px;
   line-height: 1.25;
-}
   letter-spacing: -0.01em;
+}
 
 .ash__reviewtext {
   display: grid;
@@ -4960,17 +4960,17 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ember);
-}
   line-height: 1.5;
+}
 
 .ash__reviewgo {
   flex: none;
   margin-left: auto;
   font-size: 20px;
   color: var(--ember);
-}
   line-height: 1.25;
   letter-spacing: -0.01em;
+}
 
 .tabbar__badge--review {
   background: var(--ember);
@@ -5002,23 +5002,23 @@ p {
   font-size: 20px;
   line-height: 1.25;
   color: var(--cream);
-}
   letter-spacing: -0.01em;
+}
 
 .ash__slots span {
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tan);
-}
   line-height: 1.4;
+}
 
 .ash__slots i {
   font-style: normal;
   font-size: 12px;
   color: var(--dust);
-}
   line-height: 1.4;
+}
 
 /* Nothing more is being taken for this type, which is a state worth seeing
    from across the lot rather than reading. */
@@ -5047,8 +5047,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tan);
-}
   line-height: 1.4;
+}
 
 .acal__slots span.is-shut {
   background: rgba(196, 85, 43, 0.18);
@@ -5076,8 +5076,8 @@ p {
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--ember);
-}
   line-height: 1.4;
+}
 
 .review__sub {
   font-family: var(--font-body);
@@ -5086,8 +5086,8 @@ p {
   letter-spacing: 0;
   text-transform: none;
   color: var(--cream-70);
-}
   line-height: 1.4;
+}
 
 .review__row {
   display: flex;
@@ -5099,8 +5099,8 @@ p {
   min-height: 48px;
   padding-inline: 16px;
   font-size: 14px;
-}
   line-height: 1.5;
+}
 
 .review__deny {
   display: grid;
@@ -5118,8 +5118,8 @@ p {
 .review__refund {
   font-size: 12px;
   color: var(--cream-70);
-}
   line-height: 1.4;
+}
 
 .review__reason {
   display: grid;
@@ -5130,23 +5130,23 @@ p {
   background: rgba(243, 238, 229, 0.05);
   font-size: 14px;
   color: var(--cream);
-}
   line-height: 1.5;
+}
 
 .review__reasonlabel {
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tan);
-}
   line-height: 1.4;
+}
 
 .review__result {
   margin: 0;
   font-size: 14px;
   color: #8FD39C;
-}
   line-height: 1.5;
+}
 
 .review__flag {
   margin: 0;
@@ -5159,8 +5159,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tan);
-}
   line-height: 1.4;
+}
 
 /* ------------------------------------------------ monthly subscription */
 
@@ -5180,8 +5180,8 @@ p {
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--ember);
-}
   line-height: 1.4;
+}
 
 .subs__facts {
   display: grid;
@@ -5201,15 +5201,15 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--tan);
-}
   line-height: 1.4;
+}
 
 .subs__facts dd {
   margin: 0;
   font-size: 14px;
   color: var(--cream);
-}
   line-height: 1.5;
+}
 
 .subs__bad {
   color: #ffcdb6;
@@ -5219,8 +5219,8 @@ p {
   width: 100%;
   min-height: 48px;
   font-size: 14px;
-}
   line-height: 1.5;
+}
 
 .subs__confirm {
   display: grid;
@@ -5234,8 +5234,8 @@ p {
 .subs__confirm p {
   margin: 0;
   font-size: 14px;
-}
   line-height: 1.5;
+}
 
 /* --------------------------------------------------- tracker calendar */
 
@@ -5260,8 +5260,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ember);
-}
   line-height: 1.4;
+}
 
 .acal__monthly ul,
 .acal__days,
@@ -5303,8 +5303,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--cream);
-}
   line-height: 1.5;
+}
 
 /* The long date on a wide screen, the short one on a phone, so the count
    beside it never gets pushed onto a second line. */
@@ -5328,8 +5328,8 @@ p {
   letter-spacing: 0.1em;
   color: var(--dust);
   white-space: nowrap;
-}
   line-height: 1.4;
+}
 
 .acal__monthly ul button,
 .acal__vendors button {
@@ -5361,15 +5361,15 @@ p {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
   line-height: 1.5;
+}
 
 .acal__past {
   width: 100%;
   min-height: 46px;
   font-size: 12px;
-}
   line-height: 1.4;
+}
 
 .ash__calhint {
   margin-top: 16px;
@@ -5505,16 +5505,16 @@ p {
   line-height: 1.25;
   color: var(--cream);
   overflow-wrap: anywhere;
-}
   letter-spacing: -0.01em;
+}
 
 .sheet__sub {
   margin: 4px 0 8px;
   font-family: var(--font-body);
   font-size: 14px;
   color: var(--dust);
-}
   line-height: 1.5;
+}
 
 .sheet__actions {
   display: grid;
@@ -5539,8 +5539,8 @@ p {
   text-decoration: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-}
   line-height: 1.5;
+}
 
 .act:active {
   background: rgba(240, 169, 75, 0.16);
@@ -5574,8 +5574,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dust);
-}
   line-height: 1.4;
+}
 
 .sheet__facts dd {
   margin: 0;
@@ -5639,8 +5639,8 @@ p {
   letter-spacing: 0.05em;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-}
   line-height: 1.4;
+}
 
 .tabbar__tab.is-on {
   color: var(--ember);
@@ -5688,8 +5688,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dust);
-}
   line-height: 1.4;
+}
 
 .cmp__label {
   display: block;
@@ -5698,8 +5698,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dust);
-}
   line-height: 1.4;
+}
 
 .cmp__chips {
   display: flex;
@@ -5729,8 +5729,8 @@ p {
   color: var(--cream);
   font-size: 14px;
   cursor: pointer;
-}
   line-height: 1.5;
+}
 
 .cmp__hint {
   margin: 4px 0 0;
@@ -5745,8 +5745,8 @@ p {
   font-family: var(--font-body);
   font-size: 14px;
   color: var(--rust-bright);
-}
   line-height: 1.5;
+}
 
 .cmp__errorList {
   margin: 4px 0 0;
@@ -5754,8 +5754,8 @@ p {
   font-family: var(--font-body);
   font-size: 14px;
   color: var(--dust);
-}
   line-height: 1.5;
+}
 
 .cmp__preview-line {
   margin: 8px 0 0;
@@ -5775,8 +5775,8 @@ p {
   text-transform: uppercase;
   color: var(--dust);
   margin-right: 4px;
-}
   line-height: 1.4;
+}
 
 /* Toolbar scrolls sideways rather than wrapping, so the editor never jumps
    down the screen when the buttons rewrap. */
@@ -5805,8 +5805,8 @@ p {
   font-size: 14px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-}
   line-height: 1.5;
+}
 
 .cmp__toolbar button:active {
   background: rgba(240, 169, 75, 0.2);
@@ -5833,14 +5833,14 @@ p {
   font-size: 14px;
   text-align: left;
   cursor: pointer;
-}
   line-height: 1.5;
+}
 
 .cmp__merge button span {
   font-size: 12px;
   color: var(--dust);
-}
   line-height: 1.4;
+}
 
 .cmp__editor {
   min-height: 190px;
@@ -5907,8 +5907,8 @@ p {
   font-size: 14px;
   color: var(--cream);
   overflow-wrap: anywhere;
-}
   line-height: 1.5;
+}
 
 .cmp__files button {
   flex: none;
@@ -5919,9 +5919,9 @@ p {
   color: var(--rust-bright);
   font-size: 20px;
   cursor: pointer;
-}
   line-height: 1.25;
   letter-spacing: -0.01em;
+}
 
 .cmp__previewHead {
   display: flex;
@@ -5944,8 +5944,8 @@ p {
   color: var(--cream-deep);
   font-size: 14px;
   cursor: pointer;
-}
   line-height: 1.5;
+}
 
 .cmp__toggle button.is-on {
   background: var(--ember);
@@ -6006,9 +6006,9 @@ p {
   font-weight: 600;
   font-size: 20px;
   color: var(--ember);
-}
   line-height: 1.25;
   letter-spacing: -0.01em;
+}
 
 .cmp__failed {
   margin: 12px 0;
@@ -6020,8 +6020,8 @@ p {
   font-family: var(--font-body);
   font-size: 12px;
   color: var(--cream);
-}
   line-height: 1.4;
+}
 
 .cmp__failed ul {
   margin: 8px 0 0;
@@ -6495,8 +6495,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ember);
-}
   line-height: 1.4;
+}
 
 .cash__state {
   margin: 0 0 12px;
@@ -6568,9 +6568,9 @@ p {
 
 .cash__ok {
   color: var(--ember);
-}
   font-size: 12px;
   line-height: 1.4;
+}
 
 .arev__note--warn {
   color: #f6c0a8;
@@ -6582,8 +6582,8 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--dust);
-}
   line-height: 1.4;
+}
 
 /* Count on a filter chip that represents outstanding work. */
 .fchip__count {
@@ -6752,4 +6752,79 @@ p {
 .cmp__h,
 .vcard__name {
   font-weight: 600;
+}
+
+/* ========================================================================
+   TRACKER BRAND
+
+   Chrome only. The mark in the fixed header and the full treatment on the sign
+   in screen. Nothing decorative reaches a data surface: the vendor list, the
+   review queue, the calendar, the money view and every sheet stay flat and
+   dark, because a texture behind a table is noise behind the thing you came to
+   read.
+   ===================================================================== */
+
+.ash__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Insurance, not an expectation. The mark plus the wordmark plus Sign out
+     measures inside 390px, but a longer sign out label or a wider fallback
+     face would otherwise push the row past the viewport, and this header is
+     fixed: it cannot scroll out of the way. The wordmark gives first. */
+  min-width: 0;
+}
+
+.ash__title span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sized to the row it already sits in. The title is 24px on a 1.25 line, so a
+   28px mark is the tallest thing that changes nothing: the header keeps its
+   height and the event selector underneath stays on one line.
+
+   Its own file, at 4x, rather than /logo.svg. The full mark is 174kB of vector
+   detail that is invisible at this size, and this is a tool people open on a
+   phone at an event on whatever signal the lot has. The crop is 3.7kB. */
+.ash__mark {
+  height: 28px;
+  width: auto;
+  flex: none;
+  display: block;
+}
+
+/* -------------------------------------------------------- the sign in screen */
+
+/* The lights hang above the card, not behind it. They are the shared
+   StringLights component from the public site, not a second implementation,
+   and they stop well short of the form: the card sits on flat ground so the
+   password field has nothing behind it. */
+.adminlogin .string-lights {
+  z-index: 1;
+}
+
+/* Big, the way a splash treats it. It was capped at 200px inside a 420px card;
+   this fills the card's measure and makes opening the tracker feel like opening
+   an app rather than hitting a password box. */
+.adminlogin__logo {
+  /* 30dvh is the part that matters on a phone. dvh shrinks when the
+     keyboard opens, so the mark gives up room to the form instead of pushing
+     the sign in button into the card's internal scroll. Splash scale with the
+     keyboard down, a header-sized mark with it up. */
+  width: min(280px, 78%, 30dvh);
+  margin: 0 auto 20px;
+}
+
+/* Nothing here restyles the card, the field or the button, deliberately. The
+   card is already opaque #141416 above everything decorative, so the password
+   field sits on flat ground and its contrast against cream is exactly what it
+   was before any of this. Brand goes above the form, not behind it. */
+
+/* The bloom is a wash behind the lights at the top of the screen, nowhere near
+   the form. Pulled up so it cannot sit under the card. */
+.adminlogin::before {
+  background: radial-gradient(680px 380px at 50% 6%, rgba(196, 85, 43, 0.26), transparent 70%);
 }

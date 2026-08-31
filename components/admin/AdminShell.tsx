@@ -216,7 +216,21 @@ export default function AdminShell({
       {/* ------------------------------------------------------------ top */}
       <header className="ash__top">
         <div className="ash__titlerow">
-          <h1 className="ash__title">Vendor tracker</h1>
+          {/* The header is fixed and always on screen, so this is where the
+              brand actually lives. Sized to the row it is already in: the mark
+              is 28px tall against a 24px title, so the row does not grow and
+              the event selector below it does not wrap.
+
+              The emblem, not the full lockup. The whole badge at 28px is an
+              unreadable smudge, because most of its area is type set to be read
+              at poster size. Cropping to the arch keeps the part that survives:
+              coyote, sunset, trucks. Decorative, so alt is empty and the h1
+              still reads "Vendor tracker" to a screen reader. */}
+          <h1 className="ash__title">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="ash__mark" src="/tracker-mark.png" alt="" width={215} height={112} />
+            <span>Vendor tracker</span>
+          </h1>
           <form method="POST" action="/api/admin/logout">
             <button className="ash__signout" type="submit">
               Sign out

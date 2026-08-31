@@ -28,10 +28,25 @@ export function GET() {
       orientation: 'portrait',
       background_color: '#0B0B0C',
       theme_color: '#0B0B0C',
+      /* The 'any' icons are the shared marks on a white plate, which is what a
+         browser tab and a bookmark want.
+
+         The maskable one is its own file and has to be. A maskable icon is
+         cropped to a circle 80% of its width, and the shared 512 puts the badge
+         232px from the centre against a 205px safe radius, so Android was
+         clipping the ends off COYOTEVILLE. This one sits the badge on the same
+         #0B0B0C the splash uses, scaled to fit inside that circle. The badge
+         carries its own plate clipped to its outline, so it reads on the dark
+         ground rather than disappearing into it. */
       icons: [
         { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
         { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-        { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        {
+          src: '/admin-icon-maskable-512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
         { src: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
       ],
     },
