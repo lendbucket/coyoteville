@@ -82,6 +82,11 @@ const settle = (ms) => new Promise(r=>setTimeout(r,ms));
       await page.close();
     }
   }
-  require('fs').writeFileSync(process.argv[2]||'.anchors.tmp.json',JSON.stringify(results,null,1));
+  /* Only writes a file when asked for one, so an ordinary run leaves nothing
+     behind in the working tree. Pass a path to keep the numbers for a diff. */
+  if (process.argv[2]) {
+    require('fs').writeFileSync(process.argv[2], JSON.stringify(results, null, 1));
+    console.log([String.fromCharCode(10), 'wrote ' + process.argv[2]].join(''));
+  }
   await browser.close();
 })();

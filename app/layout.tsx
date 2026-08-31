@@ -110,11 +110,25 @@ export const metadata: Metadata = {
   },
   manifest: '/manifest.webmanifest',
   icons: {
-    // SVG first for browsers that take it, PNG as the fallback. Safari does not
-    // accept an SVG apple touch icon, so that one is always the square raster,
-    // and it is a real 180x180 file rather than a 512 declared as 180.
+    /* Raster only, deliberately.
+     *
+     * This used to list /logo.svg first, which browsers that accept an SVG
+     * favicon duly took. That is the full brand lockup: 115kB after
+     * optimisation, fetched a second time on top of the preload React already
+     * emits for the same file in the nav, to be drawn into a 16px square.
+     *
+     * These PNGs are the same artwork and are what every browser without SVG
+     * favicon support was already showing, so the tab does not change. At 16px
+     * the wordmark inside the lockup is unreadable at any file size, which is a
+     * property of the mark rather than of the format: fixing that means a
+     * favicon cropped to the emblem, which is a change to the icon itself and
+     * not something to slip into a performance pass.
+     *
+     * Safari does not accept an SVG apple touch icon, so that one is always the
+     * square raster, and it is a real 180x180 file rather than a 512 declared
+     * as 180.
+     */
     icon: [
-      { url: SITE.logoSvg, type: 'image/svg+xml' },
       { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
       { url: SITE.icon, type: 'image/png', sizes: '512x512' },
     ],
