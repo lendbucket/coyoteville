@@ -110,29 +110,38 @@ export const metadata: Metadata = {
   },
   manifest: '/manifest.webmanifest',
   icons: {
-    /* Raster only, deliberately.
+    /* The emblem, cropped out of the brand lockup, at the sizes browsers
+     * actually ask for.
      *
-     * This used to list /logo.svg first, which browsers that accept an SVG
-     * favicon duly took. That is the full brand lockup: 115kB after
-     * optimisation, fetched a second time on top of the preload React already
-     * emits for the same file in the nav, to be drawn into a 16px square.
+     * This listed /logo.svg first until recently, so any browser that accepts
+     * an SVG favicon fetched the full lockup, 115kB, a second time on top of
+     * the preload the nav already triggers, to draw it into a 16px square. The
+     * PNGs that replaced it were the same artwork and had the same problem at
+     * size: COYOTEVILLE is set across the width of a badge that is half again
+     * as wide as it is tall, and below roughly 64px it is a grey smear.
      *
-     * These PNGs are the same artwork and are what every browser without SVG
-     * favicon support was already showing, so the tab does not change. At 16px
-     * the wordmark inside the lockup is unreadable at any file size, which is a
-     * property of the mark rather than of the format: fixing that means a
-     * favicon cropped to the emblem, which is a change to the icon itself and
-     * not something to slip into a performance pass.
+     * So the wordmark is dropped and the arch carries the identity. The coyote
+     * against the sunset bands is the one part of this mark with enough
+     * contrast and enough silhouette to survive sixteen pixels.
      *
-     * Safari does not accept an SVG apple touch icon, so that one is always the
-     * square raster, and it is a real 180x180 file rather than a 512 declared
-     * as 180.
+     * Two framings, which is ordinary optical sizing rather than an
+     * inconsistency: the tab sizes are cropped close on the coyote's head,
+     * because anything wider loses it, and the home screen sizes in
+     * app/manifest.ts carry the whole emblem, arch and string lights included,
+     * because at 192px the detail is an asset rather than noise.
+     *
+     * The lockup itself is untouched and still serves the nav, the footer, the
+     * emails and the PDFs. Its PNGs are still on disk.
+     *
+     * Safari does not accept an SVG apple touch icon, so that one is a real
+     * 180x180 raster rather than a larger file declared as 180.
      */
     icon: [
-      { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
-      { url: SITE.icon, type: 'image/png', sizes: '512x512' },
+      { url: '/mark-16.png', type: 'image/png', sizes: '16x16' },
+      { url: '/mark-32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/mark-48.png', type: 'image/png', sizes: '48x48' },
     ],
-    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    apple: [{ url: '/mark-180.png', sizes: '180x180', type: 'image/png' }],
   },
   formatDetection: {
     telephone: false,

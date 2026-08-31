@@ -14,10 +14,15 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     background_color: '#0B0B0C',
     theme_color: '#0B0B0C',
+    /* The emblem, not the full lockup. The lockup is a wide three colour badge
+       whose wordmark is unreadable below about 64px, which is every size a tab
+       or a home screen actually uses. Cropping to the coyote and the sunset
+       keeps the part that survives. The lockup itself is untouched and still
+       serves the nav, the footer and the emails. */
     icons: [
-      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      { src: '/mark-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/mark-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/mark-180.png', sizes: '180x180', type: 'image/png' },
     ],
   };
 }
