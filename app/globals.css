@@ -42,6 +42,8 @@
   --shell: 1140px;
   --gutter: clamp(1.15rem, 4vw, 2.5rem);
   --nav-h: 128px;
+  /* One row, logo and APPLY, once the page has moved. */
+  --nav-h-slim: 60px;
   /* Height of the sticky deadline bar. The nav parks below it and anchor
      scrolling has to clear both, so it is a variable rather than a guess in
      two places. Measured, not estimated: the bar wraps to a taller stack under
@@ -64,7 +66,10 @@ html {
   scroll-behavior: smooth;
   /* Both sticky bars, not just the nav. With only the nav counted an anchor
      landed 152px of content underneath the deadline bar on a phone. */
-  scroll-padding-top: calc(var(--deadline-h) + var(--nav-h) + 12px);
+  /* Every in-page anchor lands below the sticky header rather than under it.
+     Sized on the slim height, because by the time a jump completes the page has
+     scrolled and the header has already shrunk. */
+  scroll-padding-top: calc(var(--nav-h-slim) + 12px);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -439,6 +444,7 @@ p {
 
 .nav__inner {
   height: var(--nav-h);
+  transition: height 180ms var(--ease);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1870,10 +1876,14 @@ p {
 
 /* Pinned above the nav. The nav is sticky too, so this sits at a higher
    stacking level and the nav parks underneath it as the page scrolls. */
+/* Not sticky. The banner and the header were both pinned, which on a 390px
+   phone ate well over a third of the viewport before any content, and the hero
+   headline came up underneath the banner rather than below it. The countdown is
+   worth seeing once, at the top; it is not worth a permanent third of the
+   screen. The header stays pinned because it carries APPLY. */
 .deadline {
-  position: sticky;
-  top: 0;
-  z-index: 90;
+  position: relative;
+  z-index: 1;
   background: var(--rust);
   color: #fff;
   border-bottom: 2px solid #8e3517;
@@ -1967,8 +1977,10 @@ p {
 /* The nav parks below the deadline bar instead of sliding underneath it. Both
    were pinned at top:0, and with the bar at a higher stacking level the nav was
    completely hidden the moment the page scrolled. */
+/* The nav used to be offset by the banner's height because both were pinned.
+   The banner scrolls away now, so the header sits at the top on its own. */
 .nav {
-  top: var(--deadline-h);
+  top: 0;
 }
 
 @media (max-width: 640px) {
@@ -6538,4 +6550,51 @@ p {
 /* The retired prepaid link. One route to the ordinary signup. */
 .retired__cta {
   margin: 1.6rem 0 1.4rem;
+}
+
+/* ------------------------------------------------------------
+   The header, slimmed on scroll.
+
+   At the top of the page it is the full bar with the section links. Once the
+   page has moved it collapses to one row, logo left and APPLY right, so the
+   conversion path stays reachable without holding a third of a phone screen.
+   The class is set from JS on the first scroll; without JS the header simply
+   stays full size, which is the pre-existing behaviour and not a broken one.
+   ------------------------------------------------------------ */
+
+.nav.is-slim .nav__inner {
+  height: var(--nav-h-slim);
+}
+
+.nav.is-slim .nav__links a:not(.nav__cta) {
+  /* The section links go, the call to action stays. */
+  display: none;
+}
+
+.nav.is-slim .brand__mark {
+  height: 34px;
+  width: auto;
+}
+
+.nav.is-slim .brand__name {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav__inner {
+    transition: none;
+  }
+}
+
+/* Anchor targets clear the sticky header individually as well as through
+   scroll-padding-top, since a browser that ignores one usually honours the
+   other. */
+#apply,
+#vendors,
+#faq,
+#visit,
+#about,
+#events,
+#pricing {
+  scroll-margin-top: calc(var(--nav-h-slim) + 12px);
 }

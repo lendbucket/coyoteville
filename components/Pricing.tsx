@@ -1,4 +1,4 @@
-import { PRICING, NEXT_EVENT } from '@/lib/seo';
+import { PRICING, nextEventByDate } from '@/lib/seo';
 import { getSpots, type SpotLine } from '@/lib/spots';
 
 /**
@@ -39,7 +39,10 @@ function spotsLeftLabel(line: SpotLine): string | null {
 }
 
 export default async function Pricing() {
-  const spots = await getSpots(NEXT_EVENT.slug);
+  /* The event people can actually book, resolved against the clock. This read
+     NEXT_EVENT, the first entry in the static calendar, which never advances:
+     the cards were quoting the finished event's remainders. */
+  const spots = await getSpots(nextEventByDate().slug);
 
   const cards = [
     {

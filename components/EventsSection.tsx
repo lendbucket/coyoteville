@@ -25,10 +25,9 @@ function meterLine(spots: SpotsSnapshot, event: ScheduledEvent): string {
 
 export function EventCard({ event, spots }: { event: ScheduledEvent; spots: SpotsSnapshot }) {
 
-  // Full is a real state, not the absence of room: it only counts when we
-  // actually know the capacity.
-  const isFull = event.isFull === true;
-  const closed = !event.isOpen;
+  const { lifecycle } = event;
+  const isFull = lifecycle.state === 'FULL';
+  const closed = !lifecycle.canApply;
   const percent = isFull ? 100 : spots.total.percent;
   const remaining = spots.total.remaining;
 
@@ -42,7 +41,13 @@ export function EventCard({ event, spots }: { event: ScheduledEvent; spots: Spot
           </p>
         </div>
         <span className={`evcard__state ${closed ? 'is-closed' : 'is-open'}`}>
-          {isFull ? 'Full' : closed ? 'Closed' : 'Open'}
+          {lifecycle.state === 'LIVE'
+            ? 'Happening now'
+            : isFull
+              ? 'Full'
+              : closed
+                ? 'Closed'
+                : 'Open'}
         </span>
       </div>
 
@@ -97,15 +102,15 @@ export function EventCard({ event, spots }: { event: ScheduledEvent; spots: Spot
       ) : null}
 
       <p className="evcard__note">
-        {closed ? (
-          isFull ? (
-            <>Signups are closed for this date. Every spot has been claimed.</>
-          ) : (
-            <>
-              Signups are closed for this date. The cutoff was{' '}
-              {event.signupClosesDisplay} {event.signupClosesZoneLabel}.
-            </>
-          )
+        {lifecycle.state === 'LIVE' ? (
+          <>This one is running right now. Come down.</>
+        ) : isFull ? (
+          <>Every spot has been claimed. Join the waitlist and we will call if one frees up.</>
+        ) : closed ? (
+          <>
+            Signups are closed for this date. The cutoff was {event.signupClosesDisplay}{' '}
+            {event.signupClosesZoneLabel}.
+          </>
         ) : (
           <>
             Signup closes {event.signupClosesDisplay} {event.signupClosesZoneLabel}.
@@ -113,14 +118,22 @@ export function EventCard({ event, spots }: { event: ScheduledEvent; spots: Spot
         )}
       </p>
 
-      {/* The link carries the event, so landing on the form preselects this
-          date rather than whichever one happens to be the default. */}
-      <a
-        className={`btn ${closed ? 'btn--ghost' : 'btn--amber'} evcard__cta`}
-        href={`/?event=${encodeURIComponent(event.slug)}#apply`}
-      >
-        {closed ? 'Join the waitlist' : 'Reserve a spot'}
-      </a>
+      {/* A call to action only where there is one to make. The waitlist used to
+          appear on any date that was not open, which meant a date whose deadline
+          had simply passed offered a list nobody would ever be taken off. It is
+          now offered for FULL and nothing else, and a closed or running date
+          gets no button at all.
+
+          The link carries the event, so landing on the form preselects this date
+          rather than whichever one happens to be the default. */}
+      {lifecycle.canApply || lifecycle.showWaitlist ? (
+        <a
+          className={`btn ${lifecycle.showWaitlist ? 'btn--ghost' : 'btn--amber'} evcard__cta`}
+          href={`/?event=${encodeURIComponent(event.slug)}#apply`}
+        >
+          {lifecycle.showWaitlist ? 'Join the waitlist' : 'Reserve a spot'}
+        </a>
+      ) : null}
     </li>
   );
 }
@@ -141,8 +154,8 @@ export default async function EventsSection() {
         <p className="eyebrow">Dates</p>
         <h2 id="events-title">Upcoming events</h2>
         <p className="lede muted events__lede">
-          Every date we are open, with what is left on each. A full or closed date still takes
-          waitlist signups.
+          Every date we are open, with what is left on each. A full date takes waitlist
+          signups; once signup closes we are set for that night.
         </p>
 
         <ul className="events__list">

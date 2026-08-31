@@ -1,7 +1,7 @@
 import 'server-only';
 import { cache } from 'react';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
-import { NEXT_EVENT } from './seo';
+import { nextEventByDate } from './seo';
 import { getMonthlyHolders } from './days';
 import { reviewCapacity, reviewSlotsLeft } from './booking';
 
@@ -366,7 +366,7 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
  * public meter, wrong for the tracker, which is why getSpotsFresh exists.
  */
 export const getSpots = cache(
-  async (eventSlug: string = NEXT_EVENT.slug): Promise<SpotsSnapshot> => {
+  async (eventSlug: string = nextEventByDate().slug): Promise<SpotsSnapshot> => {
     const hit = store.get(eventSlug);
     if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
 

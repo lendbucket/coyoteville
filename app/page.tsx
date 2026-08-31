@@ -29,6 +29,16 @@ import { supportEmail } from '@/lib/support';
  * Revalidated on an interval so the live spot counts stay fresh without a
  * database read on every request. lib/spots also caches briefly in process, so
  * a burst of traffic hits Postgres once, not once per visitor.
+ *
+ * This is also what retires a finished event without a deploy. Event state is
+ * computed from the clock inside the render, so the next revalidation after an
+ * event ends drops it from the cards, the form's dropdown and the structured
+ * data: a minute at worst, on a thing that changes at three in the morning.
+ *
+ * Deliberately not force-dynamic. This is the marketing page and it is the one
+ * that takes real traffic; making it dynamic would put a database round trip on
+ * every visitor to save at most sixty seconds on a transition nobody is
+ * watching.
  */
 export const revalidate = 60;
 
@@ -49,6 +59,7 @@ export default async function HomePage() {
     slug: e.slug,
     name: e.name,
     displayDate: e.displayDate,
+    lifecycle: e.lifecycle,
     isOpen: e.isOpen,
     deadlinePassed: e.deadlinePassed,
     isFull: e.isFull,

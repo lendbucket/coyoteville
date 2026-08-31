@@ -1,5 +1,5 @@
 import type { RegistrationEmail } from '../notify-types';
-import { ADDRESS, NEXT_EVENT, SITE_URL } from '../seo';
+import { ADDRESS, nextEventByDate, SITE_URL } from '../seo';
 import { LOGO_ALT, LOGO_URL, preheader } from './shared';
 import {
   NEXT_STEPS_CONTACT,
@@ -98,8 +98,9 @@ export function renderVendorConfirmation(
      had not booked. The caller passes what was really booked and the calendar
      is only consulted when it did not. */
   const monthly = r.booking_kind === 'monthly';
-  const whenLabel = r.booking_when || NEXT_EVENT.displayDate;
-  const gatesLabel = monthly ? 'Every day we are open' : NEXT_EVENT.displayTime;
+  const fallbackEvent = nextEventByDate();
+  const whenLabel = r.booking_when || fallbackEvent.displayDate;
+  const gatesLabel = monthly ? 'Every day we are open' : fallbackEvent.displayTime;
   const logo = LOGO_URL;
   const lights = `${SITE_URL}/email/lights.png`;
 

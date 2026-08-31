@@ -5,7 +5,7 @@ import Footer from '@/components/Footer';
 import StringLights from '@/components/StringLights';
 import NextSteps from '@/components/NextSteps';
 import Fireworks from '@/components/Fireworks';
-import { NEXT_EVENT } from '@/lib/seo';
+import { nextEventByDate } from '@/lib/seo';
 import { REFUND_WINDOW, REVIEW_WINDOW } from '@/lib/approval';
 import { supportEmail } from '@/lib/support';
 
@@ -37,6 +37,11 @@ export default function ConfirmedPage({
   const email = supportEmail();
   const free = searchParams.spot === 'free';
 
+  /* The event they are now queued for, resolved against the clock. This named
+     NEXT_EVENT, which never advances, so the page thanked people for applying
+     to an event that had already happened. */
+  const nextEvent = nextEventByDate();
+
   return (
     <>
       <DeadlineBarMount />
@@ -54,7 +59,7 @@ export default function ConfirmedPage({
             {free
               ? 'We have your signed agreement. Nothing was charged.'
               : 'We have your payment and your signed agreement. Square sends the receipt to your email.'}{' '}
-            You are in the queue for {NEXT_EVENT.name} on {NEXT_EVENT.displayDate}.
+            You are in the queue for {nextEvent.name} on {nextEvent.displayDate}.
           </p>
 
           {/* The rule, stated the same way it was stated before they paid and

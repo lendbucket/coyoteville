@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import VendorForm from './VendorForm';
 import WaitlistForm from './WaitlistForm';
-import { isOpenForSpot, type EventOption } from '@/lib/event-options';
+import { isWaitlistForSpot, type EventOption } from '@/lib/event-options';
 
 /**
  * The apply section: either the application form or the waitlist, depending on
@@ -68,13 +68,18 @@ export default function ApplySection({
     );
   }
 
-  /* Shut to this vendor, which is not the same as shut. An event with the
-     booths full and the trucks still going is open to one and closed to the
-     next, so the question is asked of the type they picked. With nothing picked
-     yet the form is shown, because there is no answer to give. */
-  const shutForThem = spot !== '' && !isOpenForSpot(selected, spot);
+  const { lifecycle } = selected;
 
-  if (!selected.isOpen || shutForThem) {
+  /* The waitlist is for one state only: the signup window is open and the type
+     this vendor picked has run out. It used to appear whenever the event was
+     not open, which meant a date whose deadline had simply passed offered a
+     list nobody would ever be taken off.
+
+     Asked of the type they picked, not of the event. Booths full with trucks
+     still going is closed to one vendor and open to the next, and gating both
+     on one number turns away every truck because the booths were popular. With
+     nothing picked yet there is no answer to give, so the form is shown. */
+  if (isWaitlistForSpot(selected, spot)) {
     return (
       <WaitlistForm
         events={events}
@@ -83,6 +88,28 @@ export default function ApplySection({
         supportEmail={supportEmail}
         spotType={spot}
         onSpotTypeChange={setSpot}
+      />
+    );
+  }
+
+  /* Signup is shut and this is not a waitlist case: the deadline has gone, the
+     night is running, or it is over. The form says so rather than pretending to
+     take an application the API would refuse. */
+  if (!lifecycle.signupWindowOpen) {
+    return (
+      <VendorForm
+        events={events}
+        eventSlug={selected.slug}
+        onEventChange={setSlug}
+        supportEmail={supportEmail}
+        spotType={spot}
+        onSpotTypeChange={setSpot}
+        signupClosed
+        closedTitle={
+          lifecycle.state === 'LIVE'
+            ? `${selected.name} is happening now`
+            : `Signup is closed for ${selected.name}`
+        }
       />
     );
   }

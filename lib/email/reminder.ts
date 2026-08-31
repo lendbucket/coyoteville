@@ -1,4 +1,4 @@
-import { NEXT_EVENT, PRICING } from '../seo';
+import { nextEventByDate, PRICING } from '../seo';
 import { logoHeader, preheader } from './shared';
 
 /**
@@ -37,6 +37,9 @@ export function renderReminder(opts: {
 }): { subject: string; html: string; text: string } {
   const { businessName, spotType, amountCents, finishUrl, supportEmail } = opts;
 
+  // The date this reminder names, resolved now rather than from the first
+  // entry in the static calendar, which never advances.
+  const nextEvent = nextEventByDate();
   const spot = spotLabel(spotType);
   const amount = money(amountCents);
 
@@ -56,7 +59,7 @@ ${preheader('Your spot is not held until payment goes through.')}
 
     <p style="margin:0 0 14px;">
       We got your application and your signed agreement for Coyoteville on
-      ${esc(NEXT_EVENT.displayDate)}.
+      ${esc(nextEvent.displayDate)}.
     </p>
 
     <p style="margin:0 0 16px;">
@@ -96,7 +99,7 @@ ${preheader('Your spot is not held until payment goes through.')}
 </body></html>`;
 
   const text = [
-    `We got your application and your signed agreement for Coyoteville on ${NEXT_EVENT.displayDate}.`,
+    `We got your application and your signed agreement for Coyoteville on ${nextEvent.displayDate}.`,
     '',
     'Your spot is not held until the payment goes through.',
     '',
@@ -115,7 +118,7 @@ ${preheader('Your spot is not held until payment goes through.')}
   ].join('\n');
 
   return {
-    subject: `Finish your payment for ${businessName}, ${NEXT_EVENT.name}`,
+    subject: `Finish your payment for ${businessName}, ${nextEvent.name}`,
     html,
     text,
   };

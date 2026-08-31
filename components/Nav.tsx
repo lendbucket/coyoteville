@@ -1,8 +1,10 @@
 import Brand from './Brand';
+import NavShrink from './NavShrink';
 
 export default function Nav() {
   return (
     <header className="nav">
+      <NavShrink />
       <nav className="shell nav__inner" aria-label="Main">
         <Brand />
         <div className="nav__links">

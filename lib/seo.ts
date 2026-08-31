@@ -173,7 +173,11 @@ export const UPCOMING_EVENTS: readonly EventConfig[] = [...EVENTS].sort((a, b) =
  * should use nextOpenEvent() instead, because signup shuts two days out while
  * this still points at the same event.
  */
-export const NEXT_EVENT = UPCOMING_EVENTS[0];
+/* NEXT_EVENT used to live here: UPCOMING_EVENTS[0], the first entry in the
+   static calendar. It never advanced, so every caller that took it as a default
+   kept naming an event after it had been and gone. Deleted rather than renamed:
+   there is no call site that wants "first by date, whatever the clock says",
+   and leaving it exported is leaving the trap set. Use nextEventByDate(). */
 
 /** The house rule: two days before the event, 11:59 PM local. */
 export function defaultSignupCloses(date: string): string {
@@ -183,12 +187,12 @@ export function defaultSignupCloses(date: string): string {
 }
 
 /** UTC instant of an event's signup cutoff, resolved from its wall clock time. */
-export function signupClosesAt(event: EventConfig = NEXT_EVENT): number {
+export function signupClosesAt(event: EventConfig = nextEventByDate()): number {
   return parseZonedWallClock(event.signupClosesLocal, EVENT_TIMEZONE);
 }
 
 /** UTC instant an event's gates open. */
-export function gatesOpenAt(event: EventConfig = NEXT_EVENT): number {
+export function gatesOpenAt(event: EventConfig = nextEventByDate()): number {
   return parseZonedWallClock(event.gatesOpenLocal, EVENT_TIMEZONE);
 }
 
@@ -200,12 +204,15 @@ export function gatesOpenAt(event: EventConfig = NEXT_EVENT): number {
  * deadline; lib/event-schedule.ts is the version that honours an override set
  * in the events table, and is what the route actually calls.
  */
-export function isSignupClosed(event: EventConfig = NEXT_EVENT, now: number = Date.now()): boolean {
+export function isSignupClosed(
+  event: EventConfig = nextEventByDate(),
+  now: number = Date.now()
+): boolean {
   return now >= signupClosesAt(event);
 }
 
 /** Zone label for the cutoff, eg "CDT". Rendered next to the deadline. */
-export function signupClosesZone(event: EventConfig = NEXT_EVENT): string {
+export function signupClosesZone(event: EventConfig = nextEventByDate()): string {
   return zoneAbbreviation(signupClosesAt(event), EVENT_TIMEZONE);
 }
 
@@ -312,53 +319,65 @@ export const KEYWORDS = [
   'weekend events near Corpus Christi',
 ];
 
-/** FAQ content. Rendered on the page and emitted as FAQPage schema. */
-export const FAQ = [
-  {
-    q: 'Where is Coyoteville?',
-    a: 'We are at 150 N. Stadium Road in Alice, Texas, directly across from the stadium and next to Alice High School.',
-  },
-  {
-    q: 'What time do you open?',
-    a: 'We open at 4:00 PM before home games. Admission is free.',
-  },
-  {
-    q: 'Is there parking at Coyoteville?',
-    a: 'Parking opens on the lot at kickoff for $10 per vehicle.',
-  },
-  {
-    q: 'What does it cost to vend?',
-    a: 'A vendor booth is $25 per event. A food truck spot is $50 per event. That is the whole fee. We do not take a percentage of your sales.',
-  },
-  {
-    q: 'Do Alice organizations pay?',
-    a: 'No. Any Alice organization sets up at no charge and keeps everything it raises. That covers band, colorguard, athletics, clubs, churches and youth groups. Pick the organization option on the application.',
-  },
-  {
-    q: 'What do I need to bring as a vendor?',
-    a: 'Your own table, chairs, canopy and decorations. Trucks bring their own generator, fuel and water. Everyone brings a fire extinguisher rated for what they are cooking. One vehicle per space.',
-  },
-  {
-    q: 'Do I need permits and insurance?',
-    a: 'Yes. Every food truck must hold a current Texas Department of State Health Services health permit and upload it when registering, and must bring it along with food handler certificates to the event. Vendors handle their own licenses and health department approvals, and carry their own general liability insurance. We do not provide coverage.',
-  },
-  {
-    q: 'What happens if it rains?',
-    a: 'Events run rain or shine and vendor fees are not refundable. If we cancel an event ourselves, your fee is credited to the next one.',
-  },
-  {
-    q: 'When is the next event?',
-    a: 'Tailgate Kickoff, Friday, August 28, 2026 at 4:00 PM. It is the first home game of the season.',
-  },
-  {
-    q: 'Can I sell alcohol?',
-    a: 'Not without written approval from us and the right TABC permitting. Ask before you apply.',
-  },
-  {
-    q: 'How do I hold my spot?',
-    a: 'Fill out the application, upload your permit if you serve food, sign the Vendor Participation Agreement and pay. The spot is not held until the fee is in. We assign spaces so the layout stays safe.',
-  },
-] as const;
+/**
+ * FAQ content. Rendered on the page and emitted as FAQPage schema.
+ *
+ * A function, not a constant, because one answer names the next event. It used
+ * to be a literal reading "Tailgate Kickoff, Friday, August 28, 2026", which
+ * stayed on the page and in the FAQPage structured data after that event had
+ * been and gone: Google was being handed a past date as the answer to "when is
+ * the next event".
+ */
+export function faqItems(now: number = Date.now()): { q: string; a: string }[] {
+  const next = nextEventByDate(now);
+
+  return [
+    {
+      q: 'Where is Coyoteville?',
+      a: 'We are at 150 N. Stadium Road in Alice, Texas, directly across from the stadium and next to Alice High School.',
+    },
+    {
+      q: 'What time do you open?',
+      a: 'We open at 4:00 PM before home games. Admission is free.',
+    },
+    {
+      q: 'Is there parking at Coyoteville?',
+      a: 'Parking opens on the lot at kickoff for $10 per vehicle.',
+    },
+    {
+      q: 'What does it cost to vend?',
+      a: 'A vendor booth is $25 per event. A food truck spot is $50 per event. That is the whole fee. We do not take a percentage of your sales.',
+    },
+    {
+      q: 'Do Alice organizations pay?',
+      a: 'No. Any Alice organization sets up at no charge and keeps everything it raises. That covers band, colorguard, athletics, clubs, churches and youth groups. Pick the organization option on the application.',
+    },
+    {
+      q: 'What do I need to bring as a vendor?',
+      a: 'Your own table, chairs, canopy and decorations. Trucks bring their own generator, fuel and water. Everyone brings a fire extinguisher rated for what they are cooking. One vehicle per space.',
+    },
+    {
+      q: 'Do I need permits and insurance?',
+      a: 'Yes. Every food truck must hold a current Texas Department of State Health Services health permit and upload it when registering, and must bring it along with food handler certificates to the event. Vendors handle their own licenses and health department approvals, and carry their own general liability insurance. We do not provide coverage.',
+    },
+    {
+      q: 'What happens if it rains?',
+      a: 'Events run rain or shine and vendor fees are not refundable. If we cancel an event ourselves, your fee is credited to the next one.',
+    },
+    {
+      q: 'When is the next event?',
+      a: `${next.name}, ${next.displayDate} at ${next.displayTime}. ${next.blurb}`,
+    },
+    {
+      q: 'Can I sell alcohol?',
+      a: 'Not without written approval from us and the right TABC permitting. Ask before you apply.',
+    },
+    {
+      q: 'How do I hold my spot?',
+      a: 'Fill out the application, upload your permit if you serve food, sign the Vendor Participation Agreement and pay. The spot is not held until the fee is in. We assign spaces so the layout stays safe.',
+      },
+  ];
+}
 
 /* ------------------------------------------------------------------ schema */
 
@@ -481,7 +500,7 @@ export function localBusinessSchema(email: string = SITE.email) {
   };
 }
 
-export function eventSchema(e: EventConfig = NEXT_EVENT) {
+export function eventSchema(e: EventConfig) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Event',
@@ -536,12 +555,12 @@ export function eventSchema(e: EventConfig = NEXT_EVENT) {
   };
 }
 
-export function faqSchema() {
+export function faqSchema(now: number = Date.now()) {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
     '@id': `${SITE_URL}/#faq`,
-    mainEntity: FAQ.map((item) => ({
+    mainEntity: faqItems(now).map((item) => ({
       '@type': 'Question',
       name: item.q,
       acceptedAnswer: { '@type': 'Answer', text: item.a },
@@ -560,13 +579,22 @@ export function breadcrumbSchema() {
   };
 }
 
-export function homeSchemaGraph(email: string = SITE.email) {
+/**
+ * The structured data for the homepage.
+ *
+ * Finished events are left out. Emitting an Event whose endDate has passed
+ * feeds Google a date nobody can attend, and the FAQPage used to carry the same
+ * stale event in prose. Both now follow the clock.
+ */
+export function homeSchemaGraph(email: string = SITE.email, now: number = Date.now()) {
+  const upcoming = UPCOMING_EVENTS.filter((e) => eventEndsAt(e) > now);
+
   return [
     organizationSchema(email),
     websiteSchema(),
     localBusinessSchema(email),
-    ...UPCOMING_EVENTS.map((e) => eventSchema(e)),
-    faqSchema(),
+    ...upcoming.map((e) => eventSchema(e)),
+    faqSchema(now),
     breadcrumbSchema(),
   ];
 }

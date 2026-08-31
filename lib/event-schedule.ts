@@ -14,6 +14,7 @@ import {
   type EventConfig,
 } from './seo';
 import { zoneAbbreviation } from './time';
+import { availability, eventLifecycle, type EventLifecycle } from './event-state';
 
 /**
  * The live schedule: the static calendar in lib/seo joined to the parts of an
@@ -76,6 +77,12 @@ export type ScheduledEvent = Omit<EventConfig, 'signupClosesDisplay'> & {
    */
   boothOpen: boolean;
   truckOpen: boolean;
+  /**
+   * The one answer to "what state is this event in", derived from the clock on
+   * every request. Everything the public site renders about an event gates on
+   * this rather than on is_published or on a date compiled into the build.
+   */
+  lifecycle: EventLifecycle;
 };
 
 type EventRow = {
@@ -165,7 +172,24 @@ async function decorate(event: EventConfig, row: EventRow | undefined, now: numb
   const isPublished = row?.is_published ?? true;
   const deadlinePassed = now >= signupClosesAtMs;
 
+  /* Room per spot type, off the corrected capacity count: rows for the event
+     that are not denied, against the plain capacity columns. The same snapshot
+     the tracker reads, so the public page and the admin cannot disagree about
+     whether a date is full. */
+  const lifecycle = eventLifecycle(
+    {
+      isPublished,
+      startsAtMs: gatesOpenAt(event),
+      endsAtMs: eventEndsAt(event),
+      signupClosesAtMs,
+      booth: availability(spots.booth.capacity, spots.booth.held),
+      truck: availability(spots.truck.capacity, spots.truck.held),
+    },
+    now
+  );
+
   return {
+    lifecycle,
     ...event,
     signupClosesAtMs,
     signupClosesZoneLabel: zoneAbbreviation(signupClosesAtMs, EVENT_TIMEZONE),
@@ -194,16 +218,24 @@ export const getSchedule = cache(async (now: number = Date.now()): Promise<Sched
 
 /** Only the events a vendor can actually sign up for, oldest first. */
 export async function getOpenEvents(now: number = Date.now()): Promise<ScheduledEvent[]> {
-  return (await getSchedule(now)).filter((e) => e.isOpen);
+  return (await getSchedule(now)).filter((e) => e.lifecycle.canApply);
 }
 
 /**
- * Events worth showing in a picker: published and not yet run. Includes ones
- * that are closed or full, because those are exactly the ones a vendor joins
- * the waitlist for.
+ * Events the public site may render: anything not PAST.
+ *
+ * This used to filter on is_published alone, which is why a finished event was
+ * still on the homepage with a working waitlist link two days after it ended.
+ * A PAST event is gone from here, and therefore gone from the event cards, the
+ * form's dropdown and the structured data, without anybody flipping a column.
  */
 export async function getSelectableEvents(now: number = Date.now()): Promise<ScheduledEvent[]> {
-  return (await getSchedule(now)).filter((e) => e.isPublished);
+  return (await getSchedule(now)).filter((e) => e.lifecycle.publiclyVisible);
+}
+
+/** Every event including the finished ones. For the tracker, never the site. */
+export async function getAllEvents(now: number = Date.now()): Promise<ScheduledEvent[]> {
+  return getSchedule(now);
 }
 
 /** The soonest event still taking applications, or null when none is. */

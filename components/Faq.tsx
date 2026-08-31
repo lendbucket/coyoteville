@@ -1,6 +1,12 @@
-import { FAQ } from '@/lib/seo';
+import { faqItems } from '@/lib/seo';
 
+/**
+ * Rendered per request rather than from a constant: one answer names the next
+ * event, and a hardcoded date outlives the event it names.
+ */
 export default function Faq() {
+  const items = faqItems();
+
   return (
     <section className="section section--char" id="faq" aria-labelledby="faq-title">
       <div className="shell">
@@ -8,7 +14,7 @@ export default function Faq() {
         <h2 id="faq-title">Things people ask us</h2>
 
         <div className="faq__list">
-          {FAQ.map((item) => (
+          {items.map((item) => (
             <details className="faq__item" key={item.q}>
               <summary>{item.q}</summary>
               <div className="faq__answer">

@@ -7,10 +7,14 @@
  * live state travels with the event so the form can decide between applying
  * and waitlisting without a second round trip.
  */
+import { canApplyForSpot, waitlistForSpot, type EventLifecycle } from './event-state';
+
 export type EventOption = {
   slug: string;
   name: string;
   displayDate: string;
+  /** The event's state right now. What every gate below actually reads. */
+  lifecycle: EventLifecycle;
   /** Published, deadline not passed, not full. */
   isOpen: boolean;
   deadlinePassed: boolean;
@@ -33,10 +37,19 @@ export type EventOption = {
  * their own.
  */
 export function isOpenForSpot(event: EventOption, spot: string): boolean {
-  if (!event.isOpen) return false;
-  if (spot === 'truck') return event.truckOpen;
-  if (spot === 'booth') return event.boothOpen;
-  return true;
+  return canApplyForSpot(event.lifecycle, spot);
+}
+
+/**
+ * Whether this vendor should be offered the waitlist rather than the form.
+ *
+ * Only inside the signup window, and only for a type that has actually run
+ * out. A closed or finished date offers neither: nobody is being taken off a
+ * list for a date that is not selling, so a waitlist there would be a form that
+ * collects an address and does nothing with it.
+ */
+export function isWaitlistForSpot(event: EventOption, spot: string): boolean {
+  return waitlistForSpot(event.lifecycle, spot);
 }
 
 /**
@@ -47,6 +60,9 @@ export function isOpenForSpot(event: EventOption, spot: string): boolean {
  * still going would be wrong, and telling them nothing at all is worse.
  */
 export function closedReason(event: EventOption, spot?: string): string {
+  if (event.lifecycle.state === 'LIVE') {
+    return `${event.name} is happening now.`;
+  }
   if (event.deadlinePassed) {
     return `Signup for ${event.name} closed ${event.signupClosesDisplay} Central.`;
   }
