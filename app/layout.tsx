@@ -140,12 +140,54 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * The two faces that paint above the fold, preloaded by hand.
+ *
+ * next/font preloads on its own through next-font-manifest.json. On this build
+ * that manifest comes out empty, app: {} and appUsingSizeAdjust: false, even
+ * though the size-adjust fallbacks it claims not to have are demonstrably in
+ * the emitted CSS. So nothing is preloaded, and both faces are discovered only
+ * after the stylesheet parses, which puts a round trip in front of the first
+ * painted headline.
+ *
+ * Only these two. Anton sets the h1 and Barlow Condensed 700 sets the eyebrow,
+ * the ticker and the buttons, all of which are in the first viewport. Karla,
+ * Yellowtail and the 500 and 600 weights of Barlow are further down and are
+ * left to be fetched when they are reached: a preload that is not needed
+ * immediately competes with the LCP image, which is the opposite of the point.
+ *
+ * These are the latin (u+00??) subsets, which is the only one a page of English
+ * touches. The hashes come from the font file contents and change only when the
+ * face or the subset changes, and scripts/check-font-preload.js fails the build
+ * if either stops matching a real file that the CSS actually references, so a
+ * stale entry here cannot ship as a 404 or a wasted fetch.
+ */
+const PRELOAD_FONTS = [
+  '/_next/static/media/62c97acc3aa63787-s.p.woff2', // Anton 400
+  '/_next/static/media/437e5f23c97e320c-s.p.woff2', // Barlow Condensed 700
+];
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
       className={`${anton.variable} ${barlowCondensed.variable} ${karla.variable} ${yellowtail.variable}`}
     >
+      <head>
+        {PRELOAD_FONTS.map((href) => (
+          <link
+            key={href}
+            rel="preload"
+            as="font"
+            type="font/woff2"
+            href={href}
+            /* Fonts are always fetched in CORS mode, even same origin, so
+               without this the preload does not match the request the font
+               loader makes and the file is downloaded twice. */
+            crossOrigin="anonymous"
+          />
+        ))}
+      </head>
       <body>
         <a className="skip" href="#main">
           Skip to content

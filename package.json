@@ -8,9 +8,10 @@
     "check:pdf-bundle": "node scripts/check-pdf-bundle.js",
     "check:email-copy": "node scripts/check-email-copy.js",
     "check:webhook": "node scripts/check-webhook-settles.js",
+    "check:font-preload": "node scripts/check-font-preload.js",
     "prebuild": "npm run check:schema && npm run check:email-copy",
     "build": "next build",
-    "postbuild": "npm run check:pdf-bundle && npm run check:webhook",
+    "postbuild": "npm run check:pdf-bundle && npm run check:webhook && npm run check:font-preload",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
@@ -28,9 +29,12 @@
     "square": "^45.1.0"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.3.3",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "puppeteer-core": "^25.9.0",
+    "svgo": "^4.1.0",
     "typescript": "^5.5.4"
   }
 }

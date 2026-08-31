@@ -15,7 +15,6 @@ import PermanentSpot from '@/components/PermanentSpot';
 import HowItWorks from '@/components/HowItWorks';
 import EventCountdownSection from '@/components/EventCountdownSection';
 import PastVendors from '@/components/PastVendors';
-import ApplySection from '@/components/ApplySection';
 import Faq from '@/components/Faq';
 import EmailCapture from '@/components/EmailCapture';
 import Visit from '@/components/Visit';
@@ -24,6 +23,26 @@ import JsonLd from '@/components/JsonLd';
 import { homeSchemaGraph } from '@/lib/seo';
 import { getDefaultEvent, getSelectableEvents } from '@/lib/event-schedule';
 import { supportEmail } from '@/lib/support';
+
+/**
+ * The apply form, split out of the initial JavaScript.
+ *
+ * It is the largest client component on the site by a wide margin: the form
+ * itself, the waitlist form, the day picker, the card on file fields, the
+ * fireworks, and the full text of the current vendor agreement, which together
+ * were about nineteen of the page's twenty two kilobytes of client code. All of
+ * it sits roughly four fifths of the way down a long marketing page, behind a
+ * scroll nobody makes before the hero has painted.
+ *
+ * ssr is deliberately left on. The form has to be in the prerendered HTML: it
+ * is the page's conversion point and its content is indexed, and somebody with
+ * JavaScript off still gets a rendered form rather than a hole. This only
+ * defers the hydration bundle, not the markup.
+ *
+ * Not the LCP element and not above the fold. The LCP is the hero photograph,
+ * which is preloaded at high priority in Hero.tsx and is untouched by this.
+ */
+import ApplySectionLazy from '@/components/ApplySectionLazy';
 
 /**
  * Revalidated on an interval so the live spot counts stay fresh without a
@@ -92,7 +111,7 @@ export default async function HomePage() {
         <HowItWorks />
         <EventCountdownSection />
         <PastVendors />
-        <ApplySection
+        <ApplySectionLazy
           events={eventOptions}
           defaultSlug={defaultEvent?.slug ?? ''}
           supportEmail={supportEmail()}

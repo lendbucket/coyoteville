@@ -113,4 +113,10 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+/* Build time only, and off unless ANALYZE=true. It is a devDependency and
+   contributes nothing to any shipped bundle. */
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
+module.exports = withBundleAnalyzer(nextConfig);
