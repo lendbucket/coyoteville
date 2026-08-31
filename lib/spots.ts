@@ -359,6 +359,11 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
 /**
  * Cached snapshot. `cache` dedupes within a single render pass, the TTL map
  * dedupes across requests on the same instance.
+ *
+ * That second cache is a process-level Map, so it outlives a request and no
+ * amount of route configuration reaches it: force-dynamic re-renders the page
+ * and this still hands back a snapshot up to thirty seconds old. Fine for the
+ * public meter, wrong for the tracker, which is why getSpotsFresh exists.
  */
 export const getSpots = cache(
   async (eventSlug: string = NEXT_EVENT.slug): Promise<SpotsSnapshot> => {
@@ -396,6 +401,19 @@ export function reviewSlotFor(
 }
 
 /** Drop the cached snapshot, so an admin edit shows up immediately. */
+/**
+ * The same snapshot, counted now.
+ *
+ * For the tracker, where a stale number is a decision made on the wrong facts.
+ * It still fills the shared cache, so a public request arriving just after gets
+ * the fresh figure rather than starting another count.
+ */
+export async function getSpotsFresh(eventSlug: string): Promise<SpotsSnapshot> {
+  const value = await loadSnapshot(eventSlug);
+  store.set(eventSlug, { at: Date.now(), value });
+  return value;
+}
+
 export function invalidateSpots(eventSlug?: string): void {
   if (eventSlug) store.delete(eventSlug);
   else store.clear();

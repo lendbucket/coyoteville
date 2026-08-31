@@ -15,7 +15,22 @@ import { dayKeyFromTimestamp, formatDayLong } from '@/lib/booking';
 import { DAY_SCOPE, SCOPE_LABELS, isEventScope } from '@/lib/admin-scope';
 import { bookingWindow, getDayStatuses } from '@/lib/days';
 
+/**
+ * Never cached, at any layer.
+ *
+ * force-dynamic keeps the route out of the full route cache and, in Next 14,
+ * defaults the fetches inside it to no-store, which covers the Supabase reads.
+ * revalidate = 0 is stated as well rather than left implied: this is the page
+ * where a cached row means a paid vendor sitting unseen in the review queue,
+ * and that is worth spelling out where somebody will read it.
+ *
+ * Deliberately NOT done: no-store on the shared Supabase client itself. That
+ * client is used by the public pages too, and an uncached fetch inside them
+ * would opt the homepage out of its revalidate = 60 rendering and put a
+ * database round trip on every visitor.
+ */
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: 'Vendor tracker',
@@ -130,7 +145,8 @@ export default async function AdminPage({
         })()
       : null;
 
-  const selectedEvent = EVENTS.find((e) => e.slug === filters.event) ?? EVENTS[0];
+  const selectedEvent =
+    EVENTS.find((e) => e.slug === filters.event) ?? nextEventByDate();
   // What the scope is called, for the composer's merge fields and the empty
   // states, so neither claims to be showing an event it is not.
   const scopeName = eventScoped ? selectedEvent.name : SCOPE_LABELS[filters.event];

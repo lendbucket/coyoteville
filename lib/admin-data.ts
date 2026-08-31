@@ -1,7 +1,7 @@
 import 'server-only';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
-import { EVENTS } from './seo';
-import { getSpots } from './spots';
+import { EVENTS, nextEventByDate } from './seo';
+import { getSpotsFresh } from './spots';
 import { summariseRevenue, type RevenueRow, type RevenueSummary } from './revenue';
 import { DAY_SCOPE, MONTHLY_SCOPE, isEventScope } from './admin-scope';
 
@@ -181,13 +181,35 @@ const COLUMNS = [
   'created_at',
 ].join(', ');
 
-export function normaliseFilters(params: Record<string, string | string[] | undefined>): AdminFilters {
+/**
+ * What the tracker opens on when the URL says nothing.
+ *
+ * The soonest event that has not finished, resolved against the clock on every
+ * request. It used to be EVENTS[0], the first entry in the static calendar,
+ * which never advances: the day after an event the tracker still opened on it,
+ * and applications for the next one were invisible until somebody thought to
+ * change the dropdown. Two paid vendors sat unseen in the review queue that
+ * way.
+ *
+ * An explicit ?event= is still honoured whatever its state, including a
+ * finished one. The admin has to be able to go back and look at August after
+ * August is over; what it must not do is land there on its own.
+ */
+function defaultEventSlug(now: number = Date.now()): string {
+  return nextEventByDate(now).slug;
+}
+
+export function normaliseFilters(
+  params: Record<string, string | string[] | undefined>,
+  now: number = Date.now()
+): AdminFilters {
   const one = (k: string) => {
     const v = params[k];
     return (Array.isArray(v) ? v[0] : v) ?? '';
   };
 
-  const event = one('event') || EVENTS[0].slug;
+  const fallback = defaultEventSlug(now);
+  const event = one('event') || fallback;
   const status = one('status');
   const q = one('q').slice(0, 80);
 
@@ -195,7 +217,7 @@ export function normaliseFilters(params: Record<string, string | string[] | unde
     event === DAY_SCOPE || event === MONTHLY_SCOPE || EVENTS.some((e) => e.slug === event);
 
   return {
-    event: known ? event : EVENTS[0].slug,
+    event: known ? event : fallback,
     status: ['paid', 'unpaid', 'not_required', 'refunded', 'expired'].includes(status)
       ? status
       : '',
@@ -270,7 +292,7 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
          views are not measured against one event's booth and truck numbers, so
          they read the next event's snapshot purely to keep the projection
          helper fed, and simply do not show the meter. */
-      getSpots(isEventScope(filters.event) ? filters.event : EVENTS[0].slug),
+      getSpotsFresh(isEventScope(filters.event) ? filters.event : nextEventByDate().slug),
     ]);
 
     if (countResult.error) throw countResult.error;

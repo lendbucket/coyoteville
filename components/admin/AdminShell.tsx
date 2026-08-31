@@ -8,6 +8,7 @@ import AdminSendAllPhotos from '../AdminSendAllPhotos';
 import AdminWaitlist from '../AdminWaitlist';
 import AdminCalendar from './AdminCalendar';
 import { AgreementBulkDownload } from './AgreementDownload';
+import { useLiveRefresh } from './useLiveRefresh';
 import VendorCard from './VendorCard';
 import VendorSheet from './VendorSheet';
 import Composer from './Composer';
@@ -147,6 +148,12 @@ export default function AdminShell({
   const refresh = useCallback(() => {
     startRefresh(() => router.refresh());
   }, [router]);
+
+  /* New applications arrive while this is open, so the page pulls them in on a
+     timer and whenever the tab comes back to the front, not only after an
+     action. The pending count and the review chip come off the same server
+     render, so they move with it. */
+  useLiveRefresh(refresh);
 
   const onTouchStart = (e: React.TouchEvent) => {
     // Only arm the gesture at the very top, so it cannot fight normal scrolling.

@@ -332,28 +332,25 @@ row.** Every remaining writer of `payment_method` sets `'online'`:
 settlement. So the feature still matters for the eighteen August 28 rows, which
 have never been reconciled, and there is no way to add a nineteenth.
 
-That is a gap, not a decision. A vendor who walks up on the night and pays cash
-cannot be entered at all. Three ways to close it, smallest first:
+### Walk-up vendors: they use the public form
 
-1. **Let the tracker change the payment method.** `/api/admin/update` already
-   takes a patch and already checks the admin session; it would accept
-   `payment_method` alongside the fields it has, and the sheet would offer
-   "paid cash at the gate" on an unpaid row. Smallest change, and it only helps
-   a vendor who already applied through the site and never paid.
-2. **An admin-side add-vendor form.** A cut-down version of the vendor form,
-   behind the admin session, writing the row directly with
-   `payment_method = 'offline'` and `approval_status = 'approved'`. Handles a
-   true walk-up with no prior application. Needs the agreement to be signed
-   somehow, which is the hard part: the signature record is what the PDF is
-   built from, and a row with no signature is a vendor with no agreement.
-3. **Bring back a token link with the payment lie fixed.** Rejected for now.
-   The thing that made the old one dangerous was the database function stamping
-   paid and approved without evidence, and that function is still there.
+**A walk-up does not need an offline path, and building one would be a
+mistake.** They have a phone. They fill in the ordinary form standing in the
+lot, sign the agreement themselves, and pay through Square checkout on the spot.
 
-Option 1 is the recommendation if the goal is only to stop losing cash from
-vendors who applied and did not pay. Option 2 is the recommendation if walk-ups
-with no application need to exist at all, and it should be scoped as its own
-piece of work because of the agreement problem.
+That gives a real signature with a real IP and timestamp, so the agreement PDF
+is a genuine record rather than a row asserting one; the money settles in Square
+where it can be reconciled and refunded; and there is no booked-versus-received
+gap to chase afterwards, because nothing was ever booked without being paid.
+
+It also needs no new code, no second way to create an application, and no second
+place where a row can be marked paid without evidence. That last one is the
+whole reason the prepaid link was removed above.
+
+So: no admin-side add-vendor form, no "mark as paid cash" control, no token
+link. If somebody is about to build an offline entry point, read this section
+and the one above it first. The cash recording tool stays as it is, for the
+eighteen rows that already exist.
 
 Three variables:
 
