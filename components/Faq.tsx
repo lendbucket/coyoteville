@@ -23,6 +23,17 @@ export default function Faq() {
             </details>
           ))}
         </div>
+
+        {/* The section used to end into the newsletter signup, so somebody who
+            had just read every answer had nothing to do but scroll back up. */}
+        <p className="section__cta">
+          <a className="btn btn--rust" href="#apply">
+            Apply for a spot
+          </a>
+        </p>
+        <p className="hint section__ctahint">
+          Takes a couple of minutes. You sign the agreement and pay at the end.
+        </p>
       </div>
     </section>
   );

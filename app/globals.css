@@ -41,14 +41,11 @@
   /* layout */
   --shell: 1140px;
   --gutter: clamp(1.15rem, 4vw, 2.5rem);
-  --nav-h: 128px;
-  /* One row, logo and APPLY, once the page has moved. */
-  --nav-h-slim: 60px;
+  --nav-h: 164px;
   /* Height of the sticky deadline bar. The nav parks below it and anchor
      scrolling has to clear both, so it is a variable rather than a guess in
      two places. Measured, not estimated: the bar wraps to a taller stack under
      640px where the label takes its own line. */
-  --deadline-h: 73px;
   --radius: 14px;
   --radius-sm: 9px;
 
@@ -66,10 +63,9 @@ html {
   scroll-behavior: smooth;
   /* Both sticky bars, not just the nav. With only the nav counted an anchor
      landed 152px of content underneath the deadline bar on a phone. */
-  /* Every in-page anchor lands below the sticky header rather than under it.
-     Sized on the slim height, because by the time a jump completes the page has
-     scrolled and the header has already shrunk. */
-  scroll-padding-top: calc(var(--nav-h-slim) + 12px);
+  /* No scroll padding. Nothing is pinned any more, so an anchor target lands
+     at the top of the viewport with nothing over it, and any offset here would
+     be dead space above every section. */
   -webkit-text-size-adjust: 100%;
 }
 
@@ -432,19 +428,18 @@ p {
 
 /* ------------------------------------------------------------ nav */
 
+/* Not sticky, not fixed. The header scrolls away with the page like anything
+   else, so nothing is pinned over the content and nothing has to be scrolled
+   around. The calls to action live down the page instead, in the sections where
+   somebody has just finished reading a reason to act. */
 .nav {
-  position: sticky;
-  top: 0;
-  z-index: 60;
-  background: rgba(11, 11, 12, 0.9);
-  backdrop-filter: blur(9px);
+  background: var(--black);
   border-bottom: 1px solid var(--hairline-dark);
   color: var(--cream);
 }
 
 .nav__inner {
   height: var(--nav-h);
-  transition: height 180ms var(--ease);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -479,7 +474,7 @@ p {
    shrinking it everywhere. */
 @media (max-width: 720px) {
   .brand__mark {
-    height: min(var(--brand-h, 100px), 62px);
+    height: min(var(--brand-h, 100px), 84px);
   }
 }
 
@@ -1977,11 +1972,7 @@ p {
 /* The nav parks below the deadline bar instead of sliding underneath it. Both
    were pinned at top:0, and with the bar at a higher stacking level the nav was
    completely hidden the moment the page scrolled. */
-/* The nav used to be offset by the banner's height because both were pinned.
-   The banner scrolls away now, so the header sits at the top on its own. */
-.nav {
-  top: 0;
-}
+
 
 @media (max-width: 640px) {
   .deadline__label {
@@ -2979,25 +2970,10 @@ p {
    comes down with it. */
 @media (max-width: 720px) {
   :root {
-    --nav-h: 84px;
+    --nav-h: 112px;
   }
 }
 
-/* The bar wraps differently at each width, so these defaults are the tallest
-   the bar gets in each band. Erring tall leaves a small gap; erring short
-   would hide the nav behind the bar. DeadlineBar measures the real height on
-   mount and overwrites this with the exact value. */
-@media (max-width: 767px) {
-  :root {
-    --deadline-h: 130px;
-  }
-}
-
-@media (max-width: 640px) {
-  :root {
-    --deadline-h: 152px;
-  }
-}
 
 /* ------------------------------------------------------------ mission */
 
@@ -6552,49 +6528,20 @@ p {
   margin: 1.6rem 0 1.4rem;
 }
 
-/* ------------------------------------------------------------
-   The header, slimmed on scroll.
 
-   At the top of the page it is the full bar with the section links. Once the
-   page has moved it collapses to one row, logo left and APPLY right, so the
-   conversion path stays reachable without holding a third of a phone screen.
-   The class is set from JS on the first scroll; without JS the header simply
-   stays full size, which is the pre-existing behaviour and not a broken one.
+/* ------------------------------------------------------------
+   Section level calls to action.
+
+   The header does not follow the page any more, so the way to apply is placed
+   in the sections where somebody has just read a reason to: after the prices in
+   About, and at the end of the FAQ. Same button as everywhere else, no new
+   variant, and nothing pinned.
    ------------------------------------------------------------ */
 
-.nav.is-slim .nav__inner {
-  height: var(--nav-h-slim);
+.section__cta {
+  margin: 1.8rem 0 0;
 }
 
-.nav.is-slim .nav__links a:not(.nav__cta) {
-  /* The section links go, the call to action stays. */
-  display: none;
-}
-
-.nav.is-slim .brand__mark {
-  height: 34px;
-  width: auto;
-}
-
-.nav.is-slim .brand__name {
-  display: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .nav__inner {
-    transition: none;
-  }
-}
-
-/* Anchor targets clear the sticky header individually as well as through
-   scroll-padding-top, since a browser that ignores one usually honours the
-   other. */
-#apply,
-#vendors,
-#faq,
-#visit,
-#about,
-#events,
-#pricing {
-  scroll-margin-top: calc(var(--nav-h-slim) + 12px);
+.section__ctahint {
+  margin: 0.7rem 0 0;
 }

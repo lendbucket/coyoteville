@@ -31,6 +31,15 @@ export default function About() {
             Alice organizations set up at no charge. We do not take a percentage of what anyone
             earns.
           </p>
+
+          {/* Straight after the prices, which is the sentence that decides it.
+              Nothing follows the page down, so the way to act has to be put
+              where somebody has just finished reading a reason to. */}
+          <p className="section__cta">
+            <a className="btn btn--rust" href="#apply">
+              Apply for a spot
+            </a>
+          </p>
         </div>
 
         <div className="factcard">
