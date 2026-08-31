@@ -141,19 +141,40 @@ export default function AdminShell({
 
   /* ------------------------------------------------------ pull to refresh */
 
-  const listRef = useRef<HTMLDivElement | null>(null);
+  /* The scrolling element, which is the panel: the gesture only arms at the
+     very top, so it has to read scrollTop from whatever actually scrolls. */
+  const listRef = useRef<HTMLElement | null>(null);
   const pullStart = useRef<number | null>(null);
   const [pull, setPull] = useState(0);
 
+  /**
+   * Pull to refresh. Runs inside a transition, which is what puts the skeleton
+   * cards up: the gesture was deliberate, so it gets visible feedback.
+   */
   const refresh = useCallback(() => {
     startRefresh(() => router.refresh());
+  }, [router]);
+
+  /**
+   * The background refresh, and deliberately not the same thing.
+   *
+   * Outside a transition, so `refreshing` stays false and the list is never
+   * swapped for skeletons. That swap is what would have made the poll
+   * unusable: replacing the cards with four placeholders collapses the
+   * scrollable height, so being halfway down the list on event night would
+   * have thrown you to the top every thirty seconds. The rows change
+   * underneath instead and the scroll position, the open sheet and the search
+   * box are all left alone.
+   */
+  const quietRefresh = useCallback(() => {
+    router.refresh();
   }, [router]);
 
   /* New applications arrive while this is open, so the page pulls them in on a
      timer and whenever the tab comes back to the front, not only after an
      action. The pending count and the review chip come off the same server
      render, so they move with it. */
-  useLiveRefresh(refresh);
+  useLiveRefresh(quietRefresh);
 
   const onTouchStart = (e: React.TouchEvent) => {
     // Only arm the gesture at the very top, so it cannot fight normal scrolling.
@@ -287,7 +308,15 @@ export default function AdminShell({
       </header>
 
       {/* -------------------------------------------------------- vendors */}
-      <section className="ash__panel" data-panel="vendors" aria-label="Vendors">
+      <section
+        className="ash__panel"
+        data-panel="vendors"
+        aria-label="Vendors"
+        ref={listRef}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
         <div className="ash__search">
           <input
             className="input ash__searchInput"
@@ -350,13 +379,7 @@ export default function AdminShell({
           </div>
         ) : null}
 
-        <div
-          className="ash__list"
-          ref={listRef}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-        >
+        <div className="ash__list">
           <div
             className="ash__pull"
             style={{ height: pull }}

@@ -2458,18 +2458,27 @@ p {
    with width: the SVG is 1200 units across and about 80 tall, so it renders at
    roughly 6.7vw, and 8vw always clears it without having to hard code a
    height. */
+/* Exactly the viewport, centred, and it does not scroll.
+
+   dvh rather than svh: svh is the short state, so the card stayed centred
+   against a viewport taller than the one actually on screen. dvh follows the
+   URL bar, and it follows the software keyboard down as well, which is what
+   keeps the password field above it rather than behind it.
+
+   The padding is a minimum rather than a frame: on a short screen with the
+   keyboard up there is not room for 3rem of it, so it collapses instead of
+   pushing the card off. */
 .adminlogin {
   position: relative;
-  min-height: 100vh;
-  /* Small viewport height, so the card is centred against the short state of
-     mobile Safari rather than jumping when the toolbars collapse. */
-  min-height: 100svh;
+  height: 100dvh;
   display: grid;
   place-items: center;
-  padding: clamp(3rem, 8vw, 9rem) var(--gutter);
+  padding: clamp(1rem, 8vw, 9rem) var(--gutter);
   background: var(--black);
   overflow: hidden;
+  overflow-x: clip;
 }
+
 
 /* Warm bloom behind the card, the same trick the hero uses, so the panel is
    not sitting on flat black. */
@@ -2492,6 +2501,12 @@ p {
   position: relative;
   z-index: 3;
   width: min(420px, 100%);
+  /* The card, not the page, is what gives if a short viewport with the keyboard
+     up leaves no room, so the submit button can never be stranded off screen
+     and the page itself still does not scroll. */
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .adminlogin__card {
@@ -4067,23 +4082,37 @@ p {
   max-width: none;
 }
 
+/* An app, not a page.
+
+   The shell is exactly the viewport and never scrolls itself. The header and
+   the tab bar are ordinary flex children that cannot move, and the panel
+   between them is the one thing with a scrollbar. That is why the header no
+   longer needs position: sticky and the tab bar no longer needs position:
+   fixed: nothing can scroll out from under them, so nothing has to be pinned
+   back into place.
+
+   dvh rather than vh: under mobile Safari's collapsing URL bar, 100vh is the
+   tall state and the bottom of the layout, which is the tab bar, sits below the
+   fold until you scroll. */
 .ash {
-  --tabbar-h: 62px;
   --safe-b: env(safe-area-inset-bottom, 0px);
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: 100dvh;
+  /* Belt and braces against a sideways scroll: clip rather than hidden, so it
+     cannot silently turn this into a scroll container of its own. */
+  overflow: hidden;
+  overflow-x: clip;
   background: var(--black);
 }
 
 /* ------------------------------------------------------------------ top */
 
+/* Fixed by structure rather than by position: sticky. It is a flex child of a
+   shell that does not scroll, so it cannot go anywhere, and the review queue
+   stays on screen without a second mechanism holding it there. */
 .ash__top {
-  /* Sticky so the review queue does not scroll out of sight. A spot sitting
-     unreviewed is holding capacity, and the one failure worth designing
-     against is not noticing it. */
-  position: sticky;
-  top: 0;
+  flex: none;
   z-index: 30;
   padding: calc(env(safe-area-inset-top, 0px) + 0.7rem) 0.85rem 0.5rem;
   background: var(--black);
@@ -4092,6 +4121,7 @@ p {
 
 .ash__titlerow {
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
@@ -4128,22 +4158,39 @@ p {
 
 .ash__eventrow {
   display: flex;
+  min-width: 0;
   gap: 0.45rem;
   margin-top: 0.5rem;
 }
 
 .ash__eventsel {
   flex: 1;
+  /* A flex item still has min-width: auto, so flex: 1 alone does not let it
+     shrink below the widest option in the list. With nothing clipping the
+     header, a long event name pushed this select wider than the viewport and
+     took the document sideways with it. */
+  min-width: 0;
   min-height: 44px;
 }
 
 /* --------------------------------------------------------------- panels */
 
+/* The only scrolling element in the tracker. Only one panel is displayed at a
+   time, so only one of these can scroll at once.
+
+   The bottom padding for the tab bar is gone: the bar is in the layout now
+   rather than floating over the content, so it takes its own space. */
 .ash__panel {
   display: none;
   flex: 1;
+  min-width: 0;
   min-height: 0;
-  padding: 0.6rem 0.85rem calc(var(--tabbar-h) + var(--safe-b) + 1rem);
+  overflow-y: auto;
+  overflow-x: clip;
+  /* Momentum, and no rubber banding past the ends into the page behind. */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 0.6rem 0.85rem 1rem;
 }
 
 .ash[data-tab="vendors"] .ash__panel[data-panel="vendors"],
@@ -4159,12 +4206,14 @@ p {
 
 .ash__search {
   display: flex;
+  min-width: 0;
   gap: 0.45rem;
   padding-bottom: 0.5rem;
 }
 
 .ash__searchInput {
   flex: 1;
+  min-width: 0;
   min-height: 44px;
 }
 
@@ -4204,6 +4253,7 @@ p {
 }
 
 .fchip {
+  min-height: 44px;
   flex: none;
   min-height: 44px;
   padding: 0 0.95rem;
@@ -4275,13 +4325,12 @@ p {
 
 /* ------------------------------------------------------------- the list */
 
+/* Not a scroll container. The panel above it is the single scroller, and
+   nesting a second one meant two scroll positions fighting over one gesture. */
 .ash__list {
   flex: 1;
+  min-width: 0;
   min-height: 0;
-  overflow-y: auto;
-  /* Momentum, and no rubber banding into the page behind it. */
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
 }
 
 .ash__pull {
@@ -5518,14 +5567,17 @@ p {
 
 /* ------------------------------------------------------------- tab bar */
 
+/* In the layout rather than floating over it, so it reserves its own space and
+   nothing has to guess at its height.
+
+   Five columns for five tabs. It was four, so Compose wrapped onto a second row
+   and made the bar twice as tall as the 62px everything else was reserving for
+   it, which put the bottom of every list underneath it. */
 .tabbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  flex: none;
   z-index: 50;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background: rgba(12, 12, 13, 0.97);
   border-top: 1px solid rgba(243, 238, 229, 0.14);
   /* Clear of the iOS home indicator. */
@@ -5534,6 +5586,7 @@ p {
 }
 
 .tabbar__tab {
+  min-height: 44px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -5937,8 +5990,13 @@ p {
     margin: 0 auto;
   }
 
+  /* Back to a page. The app shell is a phone behaviour: on a desktop every
+     panel is on screen at once and the document scrolls, so the shell must not
+     be a fixed height box that clips them. */
   .ash {
+    height: auto;
     min-height: 0;
+    overflow: visible;
   }
 
   .ash__top {
@@ -5950,6 +6008,7 @@ p {
   .ash[data-tab] .ash__panel {
     display: flex;
     flex-direction: column;
+    overflow: visible;
     padding: 1.2rem 0 0;
   }
 
@@ -6003,10 +6062,10 @@ p {
   max-width: 100%;
 }
 
-/* The sheet floats above the tab bar, so its own controls have to clear it,
-   otherwise Close sits on top of the bar. */
+/* The sheet covers the whole viewport, tab bar included, so it only has to
+   clear the home indicator now rather than a bar floating over it. */
 .sheet__scroll {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 62px + 1rem);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
 }
 
 /* A real 44px target with a normal sized box drawn inside it. The native input
