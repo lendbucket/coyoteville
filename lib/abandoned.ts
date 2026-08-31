@@ -33,13 +33,21 @@ export type AbandonedRow = {
 const REMINDER_MARKER = 'Payment reminder sent';
 
 /**
- * Reminders are appended to admin_notes, so a row can carry several. The most
- * recent one is what the tracker shows.
+ * A marked, timestamped line appended to admin_notes.
+ *
+ * Notes are appended rather than replaced, so a row keeps its whole history
+ * and can carry several of these. The most recent stamp for a marker is what
+ * the tracker shows.
+ *
+ * Generic over the marker because there is now more than one thing that leaves
+ * a trail here: the reminder that resends an abandoned checkout, and the
+ * payment request that creates a link for somebody who never had one. They must
+ * stay distinguishable, so they get their own markers and share the parsing.
  */
-export function lastReminderFrom(adminNotes: string | null): string | null {
+export function lastStampFrom(adminNotes: string | null, marker: string): string | null {
   if (!adminNotes) return null;
 
-  const stamps = [...adminNotes.matchAll(new RegExp(`${REMINDER_MARKER} (\\S+)`, 'g'))]
+  const stamps = [...adminNotes.matchAll(new RegExp(`${marker} (\\S+)`, 'g'))]
     .map((m) => m[1])
     .filter((s) => !Number.isNaN(Date.parse(s)));
 
@@ -47,8 +55,33 @@ export function lastReminderFrom(adminNotes: string | null): string | null {
   return stamps.sort().at(-1) ?? null;
 }
 
+export function stampNote(marker: string, now: Date = new Date()): string {
+  return `${marker} ${now.toISOString()}`;
+}
+
+export function lastReminderFrom(adminNotes: string | null): string | null {
+  return lastStampFrom(adminNotes, REMINDER_MARKER);
+}
+
 export function reminderNote(now: Date = new Date()): string {
-  return `${REMINDER_MARKER} ${now.toISOString()}`;
+  return stampNote(REMINDER_MARKER, now);
+}
+
+/**
+ * The payment request the admin sends by hand from the tracker.
+ *
+ * Its own marker so it never reads as a reminder. A reminder resends the link a
+ * vendor already had; a request creates one for a vendor who never did, which
+ * is a different thing to find on a row weeks later.
+ */
+export const PAYMENT_REQUEST_MARKER = 'Payment request sent';
+
+export function lastPaymentRequestFrom(adminNotes: string | null): string | null {
+  return lastStampFrom(adminNotes, PAYMENT_REQUEST_MARKER);
+}
+
+export function paymentRequestNote(now: Date = new Date()): string {
+  return stampNote(PAYMENT_REQUEST_MARKER, now);
 }
 
 export async function getAbandoned(eventSlug: string): Promise<AbandonedRow[]> {

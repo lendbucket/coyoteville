@@ -356,10 +356,25 @@ export default function AdminShell({
 
         <div className="fchips" role="group" aria-label="Filter">
           {FILTERS.map((f) => {
-            /* The two chips that are a job rather than a view carry their
-               count, so the number is on screen wherever the list is. */
+            /* The chips that are a job rather than a view carry their count, so
+               the number is on screen wherever the list is.
+
+               Unpaid joined them because with the prepaid link gone there is no
+               longer any way for a vendor to be in the lot without having paid
+               through Square, which makes an unpaid row something to act on
+               rather than a state to look up. It stays a separate chip from
+               Cash owed: those are opposite jobs. Cash owed is money already in
+               a pocket that nobody has written down; Unpaid is money that has
+               not been collected at all. Merging them would ask one number to
+               mean both. */
             const badge =
-              f.key === 'review' ? counts.pending : f.key === 'cash' ? counts.unreconciled : 0;
+              f.key === 'review'
+                ? counts.pending
+                : f.key === 'cash'
+                  ? counts.unreconciled
+                  : f.key === 'unpaid'
+                    ? counts.unpaid
+                    : 0;
 
             return (
               <button

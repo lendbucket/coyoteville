@@ -4,7 +4,12 @@ import AdminShell from '@/components/admin/AdminShell';
 import { loginErrorMessage } from '@/components/admin/login-errors';
 import type { VendorCardRow } from '@/components/admin/types';
 import StringLights from '@/components/StringLights';
-import { getAbandoned, howLongAgo, lastReminderFrom } from '@/lib/abandoned';
+import {
+  getAbandoned,
+  howLongAgo,
+  lastPaymentRequestFrom,
+  lastReminderFrom,
+} from '@/lib/abandoned';
 import { isAdminConfigured, isAdminRequest } from '@/lib/admin-auth';
 import { getAdminView, normaliseFilters } from '@/lib/admin-data';
 import { lastMediaSendFrom } from '@/lib/media-log';
@@ -227,6 +232,13 @@ export default async function AdminPage({
     fileCount: (r.logo_path ? 1 : 0) + (r.photo_paths ?? []).length,
     uploadIssues: r.upload_issues,
     adminNotes: r.admin_notes,
+    /* Read back out of the note trail rather than stored in its own column.
+       The trail is already the row's record of what was sent when, and this is
+       one more marker in it. */
+    paymentRequestedAt: (() => {
+      const at = lastPaymentRequestFrom(r.admin_notes);
+      return at ? when(at) : '';
+    })(),
     appliedAt: when(r.created_at),
     lastPhotoSend: lastMediaSendFrom(r.admin_notes),
     lastEmail: lastComposeSendFrom(r.admin_notes),

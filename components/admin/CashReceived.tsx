@@ -23,6 +23,7 @@ export default function CashReceived({
   amountCents,
   amountReceivedCents,
   amountReceivedAt,
+  settled,
 }: {
   id: string;
   /** The booked fee, offered as the starting point since it is usually right. */
@@ -36,6 +37,16 @@ export default function CashReceived({
    * book-keeping entry.
    */
   amountReceivedAt: string;
+  /**
+   * Whether the row claims to be paid.
+   *
+   * An offline row used to be paid by definition, because the database stamped
+   * one paid the instant the vendor submitted. That is no longer true: the
+   * prepaid path is retired and a row left over from it can be corrected back
+   * to unpaid so a payment link can be sent. On such a row the "says paid"
+   * explanation below is simply false, and this is what stops it being shown.
+   */
+  settled: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -103,8 +114,9 @@ export default function CashReceived({
         </>
       ) : (
         <p className="cash__state cash__state--missing">
-          Nothing recorded. This row says paid because the database stamps a
-          prepaid signup paid on submission, not because money was counted.
+          {settled
+            ? 'Nothing recorded. This row says paid because the database stamps a prepaid signup paid on submission, not because money was counted.'
+            : 'Nothing recorded, and this row is not marked paid. If they hand you cash, put it here. If they are paying by card, send them the link above instead.'}
         </p>
       )}
 

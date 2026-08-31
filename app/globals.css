@@ -6828,3 +6828,54 @@ p {
 .adminlogin::before {
   background: radial-gradient(680px 380px at 50% 6%, rgba(196, 85, 43, 0.26), transparent 70%);
 }
+
+/* ------------------------------------------------------ request payment */
+
+/* The same shape as the cash block it sits above, because they are two halves
+   of one question: has this vendor's money arrived, and if not, what do I do
+   about it. Orange stays on the heading and the button, which is the rule the
+   rest of the tracker follows: it marks work, not decoration. */
+
+.askpay__head {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ember);
+  line-height: 1.4;
+}
+
+.askpay__state {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cream-deep);
+  /* An email address has no spaces in it and vendors use long ones. Without
+     this the sheet scrolls sideways on a 390px screen. */
+  overflow-wrap: anywhere;
+}
+
+.askpay__send {
+  min-height: 44px;
+}
+
+.askpay__when,
+.askpay__error,
+.askpay__ok {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.askpay__when {
+  color: var(--dust);
+}
+
+.askpay__error {
+  color: #ff9b7a;
+}
+
+.askpay__ok {
+  color: var(--cream-deep);
+}

@@ -6,9 +6,11 @@
     "dev": "next dev",
     "check:schema": "node scripts/check-schema.js",
     "check:pdf-bundle": "node scripts/check-pdf-bundle.js",
-    "prebuild": "npm run check:schema",
+    "check:email-copy": "node scripts/check-email-copy.js",
+    "check:webhook": "node scripts/check-webhook-settles.js",
+    "prebuild": "npm run check:schema && npm run check:email-copy",
     "build": "next build",
-    "postbuild": "npm run check:pdf-bundle",
+    "postbuild": "npm run check:pdf-bundle && npm run check:webhook",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"

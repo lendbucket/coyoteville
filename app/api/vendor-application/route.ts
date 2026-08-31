@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { getSquare, getSquareLocationId, isSquareConfigured } from '@/lib/square';
+import { isSquareConfigured } from '@/lib/square';
+import { createVendorPaymentLink } from '@/lib/payment-link';
 import { getClientIp, rateLimit } from '@/lib/rate-limit';
 import { AGREEMENT_VERSION } from '@/components/VendorAgreement';
-import { EVENTS, PRICING, SITE_URL } from '@/lib/seo';
+import { EVENTS } from '@/lib/seo';
 import { getScheduledEvent } from '@/lib/event-schedule';
 import {
   MONTHLY_PRICING,
@@ -795,8 +796,6 @@ export async function POST(request: Request) {
   }
 
 
-  const spotLabel = value.spot_type === 'truck' ? PRICING.truck.label : PRICING.booth.label;
-
   // The owner is told the moment the form is submitted, before checkout, so
   // every attempt is visible and an abandoned one is not silent. The vendor
   // deliberately gets nothing here; their confirmation waits for the payment to
@@ -809,57 +808,18 @@ export async function POST(request: Request) {
   });
 
   try {
-    const square = getSquare();
-    const locationId = getSquareLocationId();
-
-    // A full order rather than quickPay, because only an order carries
-    // referenceId. That id is the application UUID and it is how the webhook
-    // maps a completed payment back to the right row.
-    const response = await square.checkout.paymentLinks.create({
-      idempotencyKey: randomUUID(),
-      description: `${spotLabel} at Coyoteville`,
-      order: {
-        locationId,
-        referenceId: inserted.id,
-        lineItems: [
-          {
-            // bookingLabel is the event name or the date, whichever this is, so
-            // the Square receipt names the thing the vendor actually bought.
-            name: `${spotLabel}, ${bookingLabel || 'Coyoteville'}`,
-            quantity: '1',
-            basePriceMoney: {
-              amount: BigInt(amountCents),
-              currency: 'USD',
-            },
-            note: `${event ? event.displayDate : bookingLabel} at Coyoteville, 150 N. Stadium Road, Alice TX.`.trim(),
-          },
-        ],
-      },
-      checkoutOptions: {
-        redirectUrl: `${SITE_URL}/vendors/confirmed?spot=${value.spot_type}`,
-        askForShippingAddress: false,
-        allowTipping: false,
-      },
-      prePopulatedData: {
-        buyerEmail: value.email,
-      },
-      paymentNote: `Coyoteville vendor spot, application ${inserted.id}`,
+    /* The shared path, which the tracker's "Request payment" action also uses.
+       It creates the order with referenceId set to the application id and
+       records the link on the row, so a payment made from either one settles
+       through the same webhook branch. */
+    const { checkoutUrl } = await createVendorPaymentLink({
+      applicationId: inserted.id,
+      amountCents,
+      spotType: value.spot_type,
+      bookingLabel,
+      whenLabel: event ? event.displayDate : bookingLabel,
+      buyerEmail: value.email,
     });
-
-    const paymentLink = response.paymentLink;
-    const checkoutUrl = paymentLink?.url || paymentLink?.longUrl || null;
-
-    if (!checkoutUrl) {
-      throw new Error('Square returned no payment link URL.');
-    }
-
-    await supabase
-      .from('vendor_applications')
-      .update({
-        square_order_id: paymentLink?.orderId ?? null,
-        square_payment_link_id: paymentLink?.id ?? null,
-      })
-      .eq('id', inserted.id);
 
     return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl });
   } catch (err) {

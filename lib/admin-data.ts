@@ -81,6 +81,12 @@ export type AdminView = {
   counts: {
     total: number;
     paid: number;
+    /**
+     * Rows that owe money right now: unpaid, not a permanent monthly spot, and
+     * carrying a fee. The count the "Unpaid" chip shows and the same rule
+     * owesPayment() uses on the client, so the chip's number is always the
+     * length of the list tapping it opens.
+     */
     unpaid: number;
     pending: number;
     /**
@@ -325,8 +331,22 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
         unreconciled += 1;
       }
 
+      /* Owes money right now. Deliberately narrower than "payment_status is
+         unpaid": a permanent monthly row is meant to be unpaid before approval,
+         because its card is held and approving it is what takes the first
+         charge, and a row with no fee has nothing to collect. This is the
+         number the Unpaid chip carries, so it has to be the same rule
+         owesPayment() in components/admin/types uses on the client. A count
+         that does not match the length of the list it opens is worse than no
+         count. */
       if (settled) paid += 1;
-      else if (row.payment_status === 'unpaid') unpaid += 1;
+      else if (
+        row.payment_status === 'unpaid' &&
+        row.booking_kind !== 'monthly' &&
+        Number(row.amount_cents ?? 0) > 0
+      ) {
+        unpaid += 1;
+      }
 
       /* Waiting on a decision. For a one-off booking that means the money is
          in: an abandoned checkout is a lead, not a queue item. A monthly

@@ -5,9 +5,10 @@ import AdminRowControls from '../AdminRowControls';
 import AdminSendPhotos from '../AdminSendPhotos';
 import { AgreementSheetButton } from './AgreementDownload';
 import CashReceived from './CashReceived';
+import RequestPayment from './RequestPayment';
 import ReviewControls from './ReviewControls';
 import SubscriptionControls from './SubscriptionControls';
-import { isSettled, type VendorCardRow } from './types';
+import { isSettled, owesPayment, type VendorCardRow } from './types';
 
 /**
  * The detail sheet: everything about one vendor, slid up over the list.
@@ -53,6 +54,7 @@ export default function VendorSheet({
 
   const tel = row.phone.replace(/[^\d+]/g, '');
   const settled = isSettled(row);
+  const owes = owesPayment(row);
 
   /* Drag the handle down far enough and it closes. Anything less snaps back,
      so a stray touch while scrolling does not dismiss the sheet. */
@@ -147,6 +149,23 @@ export default function VendorSheet({
             />
           </div>
 
+          {/* Above the review decision, because on an unpaid row this is the
+              thing blocking everything else: there is nothing to approve until
+              the money is in. Only where there is actually money to collect, so
+              a paid row, a free spot and a monthly subscription never show it. */}
+          {owes ? (
+            <div className="sheet__block">
+              <RequestPayment
+                id={row.id}
+                businessName={row.businessName}
+                email={row.email}
+                amountLabel={row.amountLabel}
+                bookingLabel={row.bookingLabel}
+                requestedAt={row.paymentRequestedAt}
+              />
+            </div>
+          ) : null}
+
           {/* Offline only. An online row has Square's word for what was
               taken and there is nothing to count by hand. */}
           {row.paymentMethod === 'offline' ? (
@@ -156,6 +175,7 @@ export default function VendorSheet({
                 amountCents={row.amountCents}
                 amountReceivedCents={row.amountReceivedCents}
                 amountReceivedAt={row.amountReceivedAt}
+                settled={settled}
               />
             </div>
           ) : null}

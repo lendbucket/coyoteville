@@ -61,6 +61,8 @@ export type VendorCardRow = {
   fileCount: number;
   uploadIssues: string | null;
   adminNotes: string | null;
+  /** When a payment link was last emailed from here, formatted. Empty if never. */
+  paymentRequestedAt: string;
   appliedAt: string;
   lastPhotoSend: { to: string; at: string } | null;
   lastEmail: { to: string; at: string; subject: string } | null;
@@ -116,6 +118,27 @@ export function needsCash(row: VendorCardRow): boolean {
 }
 
 /**
+ * Owes money right now, and can be asked for it.
+ *
+ * Narrower than "payment_status is unpaid", on purpose, because two kinds of
+ * unpaid row are not a job:
+ *
+ *   A permanent monthly vendor is supposed to be unpaid before approval. Their
+ *   card is authorised and held, and approving them is what takes the first
+ *   charge. They bill through a subscription, so there is no link to send.
+ *
+ *   A row with no fee has nothing to collect. A free organization spot is
+ *   'not_required' rather than 'unpaid' and is already excluded, but a booking
+ *   that somehow carries no amount would otherwise show up as chaseable.
+ *
+ * One predicate for the filter chip, its count, and the server side total, so
+ * the number on the chip is always the length of the list it opens.
+ */
+export function owesPayment(row: VendorCardRow): boolean {
+  return row.paymentStatus === 'unpaid' && row.bookingKind !== 'monthly' && row.amountCents > 0;
+}
+
+/**
  * Waiting on a decision: the money is in and nobody has ruled on it yet. The
  * same rule the pending count on the server uses, so the badge and the chip can
  * never disagree with the banner.
@@ -133,7 +156,7 @@ export function matchesFilter(row: VendorCardRow, filter: FilterKey): boolean {
   if (filter === 'all') return true;
   if (filter === 'review') return needsReview(row);
   if (filter === 'paid') return isSettled(row);
-  if (filter === 'unpaid') return row.paymentStatus === 'unpaid';
+  if (filter === 'unpaid') return owesPayment(row);
   if (filter === 'cash') return needsCash(row);
   if (filter.startsWith('kind:')) return row.bookingKind === filter.slice(5);
   return row.spotType === filter;
