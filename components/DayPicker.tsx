@@ -69,6 +69,7 @@ function shortReason(cell: DayCell, spot: string): string {
 }
 
 export default function DayPicker({
+  onUseEvent,
   value,
   onChange,
   spot,
@@ -77,6 +78,13 @@ export default function DayPicker({
   onChange: (day: DayKey) => void;
   /** Narrows availability to the type being booked. Empty until they pick one. */
   spot: string;
+  /**
+   * Send the vendor to the event signup for a given event.
+   *
+   * Optional so the prepaid page, which has no booking kind to switch to, can
+   * leave it off and simply not offer the way out.
+   */
+  onUseEvent?: (slug: string) => void;
 }) {
   const [cursor, setCursor] = useState<DayKey>(() => monthStart(new Date().toISOString().slice(0, 10)));
   const [months, setMonths] = useState<Record<string, MonthData>>({});
@@ -143,6 +151,15 @@ export default function DayPicker({
   }, [cursor]);
 
   const selected = value || '';
+
+  /* The first event date in the month on screen, if there is one. Used only to
+     name the button out of here, so the vendor who came looking for a Friday
+     that happens to be an event night is told which event it is rather than
+     being sent to a generic anchor. */
+  const nextEventCell = useMemo(
+    () => month.days.find((c) => c.reason === 'event' && c.eventSlug) ?? null,
+    [month.days]
+  );
 
   return (
     <div className="daypicker">
@@ -231,9 +248,22 @@ export default function DayPicker({
         )}
       </p>
 
+      {/* An event date is not bookable as a single day: it is priced
+          differently and it has to count against that event's capacity, so a
+          day booking on one would be a spot nobody had counted. Saying that is
+          not enough on its own, because the vendor is left holding a greyed out
+          square and no way forward. This hands them the way forward. */}
       <p className="hint">
-        Event dates are greyed out here. Those go through the event signup at the top of this
-        page, where the deadline and the waitlist apply.
+        Event dates are greyed out here. Those go through the event signup, where the deadline
+        and the waitlist apply.
+        {onUseEvent && nextEventCell ? (
+          <>
+            {' '}
+            <button type="button" className="daypicker__toevent" onClick={() => onUseEvent(nextEventCell.eventSlug as string)}>
+              Switch to {nextEventCell.eventName}
+            </button>
+          </>
+        ) : null}
       </p>
     </div>
   );

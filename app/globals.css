@@ -6879,3 +6879,23 @@ p {
 .askpay__ok {
   color: var(--cream-deep);
 }
+
+/* The way out of the day picker when the date they wanted is an event night.
+   A link rather than a button visually, because that is what it behaves like,
+   but a real button because it changes the form rather than navigating. */
+.daypicker__toevent {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--ember);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.daypicker__toevent:hover,
+.daypicker__toevent:focus-visible {
+  color: var(--rust-bright);
+}

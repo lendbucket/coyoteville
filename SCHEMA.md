@@ -15,7 +15,7 @@ that references one fails the whole statement with Postgres error 42703.
 `npm run check:schema` checks the repo against this file, and runs
 automatically before `npm run build`. See "Checking the schema" below.
 
-Last verified against production: 2026-08-30.
+Last verified against production: 2026-09-04.
 
 ```
 day_availability
@@ -63,6 +63,29 @@ postgres functions (bodies NOT in this repo):
   touch_updated_at()
   os_set_updated_at()
 ```
+
+## The booking shape
+
+`vendor_applications.booking_kind` decides which of two columns carries the
+booking, and exactly one of them is set:
+
+| booking_kind | event_slug | booking_date | also |
+| --- | --- | --- | --- |
+| `event` | the slug | null | |
+| `day` | null | a `YYYY-MM-DD` | |
+| `monthly` | null | null | `monthly_amount_cents`, `square_customer_id`, `square_card_id`, `subscription_status = 'pending'`, `recurring_acknowledged` |
+
+**`event_slug` is nullable, as of 2026-09-04.** It was NOT NULL in production
+until then, which meant every day and every monthly signup died at the insert
+with Postgres 23502 the moment the vendor pressed submit, after they had filled
+in the whole form and uploaded their files. Zero day bookings and zero monthly
+bookings existed in the database, and that absence was the symptom rather than a
+lack of demand. The code had always sent null for those two kinds, which is
+correct and is what the table now accepts.
+
+Nothing enforces the table above in the database yet. Until it does,
+`scripts/check-booking-shape.js` enforces it against the real route on every
+build.
 
 `waitlist` has no `declined_at` and no `converted_at`. A waitlist entry's state
 is `status` alone.

@@ -915,6 +915,16 @@ export default function VendorForm({
                   setDay(picked);
                   setDayError(false);
                 }}
+                /* A greyed out event date with no way forward is a dead end.
+                   This puts the vendor on the event signup for that night with
+                   the right event already chosen, rather than asking them to
+                   work out that they need to scroll up and change a radio. */
+                onUseEvent={(slug) => {
+                  setKind('event');
+                  setDay('');
+                  setDayError(false);
+                  onEventChange?.(slug);
+                }}
               />
               {dayError ? (
                 <span className="fielderror" role="alert">
