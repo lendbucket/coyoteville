@@ -461,6 +461,81 @@ const failures = [];
     console.log(`  ok  ${'Single day on an event date'.padEnd(32)} refused: ${clash.__json && clash.__json.error}`);
   }
 
+  /* ------------------------------------------------ the card can still load */
+
+  /* A monthly application is refused without a card token, which is correct and
+     is exactly what made the CSP failure so quiet: the card field never
+     rendered, so no token was ever produced, so the form said "Enter a card"
+     and looked like the vendor's fault. Asserted here so the refusal stays
+     deliberate rather than becoming the only symptom again. */
+  inserted.length = 0;
+  const noCard = await route.POST(
+    buildRequest({
+      ...BASE,
+      booking_kind: 'monthly',
+      spot_type: 'booth',
+      serves_food: 'false',
+      recurring_acknowledged: 'true',
+      // no card_source_id
+    })
+  );
+  if (noCard.status === 200 && noCard.__json && noCard.__json.ok) {
+    failures.push('A monthly application with no card token was accepted. The card is what the subscription bills.');
+  } else {
+    console.log(`  ok  ${'Monthly with no card token'.padEnd(32)} refused: ${noCard.__json && noCard.__json.error}`);
+  }
+
+  /* The Content Security Policy still lets Square's card SDK load.
+     
+     This is the other half of the same bug and the half nothing could see. The
+     SDK is a script from Square's CDN, a cross origin iframe from that same
+     CDN, and a tokenise call to Square's PCI host: three separate directives,
+     and missing any one of them means no card field, no token, and a monthly
+     signup that cannot be completed by anybody. It typechecks, it builds, it
+     renders, and it is dead. Checked for both Square environments, because the
+     hosts differ and a build pointed at the wrong pair fails the same way. */
+  for (const production of [false, true]) {
+    const before = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT;
+    process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT = production ? 'production' : 'sandbox';
+    delete require.cache[require.resolve(path.join(ROOT, 'next.config.js'))];
+    const config = require(path.join(ROOT, 'next.config.js'));
+    process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT = before;
+
+    const headers = await config.headers();
+    const csp = headers
+      .flatMap((h) => h.headers)
+      .find((h) => h.key === 'Content-Security-Policy');
+
+    if (!csp) {
+      failures.push('No Content-Security-Policy header is configured at all.');
+      break;
+    }
+
+    const directive = (name) => {
+      const found = csp.value.split(';').map((d) => d.trim()).find((d) => d.startsWith(name + ' '));
+      return found || '';
+    };
+
+    const sdk = production ? 'https://web.squarecdn.com' : 'https://sandbox.web.squarecdn.com';
+    const api = production ? 'https://pci-connect.squareup.com' : 'https://pci-connect.squareupsandbox.com';
+    const label = production ? 'production' : 'sandbox';
+
+    let missing = 0;
+    for (const [name, origin, why] of [
+      ['script-src', sdk, 'the SDK bundle cannot load, so window.Square is never defined'],
+      ['frame-src', sdk, 'the card input iframe is blocked, so there is nowhere to type a card'],
+      ['connect-src', api, 'the SDK cannot reach Square to tokenise, so there is never a token'],
+    ]) {
+      if (!directive(name).includes(origin)) {
+        missing += 1;
+        failures.push(
+          `CSP ${name} (${label}) does not allow ${origin}: ${why}. Monthly signup would be impossible and nothing else would notice.`
+        );
+      }
+    }
+    if (!missing) console.log(`  ok  ${('CSP allows Square, ' + label).padEnd(32)} ${sdk} + ${api}`);
+  }
+
   fs.rmSync(outDir, { recursive: true, force: true });
 
   if (failures.length) {
@@ -470,7 +545,8 @@ const failures = [];
   }
 
   console.log(
-    `check-booking-shape: ${CASES.length} booking combinations insert the right shape, and an event date is refused as a single day.`
+    `check-booking-shape: ${CASES.length} booking combinations insert the right shape, an event date is refused as a single day, ` +
+      'a monthly without a card is refused, and the CSP still lets Square load in both environments.'
   );
 })().catch((err) => {
   console.error('check-booking-shape: threw');

@@ -2,6 +2,51 @@
 
 const isProd = process.env.NODE_ENV === 'production';
 
+/**
+ * Square's Web Payments SDK, which is what puts the card field on the permanent
+ * monthly application.
+ *
+ * The SDK is loaded from Square's CDN by components/CardOnFile, renders the card
+ * input in a cross origin iframe so the card number never touches our DOM, and
+ * posts to Square's PCI endpoint to tokenise. Those are three separate CSP
+ * directives and all three were missing: script-src blocked the loader, so
+ * window.Square was never defined, no card field rendered, and every monthly
+ * signup was refused for having no card. It typechecked, it built, it rendered,
+ * and it was dead.
+ *
+ * These three origins are the whole list, and they were read off the network log
+ * of a real session with the SDK loading rather than from memory.
+ *
+ * One thing this policy does not and cannot cover: once the card iframe is up,
+ * it is a cross origin document running under Square's own CSP, and its requests
+ * are not ours to allow or refuse. It was observed beaconing to a Sentry ingest
+ * host from in there. Nothing can be done about that from this file, and naming
+ * the host here would achieve nothing; it is recorded because it is the kind of
+ * thing worth knowing is happening on a page that takes card details.
+ *
+ * A host allowlist rather than a nonce on purpose. A nonce would not help: it
+ * says nothing about frame-src or connect-src, which are host based only, and
+ * the dynamic script tag CardOnFile injects would need 'strict-dynamic', which
+ * lets anything Square's bundle loads run too. That is wider than naming three
+ * origins, not tighter.
+ *
+ * Keyed off NEXT_PUBLIC_SQUARE_ENVIRONMENT rather than NODE_ENV, because that is
+ * the variable deciding which host CardOnFile loads, by the identical rule. A
+ * production build pointed at Square sandbox is an ordinary thing to want and
+ * would otherwise get a policy for the wrong pair of hosts.
+ */
+const squareProduction = process.env.NEXT_PUBLIC_SQUARE_ENVIRONMENT === 'production';
+
+/** The SDK bundle, and the origin of the iframe it puts the card input in. */
+const SQUARE_SDK = squareProduction
+  ? 'https://web.squarecdn.com'
+  : 'https://sandbox.web.squarecdn.com';
+
+/** Where the SDK posts the card to be tokenised. */
+const SQUARE_API = squareProduction
+  ? 'https://pci-connect.squareup.com'
+  : 'https://pci-connect.squareupsandbox.com';
+
 // Next needs inline script for its bootstrap payload, and React refresh needs
 // eval in development only.
 const csp = [
@@ -11,13 +56,13 @@ const csp = [
   "frame-ancestors 'none'",
   "img-src 'self' data: blob: https:",
   "style-src 'self' 'unsafe-inline'",
-  `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
+  `script-src 'self' 'unsafe-inline' ${SQUARE_SDK}${isProd ? '' : " 'unsafe-eval'"}`,
   "font-src 'self' data:",
-  "connect-src 'self'",
+  `connect-src 'self' ${SQUARE_API}`,
   // Square hosted checkout lives on square.link and checkout.square.site.
   // Sandbox links come from sandbox.square.link.
   "form-action 'self' https://square.link https://sandbox.square.link https://checkout.square.site",
-  'frame-src https://square.link https://sandbox.square.link https://checkout.square.site',
+  `frame-src https://square.link https://sandbox.square.link https://checkout.square.site ${SQUARE_SDK}`,
   'upgrade-insecure-requests',
 ].join('; ');
 
