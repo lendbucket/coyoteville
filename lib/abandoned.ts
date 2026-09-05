@@ -1,5 +1,6 @@
 import 'server-only';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
+import { HEALTHCHECK_BUSINESS_NAME } from './healthcheck';
 
 /**
  * Started but not paid.
@@ -94,6 +95,7 @@ export async function getAbandoned(eventSlug: string): Promise<AbandonedRow[]> {
       .select(
         'id, business_name, contact_name, phone, email, spot_type, amount_cents, created_at, admin_notes, square_payment_link_id'
       )
+      .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
       .eq('event_slug', eventSlug)
       .eq('payment_status', 'unpaid')
       .not('square_order_id', 'is', null)

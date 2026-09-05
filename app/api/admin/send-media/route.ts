@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
+import { HEALTHCHECK_BUSINESS_NAME } from '@/lib/healthcheck';
 import { EVENTS } from '@/lib/seo';
 import { renderVendorMediaEmail } from '@/lib/email/vendor-media';
 import { sendMediaEmail } from '@/lib/notify';
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from('vendor_applications')
       .select(MEDIA_COLUMNS)
+      .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
       .eq('event_slug', eventSlug)
       .order('business_name', { ascending: true });
 

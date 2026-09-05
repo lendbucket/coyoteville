@@ -271,6 +271,63 @@ function check(tables) {
 
 /* -------------------------------------------------------------- report */
 
+/**
+ * Every read of vendor_applications that returns more than one row must exclude
+ * the production health check's rows.
+ *
+ * The health check completes a real signup against the live database on a
+ * schedule, because that is the only way to catch the class of failure that
+ * broke this site twice in a week. Its rows are marked with a business name
+ * nothing else uses, and anything that counts or lists vendors has to filter
+ * them out. A query that forgets is a health check row holding a real spot, or
+ * appearing in the tracker as an application to review.
+ *
+ * Exempt, because they act on one already known row rather than counting:
+ * anything filtered by .eq('id', ...), and anything that is not a select.
+ */
+const HEALTHCHECK_NAME = '__healthcheck__';
+
+function checkHealthcheckExclusion(files) {
+  const problems = [];
+
+  for (const file of files) {
+    const source = stripComments(fs.readFileSync(file, 'utf8'));
+    const rel = path.relative(root, file).split(path.sep).join('/');
+
+    // The helper and the cleanup route are where the marker is defined and
+    // where deleting exactly those rows is the entire job.
+    if (rel === 'lib/healthcheck.ts') continue;
+    if (rel.includes('healthcheck-cleanup')) continue;
+
+    let at = source.indexOf(".from('vendor_applications')");
+    while (at !== -1) {
+      // The statement: from here to the semicolon that ends the chain.
+      const end = source.indexOf(';', at);
+      const chain = source.slice(at, end === -1 ? source.length : end);
+
+      /* Only a read that can return more than one row. An .insert() chain that
+         ends in .select('id') is a write, and .single() or .maybeSingle() is one
+         already identified row, neither of which can be a health check leak. */
+      const isWrite =
+        chain.includes('.insert(') || chain.includes('.update(') || chain.includes('.delete(');
+      const isSingle = chain.includes('.maybeSingle(') || chain.includes('.single(');
+      const isSelect = chain.includes('.select(') && !isWrite && !isSingle;
+      const byId = chain.includes(".eq('id'") || chain.includes(".in('id'");
+      const excluded =
+        chain.includes(HEALTHCHECK_NAME) || chain.includes('HEALTHCHECK_BUSINESS_NAME');
+
+      if (isSelect && !byId && !excluded) {
+        const line = source.slice(0, at).split(NEWLINE).length;
+        problems.push({ file: rel, line });
+      }
+
+      at = source.indexOf(".from('vendor_applications')", at + 1);
+    }
+  }
+
+  return problems;
+}
+
 const tables = readSchema();
 
 if (!tables) {
@@ -293,8 +350,34 @@ unique.sort(
 );
 
 if (!unique.length) {
+  const leaks = checkHealthcheckExclusion(walk(root));
+
+  if (leaks.length) {
+    console.error(
+      `
+check-schema: ${leaks.length} query/queries read vendor_applications without excluding health check rows.
+`
+    );
+    for (const l of leaks) console.error(`  ${l.file}:${l.line}`);
+    console.error(
+      [
+        '',
+        'The production health check writes real rows through the real signup',
+        "route, marked business_name = '__healthcheck__'. Anything that counts or",
+        'lists vendors has to filter them out, or a health check row ends up',
+        'holding a spot or sitting in the review queue.',
+        '',
+        "Add .neq('business_name', HEALTHCHECK_BUSINESS_NAME) from lib/healthcheck,",
+        "or, if this query already acts on one known row, filter it by .eq('id', ...).",
+        '',
+      ].join(NEWLINE)
+    );
+    process.exit(1);
+  }
+
   console.log(
-    `check-schema: ${scanned} files, ${Object.keys(tables).length} tables, no unknown columns.`
+    `check-schema: ${scanned} files, ${Object.keys(tables).length} tables, no unknown columns, ` +
+      'and every multi row read of vendor_applications excludes health check rows.'
   );
   process.exit(0);
 }

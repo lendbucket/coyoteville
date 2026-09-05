@@ -1,4 +1,5 @@
 import 'server-only';
+import { HEALTHCHECK_BUSINESS_NAME } from './healthcheck';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { EVENTS, nextEventByDate } from './seo';
 import { getSpotsFresh } from './spots';
@@ -270,6 +271,9 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
     let query = supabase
       .from('vendor_applications')
       .select(COLUMNS)
+      /* The production health check writes real rows through the real route,
+         because the insert is what broke. They must never reach the tracker. */
+      .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
       .eq(scope.column, scope.value)
       .order('created_at', { ascending: false });
 
@@ -293,6 +297,7 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
       supabase
         .from('vendor_applications')
         .select(REVENUE_COLUMNS)
+        .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
         .eq(scope.column, scope.value),
       /* Capacity only means something for an event scope. The day and monthly
          views are not measured against one event's booth and truck numbers, so

@@ -1,6 +1,7 @@
 import 'server-only';
 import { getSupabaseAdmin, isSupabaseConfigured } from '../supabase';
 import { EVENTS, PRICING } from '../seo';
+import { HEALTHCHECK_BUSINESS_NAME } from '../healthcheck';
 import { formatDayLong, isDayKey } from '../booking';
 import { DAY_SCOPE, MONTHLY_SCOPE } from '../admin-scope';
 
@@ -98,6 +99,7 @@ export async function getSignedAgreementsForScope(scope: string): Promise<Signed
   const { data, error } = await getSupabaseAdmin()
     .from('vendor_applications')
     .select(COLUMNS)
+    .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
     .eq(filter.column, filter.value)
     .eq('waiver_accepted', true)
     .order('created_at', { ascending: true });

@@ -87,6 +87,34 @@ Nothing enforces the table above in the database yet. Until it does,
 `scripts/check-booking-shape.js` enforces it against the real route on every
 build.
 
+## Health check rows
+
+The production health check completes a real signup against this database every
+six hours and after every production deploy, because every live failure this
+site has had happened past the point a build gate can see: a NOT NULL only the
+real table had, a CSP only a real browser enforced, a font only the real Lambda
+was missing. Proving the insert works means doing the insert.
+
+Those rows are real rows in `vendor_applications`, marked:
+
+    business_name = '__healthcheck__'
+    email         = 'run-<timestamp>@healthcheck.coyoteville.invalid'
+
+**Every read of `vendor_applications` that can return more than one row must
+exclude them**, with `.neq('business_name', HEALTHCHECK_BUSINESS_NAME)` from
+`lib/healthcheck`. Otherwise a health check row holds a spot, moves a capacity
+meter, or turns up in the review queue as an application to look at.
+
+`npm run check:schema` enforces this. A new multi row read that forgets fails
+the build and names the file and line. Exempt: writes, and reads that already
+act on one known row through `.eq('id', ...)`, `.single()` or `.maybeSingle()`.
+
+The rows are deleted by `POST /api/admin/healthcheck-cleanup` at the end of
+every run, and anything older than fifteen minutes is deleted at the start of
+the next one so a crashed run cannot leave debris. That endpoint filters on
+`business_name` and takes no other parameter: the worst a leaked
+`HEALTHCHECK_SECRET` can do there is delete rows only the health check creates.
+
 `waitlist` has no `declined_at` and no `converted_at`. A waitlist entry's state
 is `status` alone.
 

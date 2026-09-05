@@ -2,6 +2,11 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { isSquareConfigured } from '@/lib/square';
+import {
+  HEALTHCHECK_BUSINESS_NAME,
+  HEALTHCHECK_EMAIL_DOMAIN,
+  isHealthcheckRequest,
+} from '@/lib/healthcheck';
 import { createVendorPaymentLink } from '@/lib/payment-link';
 import { getClientIp, rateLimit } from '@/lib/rate-limit';
 import { AGREEMENT_VERSION } from '@/components/VendorAgreement';
@@ -403,6 +408,29 @@ export async function POST(request: Request) {
 
   const shape = uploadShape(form);
 
+  /* The production health check, proved by a shared secret in a header.
+     
+     It completes a real signup against the real database on a schedule,
+     because every live failure this week happened past the point a build gate
+     can see: a NOT NULL only the real table had, a CSP only a real browser
+     enforced. Proving the insert works means doing the insert.
+
+     What this flag changes, and nothing else: the row is stamped with a
+     business name and an email nothing else may use, no Square payment link is
+     created, and no confirmation email is sent. Validation, pricing, capacity,
+     the deadline, the uploads and the insert itself all run exactly as they do
+     for a vendor, because those are the things being tested.
+
+     What it deliberately does NOT change: the card. A monthly health check
+     sends a fake token and Square is expected to refuse it, and the check
+     asserts that refusal. Skipping card validation would prove only that we
+     can skip card validation.
+
+     Unreachable from the public form. It needs a header carrying a secret that
+     exists only in the deployment's environment, and isHealthcheckRequest
+     returns false outright when that secret is unset. */
+  const healthcheck = isHealthcheckRequest(request.headers);
+
   const { errors, value } = validate(body);
   if (errors.length) {
     logFailure('validation', { firstError: errors[0], errorCount: errors.length, ...shape });
@@ -414,7 +442,7 @@ export async function POST(request: Request) {
   // wifi. Applied after validation so a junk request cannot burn someone
   // else's allowance by naming their address.
   const personLimit = rateLimit(`vendor-email:${value.email}`, 5, 10 * 60 * 1000);
-  if (!personLimit.ok) {
+  if (!personLimit.ok && !healthcheck) {
     logFailure('rate-limit', { scope: 'email' });
     return NextResponse.json(
       { ok: false, error: 'You have sent this a few times already. Give it a few minutes and go again.' },
@@ -582,13 +610,26 @@ export async function POST(request: Request) {
     storedCard = { customerId: card.value.customerId, cardId: card.value.cardId };
   }
 
+  /* Stamped, not disguised. Everything that counts or lists vendors excludes
+     this exact name, so a health check row cannot hold a spot, move a meter or
+     reach the tracker, and if one ever does leak into a view it is obvious at a
+     glance rather than looking like a real application.
+
+     Resolved before the insert rather than inline, because a ternary sitting
+     where a column value goes reads as a column name to check-schema, and a
+     build gate that cannot parse its own codebase is worse than the ternary. */
+  const businessName = healthcheck ? HEALTHCHECK_BUSINESS_NAME : value.business_name;
+  const contactEmail = healthcheck
+    ? `run-${Date.now()}@${HEALTHCHECK_EMAIL_DOMAIN}`
+    : value.email;
+
   const { data: inserted, error: insertError } = await supabase
     .from('vendor_applications')
     .insert({
-      business_name: value.business_name,
+      business_name: businessName,
       contact_name: value.contact_name,
       phone: value.phone,
-      email: value.email,
+      email: contactEmail,
       spot_type: value.spot_type,
       event_slug: value.event_slug,
       booking_kind: value.booking_kind,
@@ -767,6 +808,7 @@ export async function POST(request: Request) {
      subscription starts on approval, and until then this is an application like
      any other sitting in the queue. */
   if (isMonthly) {
+    if (healthcheck) return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl: null, healthcheck: true });
     await notifyPaymentReceived({
       ...emailShape,
       payment_status: 'unpaid',
@@ -782,6 +824,7 @@ export async function POST(request: Request) {
   // A paying vendor joins it from the Square webhook instead, once the money
   // actually settles.
   if (isFree) {
+    if (healthcheck) return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl: null, healthcheck: true });
     await notifyPaymentReceived({
       ...emailShape,
       payment_status: 'not_required',
@@ -801,11 +844,20 @@ export async function POST(request: Request) {
   // deliberately gets nothing here; their confirmation waits for the payment to
   // actually land, because telling someone their spot is confirmed before they
   // have paid would be wrong.
-  await notifyRegistrationStarted({
-    ...emailShape,
-    payment_status: 'unpaid',
-    payment_method: 'online',
-  });
+  if (!healthcheck) {
+    await notifyRegistrationStarted({
+      ...emailShape,
+      payment_status: 'unpaid',
+      payment_method: 'online',
+    });
+  }
+
+  /* The row is written and that is the whole point of the exercise. A Square
+     order would be a real order against a real location, so the check stops
+     one step short of creating one and reports that it got here. */
+  if (healthcheck) {
+    return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl: null, healthcheck: true });
+  }
 
   try {
     /* The shared path, which the tracker's "Request payment" action also uses.

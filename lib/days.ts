@@ -2,6 +2,7 @@ import 'server-only';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { EVENTS } from './seo';
 import { RELEASING_STATUSES } from './approval';
+import { HEALTHCHECK_BUSINESS_NAME } from './healthcheck';
 import {
   DAY_BOOKING_HORIZON_DAYS,
   DAY_CAPACITY,
@@ -131,6 +132,7 @@ export async function getDayStatuses(
         supabase
           .from('vendor_applications')
           .select('booking_date, spot_type')
+          .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
           .eq('booking_kind', 'day')
           .gte('booking_date', from)
           .lte('booking_date', to)
@@ -295,6 +297,7 @@ export async function getMonthlyHolders(): Promise<MonthlyHolders> {
     const { data, error } = await getSupabaseAdmin()
       .from('vendor_applications')
       .select('spot_type, subscription_status')
+      .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
       .eq('booking_kind', 'monthly')
       .not('approval_status', 'in', `(${RELEASING_STATUSES.join(',')})`);
 

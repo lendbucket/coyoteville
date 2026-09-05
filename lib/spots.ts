@@ -4,6 +4,7 @@ import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { nextEventByDate } from './seo';
 import { getMonthlyHolders } from './days';
 import { reviewCapacity, reviewSlotsLeft } from './booking';
+import { HEALTHCHECK_BUSINESS_NAME } from './healthcheck';
 
 /**
  * Live spot counts.
@@ -277,6 +278,7 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
       supabase
         .from('vendor_applications')
         .select('spot_type')
+        .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
         .eq('event_slug', eventSlug)
         .neq('approval_status', RELEASES_SPOT),
       /* Permanent vendors are included in every event at no extra charge, so

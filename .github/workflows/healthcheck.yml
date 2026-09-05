@@ -1,0 +1,94 @@
+name: Production health check
+
+# Every six hours, and after every successful production deploy.
+#
+# The post-deploy run is the one that matters. Every live failure this site has
+# had arrived with a deploy and was invisible until a vendor hit it: a NOT NULL
+# only the real table had, a CSP only a real browser enforced, a font only the
+# real Lambda was missing. Vercel raises deployment_status when a deploy
+# finishes, and the job below filters that to production successes.
+on:
+  schedule:
+    # 00:00, 06:00, 12:00 and 18:00 UTC. Offset by seven minutes so this is not
+    # queued alongside every other cron on the hour.
+    - cron: '7 0,6,12,18 * * *'
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Site to check. Defaults to production.'
+        required: false
+        default: 'https://coyoteville.com'
+
+# One run at a time. Two health checks writing and deleting __healthcheck__ rows
+# at once would have each one cleaning up the other's rows mid flight.
+concurrency:
+  group: healthcheck
+  cancel-in-progress: false
+
+jobs:
+  check:
+    # For a deployment_status event, only a successful production deploy. Every
+    # other delivery, including every preview and every intermediate state, is
+    # ignored. Schedule and manual runs always proceed.
+    if: >-
+      github.event_name != 'deployment_status' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # puppeteer-core brings no browser of its own, which is why it is a small
+      # devDependency rather than a heavy one. The runner supplies Chrome.
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with:
+          chrome-version: stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Wait for the deploy to be reachable
+        if: github.event_name == 'deployment_status'
+        run: sleep 20
+
+      - name: Run the health check
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || 'https://coyoteville.com' }}
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+
+          # Lets the signup route write rows marked __healthcheck__, and
+          # authorises the cleanup endpoint. Never in the repo.
+          HEALTHCHECK_SECRET: ${{ secrets.HEALTHCHECK_SECRET }}
+          ADMIN_PASSWORD: ${{ secrets.HEALTHCHECK_ADMIN_PASSWORD }}
+          SQUARE_WEBHOOK_SIGNATURE_KEY: ${{ secrets.SQUARE_WEBHOOK_SIGNATURE_KEY }}
+
+          # Alerting. Email on any failure, SMS only for signup and admin login.
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_FROM: ${{ secrets.TWILIO_FROM }}
+          ALERT_SMS_TO: ${{ secrets.ALERT_SMS_TO }}
+        run: node scripts/healthcheck.js
+
+      # Kept for the runs that fail, so the screenshot is available in Actions
+      # as well as attached to the email.
+      - name: Upload screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: healthcheck-screenshots
+          path: ${{ runner.temp }}/coyoteville-healthcheck/*.png
+          if-no-files-found: ignore
+          retention-days: 7
