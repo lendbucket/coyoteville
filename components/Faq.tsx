@@ -1,11 +1,12 @@
 import { faqItems } from '@/lib/seo';
+import { getEvents } from '@/lib/events-source';
 
 /**
  * Rendered per request rather than from a constant: one answer names the next
  * event, and a hardcoded date outlives the event it names.
  */
-export default function Faq() {
-  const items = faqItems();
+export default async function Faq() {
+  const items = faqItems(await getEvents());
 
   return (
     <section className="section section--char" id="faq" aria-labelledby="faq-title">

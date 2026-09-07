@@ -2,7 +2,7 @@ import 'server-only';
 import { HEALTHCHECK_BUSINESS_NAME } from './healthcheck';
 import { loadVendorHistory, type VendorHistoryMap } from './vendor-history';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
-import { EVENTS, nextEventByDate } from './seo';
+import { getEvents, getNextEvent } from './events-source';
 import { getSpotsFresh } from './spots';
 import { summariseRevenue, type RevenueRow, type RevenueSummary } from './revenue';
 import { DAY_SCOPE, MONTHLY_SCOPE, isEventScope } from './admin-scope';
@@ -215,26 +215,36 @@ const COLUMNS = [
  * finished one. The admin has to be able to go back and look at August after
  * August is over; what it must not do is land there on its own.
  */
-function defaultEventSlug(now: number = Date.now()): string {
-  return nextEventByDate(now).slug;
+async function defaultEventSlug(now: number = Date.now()): Promise<string> {
+  return (await getNextEvent(now))?.slug ?? '';
+}
+
+/** The two arguments normaliseFilters needs, read from the events table. */
+export async function filterContext(now: number = Date.now()): Promise<{
+  knownSlugs: string[];
+  fallback: string;
+}> {
+  const events = await getEvents();
+  return { knownSlugs: events.map((e) => e.slug), fallback: await defaultEventSlug(now) };
 }
 
 export function normaliseFilters(
   params: Record<string, string | string[] | undefined>,
-  now: number = Date.now()
+  /** Slugs the events table knows about. Passed in so this stays sync. */
+  knownSlugs: readonly string[],
+  fallback: string
 ): AdminFilters {
   const one = (k: string) => {
     const v = params[k];
     return (Array.isArray(v) ? v[0] : v) ?? '';
   };
 
-  const fallback = defaultEventSlug(now);
   const event = one('event') || fallback;
   const status = one('status');
   const q = one('q').slice(0, 80);
 
   const known =
-    event === DAY_SCOPE || event === MONTHLY_SCOPE || EVENTS.some((e) => e.slug === event);
+    event === DAY_SCOPE || event === MONTHLY_SCOPE || knownSlugs.includes(event);
 
   return {
     event: known ? event : fallback,
@@ -317,7 +327,9 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
          views are not measured against one event's booth and truck numbers, so
          they read the next event's snapshot purely to keep the projection
          helper fed, and simply do not show the meter. */
-      getSpotsFresh(isEventScope(filters.event) ? filters.event : nextEventByDate().slug),
+      getSpotsFresh(
+        isEventScope(filters.event) ? filters.event : ((await getNextEvent())?.slug ?? '')
+      ),
     ]);
 
     if (countResult.error) throw countResult.error;

@@ -1,10 +1,11 @@
-import { ADDRESS, nextEventByDate, PRICING } from '@/lib/seo';
+import { ADDRESS, PRICING } from '@/lib/seo';
+import { getNextEvent } from '@/lib/events-source';
 import { supportEmail } from '@/lib/support';
 
-export default function About() {
+export default async function About() {
   /* The next event by date, resolved per render so the page moves on to the
      following one by itself once tonight is over. */
-  const NEXT_EVENT_RESOLVED = nextEventByDate();
+  const NEXT_EVENT_RESOLVED = await getNextEvent();
 
   const email = supportEmail();
 
@@ -60,7 +61,7 @@ export default function About() {
             <li>
               <span className="factlist__label">Next event</span>
               <span className="factlist__value">
-                {NEXT_EVENT_RESOLVED.name}, {NEXT_EVENT_RESOLVED.displayDate}, {NEXT_EVENT_RESOLVED.displayTime}
+                {NEXT_EVENT_RESOLVED?.name}, {NEXT_EVENT_RESOLVED?.displayDate}, {NEXT_EVENT_RESOLVED?.displayTime}
               </span>
             </li>
             <li>

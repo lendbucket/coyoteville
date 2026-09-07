@@ -1,6 +1,7 @@
 import 'server-only';
 import { getSupabaseAdmin, isSupabaseConfigured } from '../supabase';
-import { EVENTS, PRICING } from '../seo';
+import { PRICING } from '../seo';
+import { getEventBySlug } from '../events-source';
 import { HEALTHCHECK_BUSINESS_NAME } from '../healthcheck';
 import { formatDayLong, isDayKey } from '../booking';
 import { DAY_SCOPE, MONTHLY_SCOPE } from '../admin-scope';
@@ -21,6 +22,13 @@ export type SignedAgreementRow = {
   email: string;
   spot_type: string;
   event_slug: string | null;
+  /**
+   * The event's name and date, resolved when the row is loaded.
+   *
+   * Attached here rather than looked up while rendering, because the PDF is
+   * built as a synchronous React tree and the events table is a round trip.
+   */
+  event_label?: string;
   booking_kind: string;
   booking_date: string | null;
   amount_cents: number;
@@ -105,7 +113,20 @@ export async function getSignedAgreementsForScope(scope: string): Promise<Signed
     .order('created_at', { ascending: true });
 
   if (error || !data) return [];
-  return (data as unknown as SignedAgreementRow[]).filter((row) => Boolean(row.agreement_version));
+
+  const rows = (data as unknown as SignedAgreementRow[]).filter((row) =>
+    Boolean(row.agreement_version)
+  );
+
+  /* One lookup for the whole batch. getEvents is cached per render pass, so a
+     bulk archive of forty agreements reads the events table once. */
+  for (const row of rows) {
+    if (!row.event_slug) continue;
+    const event = await getEventBySlug(row.event_slug);
+    if (event) row.event_label = `${event.name}, ${event.displayDate}`;
+  }
+
+  return rows;
 }
 
 /* ------------------------------------------------------------- formatting */
@@ -125,8 +146,9 @@ export function bookingLabel(row: SignedAgreementRow): string {
       ? formatDayLong(row.booking_date)
       : 'Single day booking';
   }
-  const event = EVENTS.find((e) => e.slug === row.event_slug);
-  return event ? `${event.name}, ${event.displayDate}` : (row.event_slug ?? 'Event');
+  /* Resolved when the row was loaded, not here: this runs inside a React-PDF
+     tree, which is synchronous. */
+  return row.event_label || (row.event_slug ?? 'Event');
 }
 
 /** What the vendor actually paid, said the way the booking works. */

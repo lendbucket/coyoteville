@@ -179,6 +179,16 @@ async function stepNextEvent(ctx) {
     `the form offers ${past.length} event(s) that already finished: ${past.map((p) => p.value).join(', ')}`
   );
 
+  /* The dropdown has to be in date order, because a vendor picks the top one
+     and a list out of order sends them to the wrong night. Checked before the
+     sort below, which would otherwise hide the problem. */
+  const asRendered = dated.map((d) => d.at);
+  const inOrder = [...asRendered].sort((a, b) => a - b);
+  assert(
+    asRendered.every((at, i) => at === inOrder[i]),
+    'the event dropdown is not in date order: ' + dated.map((d) => d.value).join(', ')
+  );
+
   const soonest = dated.sort((a, b) => a.at - b.at)[0];
   const name = soonest.text.split(',')[0].trim();
 

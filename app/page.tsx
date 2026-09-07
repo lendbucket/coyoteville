@@ -23,6 +23,7 @@ import JsonLd from '@/components/JsonLd';
 import { homeSchemaGraph } from '@/lib/seo';
 import { getDefaultEvent, getSelectableEvents } from '@/lib/event-schedule';
 import { supportEmail } from '@/lib/support';
+import { getEvents } from '@/lib/events-source';
 
 /**
  * The apply form, split out of the initial JavaScript.
@@ -69,15 +70,19 @@ export default async function HomePage() {
   // The picker offers every published event, closed and full ones included,
   // because those are the ones a vendor joins the waitlist for. Only the live
   // state travels to the browser; the rest of ScheduledEvent stays server side.
-  const [selectable, defaultEvent] = await Promise.all([
+  const [selectable, defaultEvent, allEvents] = await Promise.all([
     getSelectableEvents(),
     getDefaultEvent(),
+    /* The calendar, for the structured data. One read, cached per render pass
+       and shared with every section on the page that names the next event. */
+    getEvents(),
   ]);
 
   const eventOptions = selectable.map((e) => ({
     slug: e.slug,
     name: e.name,
     displayDate: e.displayDate,
+    date: e.date,
     lifecycle: e.lifecycle,
     isOpen: e.isOpen,
     deadlinePassed: e.deadlinePassed,
@@ -90,7 +95,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <JsonLd schemas={homeSchemaGraph(supportEmail())} />
+      <JsonLd schemas={homeSchemaGraph(allEvents, supportEmail())} />
       <DeadlineBarMount />
       <Nav />
 

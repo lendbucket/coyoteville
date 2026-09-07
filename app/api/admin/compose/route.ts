@@ -9,7 +9,8 @@ import { contextFrom } from '@/lib/email/merge-fields';
 import { isEmptyBody, toEmailHtml } from '@/lib/email/rich-text';
 import { composeSendNote } from '@/lib/compose-log';
 import { fitAttachments, MAX_EMAIL_BYTES } from '@/lib/attachments';
-import { EVENTS, PRICING } from '@/lib/seo';
+import { PRICING } from '@/lib/seo';
+import { getEventBySlug, getNextEvent } from '@/lib/events-source';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -204,7 +205,8 @@ export async function POST(request: Request) {
   const sentAt = new Date();
 
   for (const target of targets) {
-    const event = EVENTS.find((e) => e.slug === target.row?.event_slug) ?? EVENTS[0];
+    const event =
+      (await getEventBySlug(target.row?.event_slug ?? '')) ?? (await getNextEvent());
 
     const message = renderComposeEmail({
       subject,
@@ -216,7 +218,7 @@ export async function POST(request: Request) {
         contact_name: target.row?.contact_name,
         spot_number: target.row?.spot_number,
         spotTypeLabel: target.row ? spotLabel(target.row.spot_type) : null,
-        eventDate: event.displayDate,
+        eventDate: event?.displayDate ?? '',
       }),
     });
 

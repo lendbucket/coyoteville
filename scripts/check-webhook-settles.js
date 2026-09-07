@@ -139,6 +139,16 @@ const FAKES = {
     isSupabaseConfigured: () => true,
     getSupabaseAdmin: supabaseFake,
   },
+  /* The events table is the calendar now, so the webhook's event name lookup
+     goes through here. Faked like every other edge. */
+  '@/lib/events-source': {
+    eventNameFor: async (slug) =>
+      slug === 'home-game-2026-09-11' ? 'Alice Home Game' : slug || 'Coyoteville',
+    getEvents: async () => [],
+    getNextEvent: async () => null,
+    getEventBySlug: async () => null,
+    isKnownEventSlug: async () => false,
+  },
   '@/lib/seo': {
     SITE_URL,
     EVENTS: [{ slug: 'home-game-2026-09-11', name: 'Home Game, September 11' }],

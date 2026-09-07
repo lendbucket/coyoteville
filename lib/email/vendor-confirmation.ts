@@ -1,5 +1,6 @@
 import type { RegistrationEmail } from '../notify-types';
-import { ADDRESS, nextEventByDate, SITE_URL } from '../seo';
+import { ADDRESS, SITE_URL } from '../seo';
+
 import { LOGO_ALT, LOGO_URL, preheader } from './shared';
 import {
   NEXT_STEPS_CONTACT,
@@ -98,9 +99,11 @@ export function renderVendorConfirmation(
      had not booked. The caller passes what was really booked and the calendar
      is only consulted when it did not. */
   const monthly = r.booking_kind === 'monthly';
-  const fallbackEvent = nextEventByDate();
-  const whenLabel = r.booking_when || fallbackEvent.displayDate;
-  const gatesLabel = monthly ? 'Every day we are open' : fallbackEvent.displayTime;
+  /* The caller passes what was really booked. There is no calendar fallback
+      any more: a template that guesses at a date is how a vendor approved for
+      one ordinary Tuesday was told the date of an event they had not booked. */
+  const whenLabel = r.booking_when || r.event_name || 'the date you booked';
+  const gatesLabel = monthly ? 'Every day we are open' : '4:00 PM';
   const logo = LOGO_URL;
   const lights = `${SITE_URL}/email/lights.png`;
 

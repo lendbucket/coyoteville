@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
-import { getAdminView, normaliseFilters } from '@/lib/admin-data';
+import { getAdminView, normaliseFilters, filterContext } from '@/lib/admin-data';
 import { dollarsRaw, type RevenueSummary } from '@/lib/revenue';
 
 export const runtime = 'nodejs';
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
     params[k] = v;
   });
 
-  const filters = normaliseFilters(params);
+  const filters = normaliseFilters(params, (await filterContext()).knownSlugs, (await filterContext()).fallback);
   const view = await getAdminView(filters);
 
   if (!view.available) {

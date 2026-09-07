@@ -1,4 +1,5 @@
-import { nextEventByDate, PRICING } from '@/lib/seo';
+import { PRICING } from '@/lib/seo';
+import { getNextEvent } from '@/lib/events-source';
 
 /**
  * Scrolling ticker under the hero. Carries the real event date and the real
@@ -12,10 +13,15 @@ import { nextEventByDate, PRICING } from '@/lib/seo';
  * The moving strip is aria-hidden. The same facts are announced once,
  * statically, for assistive tech and for anything reading the markup.
  */
-export default function Ticker() {
+export default async function Ticker() {
   /* The next event by date, resolved per render so the page moves on to the
      following one by itself once tonight is over. */
-  const NEXT_EVENT_RESOLVED = nextEventByDate();
+  const NEXT_EVENT_RESOLVED = await getNextEvent();
+
+  /* Nothing to count down to. Only reachable when the events table could not be
+     read, and the section is entirely about the next event, so it renders
+     nothing rather than a blank shape. */
+  if (!NEXT_EVENT_RESOLVED) return null;
 
   const items = [
     `${NEXT_EVENT_RESOLVED.name} · ${NEXT_EVENT_RESOLVED.displayDate} · ${NEXT_EVENT_RESOLVED.displayTime}`,

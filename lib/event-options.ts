@@ -13,6 +13,8 @@ export type EventOption = {
   slug: string;
   name: string;
   displayDate: string;
+  /** The Central date it falls on, YYYY-MM-DD. What the permit rule compares. */
+  date: string;
   /** The event's state right now. What every gate below actually reads. */
   lifecycle: EventLifecycle;
   /** Published, deadline not passed, not full. */

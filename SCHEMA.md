@@ -92,6 +92,38 @@ Nothing enforces the table above in the database yet. Until it does,
 `scripts/check-booking-shape.js` enforces it against the real route on every
 build.
 
+## The events table is the calendar
+
+There is no event list in code. `lib/seo.ts` used to hold an `EVENTS` array
+that had to be edited in lockstep with this table, and it has been deleted:
+`lib/events-source.ts` reads `events` and everything else reads that, cached
+per render pass so a page whose hero, ticker, countdown and structured data all
+ask for the next event does one query rather than five.
+
+A hand maintained copy of a database table is a second source of truth, and the
+two drift the moment somebody inserts a row. That is not hypothetical here.
+Three home games sat in this table while the site advertised one, which is the
+same shape of bug as NEXT_EVENT once naming an event that had already happened.
+
+Four published home games as of 2026-09-07:
+
+| slug | name | date |
+| --- | --- | --- |
+| `home-game-2026-09-11` | Alice Home Game | Sep 11 |
+| `home-game-2026-09-18` | Alice vs King Tailgate | Sep 18 |
+| `home-game-2026-10-16` | Alice vs Hidalgo Early College | Oct 16 |
+| `home-game-2026-11-06` | Alice vs Zapata Tailgate | Nov 6 |
+
+November 6 falls after daylight saving ends, so its UTC offset differs from the
+other three. Nothing in the code hardcodes an offset: display strings and the
+signup cutoff are derived from `starts_at` and `signup_closes_at` through
+`America/Chicago`, so the Central times read correctly either side of the change.
+
+There is no static fallback if this table cannot be read, deliberately. The
+homepage is ISR at revalidate 60, so a regeneration that fails leaves the
+previous page in place and a transient outage is absorbed by the cache rather
+than by a copy of the calendar somebody has to remember to edit.
+
 ## Vendor profiles
 
 `vendors` is a returning vendor's saved details, so they stop re-uploading the

@@ -118,66 +118,34 @@ export function priceForSpot(spot: string): number | null {
  * entries below follow it, and defaultSignupCloses() reproduces it for anything
  * added later, so a new event does not strictly need its own literal.
  */
-export const EVENTS = [
-  {
-    slug: 'tailgate-kickoff-2026-08-28',
-    name: 'Tailgate Kickoff',
-    date: '2026-08-28',
-    startISO: '2026-08-28T16:00:00-05:00',
-    endISO: '2026-08-28T22:00:00-05:00',
-    displayDate: 'Friday, August 28, 2026',
-    displayTime: '4:00 PM',
-    blurb: 'First home game of the season. We open at 4:00 PM.',
-
-    /** Vendor signup cutoff. After this the form closes, server side. */
-    signupClosesLocal: '2026-08-26T23:59:59',
-    signupClosesDisplay: 'Wednesday, August 26, 2026 at 11:59 PM',
-
-    /** Gates open. Drives the event countdown section. */
-    gatesOpenLocal: '2026-08-28T16:00:00',
-  },
-  {
-    slug: 'home-game-2026-09-11',
-    name: 'Alice Home Game',
-    date: '2026-09-11',
-    startISO: '2026-09-11T16:00:00-05:00',
-    endISO: '2026-09-11T22:00:00-05:00',
-    displayDate: 'Friday, September 11, 2026',
-    displayTime: '4:00 PM',
-    blurb: 'Alice home game night. We open at 4:00 PM.',
-
-    signupClosesLocal: '2026-09-09T23:59:59',
-    signupClosesDisplay: 'Wednesday, September 9, 2026 at 11:59 PM',
-
-    gatesOpenLocal: '2026-09-11T16:00:00',
-  },
-] as const;
-
-export type EventConfig = (typeof EVENTS)[number];
-
 /**
- * Every event, oldest first.
+ * One event, as the rest of the site consumes it.
  *
- * EVENTS is already written in order; this sorts anyway so that adding one in
- * the wrong place cannot silently reorder the dropdown or the schema.
- */
-export const UPCOMING_EVENTS: readonly EventConfig[] = [...EVENTS].sort((a, b) =>
-  a.date.localeCompare(b.date)
-);
-
-/**
- * The soonest event, whether or not its signup has closed.
+ * A type and nothing else. The data lives in the events table and is read by
+ * lib/events-source; there is deliberately no array here any more.
  *
- * Still the right anchor for "where to find us" copy and the gates countdown,
- * which stay true right up to the event itself. Anything about *applying*
- * should use nextOpenEvent() instead, because signup shuts two days out while
- * this still points at the same event.
+ * A hand maintained copy of a database table is a second source of truth, and
+ * the two drift the moment somebody inserts a row. That is not hypothetical:
+ * three home games sat in the events table while this file said there was one,
+ * which is the same shape of bug as NEXT_EVENT advertising an event that had
+ * already happened. The database is authoritative, so it is the only source.
  */
-/* NEXT_EVENT used to live here: UPCOMING_EVENTS[0], the first entry in the
-   static calendar. It never advanced, so every caller that took it as a default
-   kept naming an event after it had been and gone. Deleted rather than renamed:
-   there is no call site that wants "first by date, whatever the clock says",
-   and leaving it exported is leaving the trap set. Use nextEventByDate(). */
+export type EventConfig = {
+  slug: string;
+  name: string;
+  /** The Central date it falls on, YYYY-MM-DD. */
+  date: string;
+  startISO: string;
+  endISO: string;
+  displayDate: string;
+  displayTime: string;
+  blurb: string;
+  /** Vendor signup cutoff, as a Central wall clock string. */
+  signupClosesLocal: string;
+  signupClosesDisplay: string;
+  /** Gates open, as a Central wall clock string. */
+  gatesOpenLocal: string;
+};
 
 /** The house rule: two days before the event, 11:59 PM local. */
 export function defaultSignupCloses(date: string): string {
@@ -187,12 +155,12 @@ export function defaultSignupCloses(date: string): string {
 }
 
 /** UTC instant of an event's signup cutoff, resolved from its wall clock time. */
-export function signupClosesAt(event: EventConfig = nextEventByDate()): number {
+export function signupClosesAt(event: EventConfig): number {
   return parseZonedWallClock(event.signupClosesLocal, EVENT_TIMEZONE);
 }
 
 /** UTC instant an event's gates open. */
-export function gatesOpenAt(event: EventConfig = nextEventByDate()): number {
+export function gatesOpenAt(event: EventConfig): number {
   return parseZonedWallClock(event.gatesOpenLocal, EVENT_TIMEZONE);
 }
 
@@ -205,14 +173,14 @@ export function gatesOpenAt(event: EventConfig = nextEventByDate()): number {
  * in the events table, and is what the route actually calls.
  */
 export function isSignupClosed(
-  event: EventConfig = nextEventByDate(),
+  event: EventConfig,
   now: number = Date.now()
 ): boolean {
   return now >= signupClosesAt(event);
 }
 
 /** Zone label for the cutoff, eg "CDT". Rendered next to the deadline. */
-export function signupClosesZone(event: EventConfig = nextEventByDate()): string {
+export function signupClosesZone(event: EventConfig): string {
   return zoneAbbreviation(signupClosesAt(event), EVENT_TIMEZONE);
 }
 
@@ -223,22 +191,15 @@ export function eventEndsAt(event: EventConfig): number {
 }
 
 /**
- * The next event by date: the soonest one that has not finished yet.
+ * The soonest event in a list that has not finished yet.
  *
- * This is what the public half of the site means by "next". The hero, the
- * countdown bar and the visit panel all point at the event people are actually
- * coming to, which stays true after vendor signup shuts two days out and only
- * moves on once the night is over. Anything about *applying* wants
- * nextOpenEvent() instead.
- *
- * Falls back to the last event in the calendar when every one has been and
- * gone, so callers always get something to render rather than null.
+ * Pure, and takes the list, because the list comes from the database now.
+ * lib/events-source.getNextEvent is the one almost everything actually wants:
+ * it reads the events table and caches per render pass.
  */
-export function nextEventByDate(now: number = Date.now()): EventConfig {
-  return (
-    UPCOMING_EVENTS.find((e) => eventEndsAt(e) > now) ??
-    UPCOMING_EVENTS[UPCOMING_EVENTS.length - 1]
-  );
+export function nextEventIn(events: readonly EventConfig[], now: number = Date.now()): EventConfig | null {
+  if (!events.length) return null;
+  return events.find((ev) => eventEndsAt(ev) > now) ?? events[events.length - 1];
 }
 
 /** Long form date for an instant, in the event's own timezone. */
@@ -256,17 +217,23 @@ export function formatEventDeadline(ms: number): string {
     .replace(' at ', ' at ');
 }
 
-/** Look up one event by slug. */
-export function eventBySlug(slug: string): EventConfig | null {
-  return UPCOMING_EVENTS.find((e) => e.slug === slug) ?? null;
+/** Look up one event by slug in a list. */
+export function eventBySlugIn(
+  events: readonly EventConfig[],
+  slug: string
+): EventConfig | null {
+  return events.find((e) => e.slug === slug) ?? null;
 }
 
 /**
  * The soonest event whose signup is still open, or null when every one of them
  * has closed. Drives the countdown bar and the default in the vendor form.
  */
-export function nextOpenEvent(now: number = Date.now()): EventConfig | null {
-  return UPCOMING_EVENTS.find((e) => !isSignupClosed(e, now)) ?? null;
+export function nextOpenEventIn(
+  events: readonly EventConfig[],
+  now: number = Date.now()
+): EventConfig | null {
+  return events.find((e) => !isSignupClosed(e, now)) ?? null;
 }
 
 /**
@@ -328,8 +295,11 @@ export const KEYWORDS = [
  * been and gone: Google was being handed a past date as the answer to "when is
  * the next event".
  */
-export function faqItems(now: number = Date.now()): { q: string; a: string }[] {
-  const next = nextEventByDate(now);
+export function faqItems(
+  events: readonly EventConfig[],
+  now: number = Date.now()
+): { q: string; a: string }[] {
+  const next = nextEventIn(events, now);
 
   return [
     {
@@ -366,7 +336,11 @@ export function faqItems(now: number = Date.now()): { q: string; a: string }[] {
     },
     {
       q: 'When is the next event?',
-      a: `${next.name}, ${next.displayDate} at ${next.displayTime}. ${next.blurb}`,
+      /* Null only when the calendar is empty, which is a database outage
+         rather than a state the site is ever in on purpose. */
+      a: next
+        ? `${next.name}, ${next.displayDate} at ${next.displayTime}. ${next.blurb}`
+        : 'Our next home game date goes up here as soon as it is set. Call or text us and we will tell you.',
     },
     {
       q: 'Can I sell alcohol?',
@@ -555,12 +529,12 @@ export function eventSchema(e: EventConfig) {
   };
 }
 
-export function faqSchema(now: number = Date.now()) {
+export function faqSchema(events: readonly EventConfig[], now: number = Date.now()) {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
     '@id': `${SITE_URL}/#faq`,
-    mainEntity: faqItems(now).map((item) => ({
+    mainEntity: faqItems(events, now).map((item) => ({
       '@type': 'Question',
       name: item.q,
       acceptedAnswer: { '@type': 'Answer', text: item.a },
@@ -586,15 +560,19 @@ export function breadcrumbSchema() {
  * feeds Google a date nobody can attend, and the FAQPage used to carry the same
  * stale event in prose. Both now follow the clock.
  */
-export function homeSchemaGraph(email: string = SITE.email, now: number = Date.now()) {
-  const upcoming = UPCOMING_EVENTS.filter((e) => eventEndsAt(e) > now);
+export function homeSchemaGraph(
+  events: readonly EventConfig[],
+  email: string = SITE.email,
+  now: number = Date.now()
+) {
+  const upcoming = events.filter((e) => eventEndsAt(e) > now);
 
   return [
     organizationSchema(email),
     websiteSchema(),
     localBusinessSchema(email),
     ...upcoming.map((e) => eventSchema(e)),
-    faqSchema(now),
+    faqSchema(events, now),
     breadcrumbSchema(),
   ];
 }

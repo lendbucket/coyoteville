@@ -11,7 +11,7 @@ import {
 import { createVendorPaymentLink } from '@/lib/payment-link';
 import { getClientIp, rateLimit } from '@/lib/rate-limit';
 import { AGREEMENT_VERSION } from '@/components/VendorAgreement';
-import { EVENTS } from '@/lib/seo';
+import { getEventBySlug, isKnownEventSlug } from '@/lib/events-source';
 import { getScheduledEvent } from '@/lib/event-schedule';
 import {
   MONTHLY_PRICING,
@@ -206,7 +206,11 @@ function validate(body: Payload) {
   }
 
   if (booking_kind === 'event') {
-    if (!EVENTS.some((e) => e.slug === event_slug)) {
+    /* Only that a slug was sent. Whether it names a real, published event is
+       decided further down by getScheduledEvent, which reads the events table.
+       Checking it here as well would mean a second list to keep in step, which
+       is the thing this change exists to remove. */
+    if (!event_slug) {
       errors.push('Pick an event.');
     }
   } else if (booking_kind === 'day') {
@@ -572,7 +576,7 @@ export async function POST(request: Request) {
     value.booking_kind === 'day'
       ? value.booking_date
       : value.booking_kind === 'event'
-        ? (EVENTS.find((e) => e.slug === value.event_slug)?.date ?? null)
+        ? ((await getEventBySlug(value.event_slug ?? ''))?.date ?? null)
         : null;
 
   const permitRequired = value.spot_type === 'truck' || value.serves_food;

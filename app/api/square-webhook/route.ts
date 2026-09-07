@@ -2,7 +2,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getSquare, isSquareConfigured } from '@/lib/square';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { EVENTS, SITE_URL } from '@/lib/seo';
+import { SITE_URL } from '@/lib/seo';
+import { eventNameFor } from '@/lib/events-source';
 import { invalidateSpots } from '@/lib/spots';
 import { notifyPaymentReceived } from '@/lib/notify';
 import {
@@ -369,7 +370,7 @@ export async function POST(request: Request) {
       spot_type: updated.spot_type,
       event_slug: updated.event_slug,
       event_name:
-        EVENTS.find((e) => e.slug === updated.event_slug)?.name ?? updated.event_slug,
+        await eventNameFor(updated.event_slug),
       sells: updated.sells,
       notes: updated.notes,
       serves_food: Boolean(updated.serves_food),

@@ -8,7 +8,7 @@ import { sendReminderEmail } from '@/lib/notify';
 import { lastPaymentRequestFrom, paymentRequestNote } from '@/lib/abandoned';
 import { formatDayLong } from '@/lib/booking';
 import { supportEmail } from '@/lib/support';
-import { EVENTS } from '@/lib/seo';
+import { getEventBySlug } from '@/lib/events-source';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
   /* What they booked, formatted the same way the tracker and the card show it,
      so the email names the thing the vendor recognises. Monthly is refused
      above, so this is an event or a single date. */
-  const event = EVENTS.find((e) => e.slug === row.event_slug);
+  const event = await getEventBySlug(row.event_slug ?? '');
   const eventLabel =
     row.booking_kind === 'day' && row.booking_date
       ? formatDayLong(row.booking_date)

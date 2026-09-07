@@ -2,14 +2,12 @@ import 'server-only';
 import { cache } from 'react';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { getSpots } from './spots';
+import { getEvents, getNextEvent } from './events-source';
 import {
-  EVENTS,
   EVENT_TIMEZONE,
-  UPCOMING_EVENTS,
   eventEndsAt,
   formatEventDeadline,
   gatesOpenAt,
-  nextEventByDate,
   signupClosesAt,
   type EventConfig,
 } from './seo';
@@ -213,7 +211,8 @@ async function decorate(event: EventConfig, row: EventRow | undefined, now: numb
 /** Every event in the calendar, oldest first, decorated with live state. */
 export const getSchedule = cache(async (now: number = Date.now()): Promise<ScheduledEvent[]> => {
   const rows = await loadRows();
-  return Promise.all(UPCOMING_EVENTS.map((e) => decorate(e, rows.get(e.slug), now)));
+  const events = await getEvents();
+  return Promise.all(events.map((e) => decorate(e, rows.get(e.slug), now)));
 });
 
 /** Only the events a vendor can actually sign up for, oldest first. */
@@ -264,8 +263,10 @@ export async function getDefaultEvent(now: number = Date.now()): Promise<Schedul
   return (await getSelectableEvents(now))[0] ?? null;
 }
 
-/** Slugs the API routes will accept. Static, so it needs no round trip. */
-export const KNOWN_EVENT_SLUGS: readonly string[] = EVENTS.map((e) => e.slug);
+/** Slugs the API routes will accept, read from the events table. */
+export async function knownEventSlugs(): Promise<string[]> {
+  return (await getEvents()).map((e) => e.slug);
+}
 
 /**
  * The next event by date, decorated with its live state.
@@ -274,8 +275,13 @@ export const KNOWN_EVENT_SLUGS: readonly string[] = EVENTS.map((e) => e.slug);
  * to, which stays put after vendor signup shuts and only moves on once the
  * night is over.
  */
-export async function getNextEventByDate(now: number = Date.now()): Promise<ScheduledEvent> {
-  const wanted = nextEventByDate(now);
+export async function getNextEventByDate(
+  now: number = Date.now()
+): Promise<ScheduledEvent | null> {
+  const wanted = await getNextEvent(now);
   const schedule = await getSchedule(now);
-  return schedule.find((e) => e.slug === wanted.slug) ?? schedule[0];
+  /* Null when the events table is empty or unreachable. Callers render nothing
+     rather than crashing the page: this used to return schedule[0] on an empty
+     schedule, which is undefined, and took the whole prerender down with it. */
+  return schedule.find((e) => e.slug === wanted?.slug) ?? schedule[0] ?? null;
 }

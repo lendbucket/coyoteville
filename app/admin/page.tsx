@@ -11,11 +11,12 @@ import {
   lastReminderFrom,
 } from '@/lib/abandoned';
 import { isAdminConfigured, isAdminRequest } from '@/lib/admin-auth';
-import { getAdminView, normaliseFilters } from '@/lib/admin-data';
+import { getAdminView, normaliseFilters, filterContext } from '@/lib/admin-data';
 import { lastMediaSendFrom } from '@/lib/media-log';
 import { lastComposeSendFrom } from '@/lib/compose-log';
 import { getWaitlist } from '@/lib/waitlist';
-import { EVENTS, PRICING, nextEventByDate } from '@/lib/seo';
+import { PRICING } from '@/lib/seo';
+import { getEvents, getNextEvent } from '@/lib/events-source';
 import { dayKeyFromTimestamp, formatDayLong } from '@/lib/booking';
 import { ordinalFor } from '@/lib/vendor-history';
 
@@ -97,10 +98,10 @@ export default async function AdminPage({
   if (!(await isAdminRequest())) {
     const errorKey = Array.isArray(searchParams.e) ? searchParams.e[0] : searchParams.e;
 
-    /* The static calendar, not the live schedule. This is the one screen a
-       signed out stranger can reach, and it has no business opening a database
-       connection to draw a single line of text. */
-    const upcoming = nextEventByDate();
+    /* One line of text on the one screen a signed out stranger can reach. The
+       static calendar this used to read is gone, so it is a database read now,
+       and a failure simply means the line is not drawn. */
+    const upcoming = await getNextEvent();
 
     return (
       <main className="adminlogin">
@@ -111,11 +112,13 @@ export default async function AdminPage({
 
           {/* Which event the tracker opens on, settled before you have even
               typed the password. */}
-          <p className="adminlogin__foot">
-            Next up: <b>{upcoming.name}</b>
-            <span className="adminlogin__dot" aria-hidden="true" />
-            <time dateTime={upcoming.date}>{upcoming.displayDate}</time>
-          </p>
+          {upcoming ? (
+            <p className="adminlogin__foot">
+              Next up: <b>{upcoming.name}</b>
+              <span className="adminlogin__dot" aria-hidden="true" />
+              <time dateTime={upcoming.date}>{upcoming.displayDate}</time>
+            </p>
+          ) : null}
         </div>
       </main>
     );
@@ -123,7 +126,11 @@ export default async function AdminPage({
 
   /* ------------------------------------------------------------ tracker */
 
-  const filters = normaliseFilters(searchParams);
+  /* The events table decides which scopes are real and which one to land on.
+      Read once here and handed to the pure normaliser, so it stays sync. */
+  const { knownSlugs, fallback } = await filterContext();
+  const allEvents = await getEvents();
+  const filters = normaliseFilters(searchParams, knownSlugs, fallback);
   const eventScoped = isEventScope(filters.event);
 
   /* The waitlist and the abandoned checkout list are both keyed on an event.
@@ -157,11 +164,13 @@ export default async function AdminPage({
       : null;
 
   const selectedEvent =
-    EVENTS.find((e) => e.slug === filters.event) ?? nextEventByDate();
+    allEvents.find((e) => e.slug === filters.event) ?? (await getNextEvent());
   // What the scope is called, for the composer's merge fields and the empty
   // states, so neither claims to be showing an event it is not.
-  const scopeName = eventScoped ? selectedEvent.name : SCOPE_LABELS[filters.event];
-  const scopeDate = eventScoped ? selectedEvent.displayDate : '';
+  const scopeName = eventScoped
+    ? (selectedEvent?.name ?? filters.event)
+    : SCOPE_LABELS[filters.event];
+  const scopeDate = eventScoped ? (selectedEvent?.displayDate ?? '') : '';
 
   // Vendors on this event carrying anything worth handing to whoever posts.
   // Permits are deliberately not counted: they are never sent.
@@ -210,7 +219,7 @@ export default async function AdminPage({
         ? formatDayLong(r.booking_date)
         : r.booking_kind === 'monthly'
           ? 'Permanent monthly spot'
-          : (EVENTS.find((e) => e.slug === r.event_slug)?.name ?? 'Event'),
+          : (allEvents.find((e) => e.slug === r.event_slug)?.name ?? 'Event'),
     bookingDay: r.booking_date,
     subscriptionStatus: r.subscription_status,
     /* Stored as a timestamptz, shown as the date it falls on here. Reading it
@@ -265,7 +274,7 @@ export default async function AdminPage({
             ? formatDayLong(e.bookingDate)
             : e.bookingKind === 'monthly'
               ? 'Permanent monthly spot'
-              : (EVENTS.find((ev) => ev.slug === e.eventSlug)?.name ?? 'Event'),
+              : (allEvents.find((ev) => ev.slug === e.eventSlug)?.name ?? 'Event'),
         spotTypeLabel:
           e.spotType === 'truck'
             ? PRICING.truck.label
@@ -291,7 +300,7 @@ export default async function AdminPage({
         eventName={scopeName}
         eventDate={scopeDate}
         eventSlug={filters.event}
-        events={EVENTS.map((e) => ({ slug: e.slug, name: e.name }))}
+        events={allEvents.map((e) => ({ slug: e.slug, name: e.name }))}
         filters={filters}
         exportHref={exportHref}
         mediaVendorCount={mediaVendorCount}

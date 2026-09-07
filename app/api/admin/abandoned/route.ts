@@ -6,13 +6,16 @@ import { getSquare, isSquareConfigured } from '@/lib/square';
 import { renderReminder } from '@/lib/email/reminder';
 import { sendReminderEmail } from '@/lib/notify';
 import { supportEmail } from '@/lib/support';
-import { EVENTS, SITE_URL } from '@/lib/seo';
+import { SITE_URL } from '@/lib/seo';
+import { getEventBySlug, getNextEvent, isKnownEventSlug } from '@/lib/events-source';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function resolveEvent(slug: string | null): string {
-  return EVENTS.some((e) => e.slug === slug) ? (slug as string) : EVENTS[0].slug;
+async function resolveEvent(slug: string | null): Promise<string> {
+  if (slug && (await isKnownEventSlug(slug))) return slug;
+  const next = await getNextEvent();
+  return next?.slug ?? '';
 }
 
 /** Started but not paid, for the current event. */
@@ -21,7 +24,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: 'Not signed in.' }, { status: 401 });
   }
 
-  const eventSlug = resolveEvent(new URL(request.url).searchParams.get('event'));
+  const eventSlug = await resolveEvent(new URL(request.url).searchParams.get('event'));
   const rows = await getAbandoned(eventSlug);
 
   return NextResponse.json({
@@ -71,7 +74,7 @@ export async function POST(request: Request) {
   const { data: row, error } = await supabase
     .from('vendor_applications')
     .select(
-      'id, business_name, email, spot_type, amount_cents, payment_status, admin_notes, square_payment_link_id'
+      'id, business_name, email, spot_type, event_slug, amount_cents, payment_status, admin_notes, square_payment_link_id'
     )
     .eq('id', id)
     .maybeSingle();
@@ -120,10 +123,16 @@ export async function POST(request: Request) {
     );
   }
 
+  /* The event this vendor actually booked, not whichever one the calendar
+     thinks is next. */
+  const bookedEvent = await getEventBySlug(row.event_slug ?? '');
+
   const message = renderReminder({
     businessName: row.business_name,
     spotType: row.spot_type,
     amountCents: row.amount_cents ?? 0,
+    eventName: bookedEvent?.name ?? 'Coyoteville',
+    eventDisplayDate: bookedEvent?.displayDate ?? 'the date you booked',
     finishUrl,
     supportEmail: supportEmail(),
   });

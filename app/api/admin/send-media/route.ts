@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { HEALTHCHECK_BUSINESS_NAME } from '@/lib/healthcheck';
-import { EVENTS } from '@/lib/seo';
+import { getEventBySlug, getNextEvent, isKnownEventSlug } from '@/lib/events-source';
 import { renderVendorMediaEmail } from '@/lib/email/vendor-media';
 import { sendMediaEmail } from '@/lib/notify';
 import {
@@ -80,9 +80,10 @@ export async function POST(request: Request) {
   let rows: (VendorRow & { admin_notes: string | null })[] = [];
 
   if (body?.all) {
-    const eventSlug = EVENTS.some((e) => e.slug === body.event)
-      ? (body.event as string)
-      : EVENTS[0].slug;
+    const eventSlug =
+      body.event && (await isKnownEventSlug(body.event))
+        ? (body.event as string)
+        : ((await getNextEvent())?.slug ?? '');
 
     const { data, error } = await supabase
       .from('vendor_applications')
@@ -148,7 +149,7 @@ export async function POST(request: Request) {
   // is whatever event that vendor actually applied to, which is not necessarily
   // the one currently selected in the tracker.
   const eventSlug = rows[0]?.event_slug;
-  const event = EVENTS.find((e) => e.slug === eventSlug) ?? EVENTS[0];
+  const event = (await getEventBySlug(eventSlug ?? '')) ?? (await getNextEvent());
 
   const totalParts = packed.batches.length;
   const sentRowIds = new Set<string>();
@@ -158,9 +159,9 @@ export async function POST(request: Request) {
     const message = renderVendorMediaEmail({
       vendors: batch.vendors,
       note,
-      eventName: event.name,
-      eventDate: event.displayDate,
-      eventDateISO: event.date,
+      eventName: event?.name ?? 'Coyoteville',
+      eventDate: event?.displayDate ?? '',
+      eventDateISO: event?.date ?? '',
       downscaled: packed.downscaled,
       part: i + 1,
       totalParts,

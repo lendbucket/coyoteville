@@ -21,6 +21,10 @@ import { getNextEventByDate } from '@/lib/event-schedule';
 export default async function DeadlineBarMount() {
   const event = await getNextEventByDate();
 
+  /* No calendar, nothing to count down to. Only reachable when the events table
+     could not be read. */
+  if (!event) return null;
+
   return (
     <DeadlineBar
       targetMs={event.gatesOpenAtMs}

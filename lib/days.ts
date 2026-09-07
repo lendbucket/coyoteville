@@ -1,6 +1,6 @@
 import 'server-only';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
-import { EVENTS } from './seo';
+import { getEvents } from './events-source';
 import { RELEASING_STATUSES } from './approval';
 import { HEALTHCHECK_BUSINESS_NAME } from './healthcheck';
 import {
@@ -85,9 +85,9 @@ type BookingRow = {
 };
 
 /** Event dates, keyed by day, so a day lookup does not scan the calendar. */
-function eventDays(): Map<DayKey, { slug: string; name: string }> {
+async function eventDays(): Promise<Map<DayKey, { slug: string; name: string }>> {
   const map = new Map<DayKey, { slug: string; name: string }>();
-  for (const e of EVENTS) map.set(e.date, { slug: e.slug, name: e.name });
+  for (const e of await getEvents()) map.set(e.date, { slug: e.slug, name: e.name });
   return map;
 }
 
@@ -108,7 +108,7 @@ export async function getDayStatuses(
 ): Promise<DayStatus[]> {
   const today = todayKey('America/Chicago', now);
   const horizon = addDays(today, DAY_BOOKING_HORIZON_DAYS);
-  const events = eventDays();
+  const events = await eventDays();
 
   const exceptions = new Map<DayKey, AvailabilityRow>();
   const boothClaimed = new Map<DayKey, number>();

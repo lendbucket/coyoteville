@@ -2,19 +2,25 @@ import Photo from './Photo';
 import StringLights from './StringLights';
 import EventCountdown from './EventCountdown';
 import { SITE_PHOTOS } from '@/lib/photos';
-import { nextEventByDate, gatesOpenAt, EVENT_TIMEZONE } from '@/lib/seo';
+import { gatesOpenAt, EVENT_TIMEZONE } from '@/lib/seo';
+import { getNextEvent } from '@/lib/events-source';
 import { zoneAbbreviation } from '@/lib/time';
 
 /**
  * Server half of the gates-open countdown. Resolves the target instant from the
  * event's wall clock time and hands the client component the server clock.
  */
-export default function EventCountdownSection() {
+export default async function EventCountdownSection() {
   /* The next event by date, resolved per render so the page moves on to the
      following one by itself once tonight is over. */
-  const NEXT_EVENT_RESOLVED = nextEventByDate();
+  const NEXT_EVENT_RESOLVED = await getNextEvent();
 
-  const targetMs = gatesOpenAt();
+  /* Nothing to count down to. Only reachable when the events table could not be
+     read, and the section is entirely about the next event, so it renders
+     nothing rather than a blank shape. */
+  if (!NEXT_EVENT_RESOLVED) return null;
+
+  const targetMs = gatesOpenAt(NEXT_EVENT_RESOLVED);
 
   return (
     <section className="evt" aria-labelledby="countdown-title">

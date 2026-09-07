@@ -2,17 +2,18 @@ import Photo from './Photo';
 import StringLights from './StringLights';
 import FoodTruck from './FoodTruck';
 import { SITE_PHOTOS } from '@/lib/photos';
-import { ADDRESS, nextEventByDate } from '@/lib/seo';
+import { ADDRESS } from '@/lib/seo';
+import { getNextEvent } from '@/lib/events-source';
 
 /**
  * Full bleed photographic hero. The photo runs edge to edge, a gradient scrim
  * carries the type, and the food truck illustration sits on the horizon line
  * between the headline and the fold.
  */
-export default function Hero() {
+export default async function Hero() {
   /* The next event by date, resolved per render so the page moves on to the
      following one by itself once tonight is over. */
-  const NEXT_EVENT_RESOLVED = nextEventByDate();
+  const NEXT_EVENT_RESOLVED = await getNextEvent();
 
   const hero = SITE_PHOTOS.hero;
   const heroSrcSet = hero.widths.map((w) => `/photos/${hero.file}-${w}.webp ${w}w`).join(', ');
@@ -73,10 +74,10 @@ export default function Hero() {
       </div>
 
       <p className="hero__meta">
-        <span>{NEXT_EVENT_RESOLVED.name}</span>
+        <span>{NEXT_EVENT_RESOLVED?.name}</span>
         <span>
-          <time dateTime={NEXT_EVENT_RESOLVED.startISO}>
-            {NEXT_EVENT_RESOLVED.displayDate} at {NEXT_EVENT_RESOLVED.displayTime}
+          <time dateTime={NEXT_EVENT_RESOLVED?.startISO}>
+            {NEXT_EVENT_RESOLVED?.displayDate} at {NEXT_EVENT_RESOLVED?.displayTime}
           </time>
         </span>
         <span>Admission is free</span>

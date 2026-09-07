@@ -36,7 +36,24 @@ const ROOT = path.join(__dirname, '..');
 
 const EVENT_SLUG = 'home-game-2026-09-11';
 const EVENT_DATE = '2026-09-11';
-const OPEN_DAY = '2026-09-18'; // an ordinary Friday, not an event date
+/* An ordinary Friday with no event on it. September 18, October 16 and
+   November 6 are all home games now, so this deliberately sits clear of them. */
+const OPEN_DAY = '2026-09-25';
+
+/** The one event the fakes know about. */
+const EVENT = {
+  slug: EVENT_SLUG,
+  name: 'Alice Home Game',
+  date: EVENT_DATE,
+  startISO: '2026-09-11T16:00:00-05:00',
+  endISO: '2026-09-11T22:00:00-05:00',
+  displayDate: 'Friday, September 11, 2026',
+  displayTime: '4:00 PM',
+  blurb: '',
+  signupClosesLocal: '2026-09-09T23:59:59',
+  signupClosesDisplay: 'Wednesday, September 9, 2026 at 11:59 PM',
+  gatesOpenLocal: '2026-09-11T16:00:00',
+};
 
 /** Columns the live table refuses a null in. event_slug is deliberately not here. */
 const NOT_NULL = new Set([
@@ -162,6 +179,16 @@ const FAKES = {
     }),
     canBook: () => true,
     monthlyRoomFor: async () => ({ available: true }),
+  },
+  /* The events table, which is now the only calendar. Faked like every other
+     database edge, and React's cache() is not available out here anyway. */
+  '@/lib/events-source': {
+    getEvents: async () => [EVENT],
+    getNextEvent: async () => EVENT,
+    getEventBySlug: async (slug) => (slug === EVENT_SLUG ? EVENT : null),
+    eventNameFor: async (slug) => (slug === EVENT_SLUG ? EVENT.name : slug || 'Coyoteville'),
+    isKnownEventSlug: async (slug) => slug === EVENT_SLUG,
+    endsAtMs: (e) => Date.parse(e.endISO),
   },
   '@/lib/event-schedule': {
     getScheduledEvent: async (slug) =>

@@ -1,4 +1,5 @@
-import { nextEventByDate, PRICING } from '../seo';
+import { PRICING } from '../seo';
+
 import { logoHeader, preheader } from './shared';
 
 /**
@@ -34,12 +35,14 @@ export function renderReminder(opts: {
   amountCents: number;
   finishUrl: string;
   supportEmail: string;
+  /** The event this reminder is about. Passed in, not looked up: a template
+      that consults the calendar itself names whichever event the caller did
+      not mean. */
+  eventName: string;
+  eventDisplayDate: string;
 }): { subject: string; html: string; text: string } {
   const { businessName, spotType, amountCents, finishUrl, supportEmail } = opts;
-
-  // The date this reminder names, resolved now rather than from the first
-  // entry in the static calendar, which never advances.
-  const nextEvent = nextEventByDate();
+  const nextEvent = { name: opts.eventName, displayDate: opts.eventDisplayDate };
   const spot = spotLabel(spotType);
   const amount = money(amountCents);
 

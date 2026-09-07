@@ -47,7 +47,7 @@ import Fireworks from './Fireworks';
 import NextSteps from './NextSteps';
 import EventPicker from './EventPicker';
 import type { EventOption } from '@/lib/event-options';
-import { EVENTS, PRICING, SITE } from '@/lib/seo';
+import { PRICING, SITE } from '@/lib/seo';
 
 /** Kept in step with ALLOWED_LABEL in lib/uploads.ts. */
 const ALLOWED_HINT = 'JPG, PNG, WEBP, HEIC or PDF.';
@@ -294,7 +294,7 @@ export default function VendorForm({
     kind === 'day'
       ? day
       : kind === 'event'
-        ? (EVENTS.find((e) => e.slug === eventSlug)?.date ?? '')
+        ? (events?.find((e) => e.slug === eventSlug)?.date ?? '')
         : '';
 
   const storedPermitUsable = Boolean(
@@ -886,9 +886,9 @@ export default function VendorForm({
                   id={`${uid}-event`}
                   name="event_slug"
                   required
-                  defaultValue={eventSlug ?? EVENTS[0].slug}
+                  defaultValue={eventSlug ?? events?.[0]?.slug ?? ''}
                 >
-                  {EVENTS.map((event) => (
+                  {(events ?? []).map((event) => (
                     <option key={event.slug} value={event.slug}>
                       {event.name}, {event.displayDate}
                     </option>

@@ -1,9 +1,9 @@
 import JSZip from 'jszip';
 import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
-import { normaliseFilters } from '@/lib/admin-data';
+import { normaliseFilters, filterContext } from '@/lib/admin-data';
 import { isEventScope, SCOPE_LABELS } from '@/lib/admin-scope';
-import { EVENTS } from '@/lib/seo';
+import { eventNameFor } from '@/lib/events-source';
 import { getAgreementVersion } from '@/lib/agreement/registry';
 import {
   agreementFileName,
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
 
   // Reuses the tracker's own scope validation, so an unknown slug falls back to
   // the first event rather than quietly matching nothing.
-  const { event: scope } = normaliseFilters(params);
+  const { event: scope } = normaliseFilters(params, (await filterContext()).knownSlugs, (await filterContext()).fallback);
 
   const rows = await getSignedAgreementsForScope(scope);
   if (!rows.length) {
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
   }
 
   const scopeName = isEventScope(scope)
-    ? (EVENTS.find((e) => e.slug === scope)?.name ?? scope)
+    ? ((await eventNameFor(scope)))
     : SCOPE_LABELS[scope];
 
   const zip = new JSZip();

@@ -5,7 +5,7 @@ import Footer from '@/components/Footer';
 import StringLights from '@/components/StringLights';
 import NextSteps from '@/components/NextSteps';
 import Fireworks from '@/components/Fireworks';
-import { nextEventByDate } from '@/lib/seo';
+import { getNextEvent } from '@/lib/events-source';
 import { REFUND_WINDOW, REVIEW_WINDOW } from '@/lib/approval';
 import { supportEmail } from '@/lib/support';
 
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
  * is still the end of a long form, but every line under it is careful not to
  * promise a spot that has not been granted yet.
  */
-export default function ConfirmedPage({
+export default async function ConfirmedPage({
   searchParams,
 }: {
   searchParams: { spot?: string };
@@ -40,7 +40,7 @@ export default function ConfirmedPage({
   /* The event they are now queued for, resolved against the clock. This named
      NEXT_EVENT, which never advances, so the page thanked people for applying
      to an event that had already happened. */
-  const nextEvent = nextEventByDate();
+  const nextEvent = await getNextEvent();
 
   return (
     <>
@@ -59,7 +59,7 @@ export default function ConfirmedPage({
             {free
               ? 'We have your signed agreement. Nothing was charged.'
               : 'We have your payment and your signed agreement. Square sends the receipt to your email.'}{' '}
-            You are in the queue for {nextEvent.name} on {nextEvent.displayDate}.
+            You are in the queue for {nextEvent?.name ?? "our next event"} on {nextEvent?.displayDate ?? "the date you booked"}.
           </p>
 
           {/* The rule, stated the same way it was stated before they paid and

@@ -16,7 +16,7 @@ import {
   timestampFromDayKey,
 } from '@/lib/booking';
 import { notifyApproved, notifyDenied } from '@/lib/notify';
-import { EVENTS } from '@/lib/seo';
+import { eventNameFor } from '@/lib/events-source';
 import type { RegistrationEmail } from '@/lib/notify-types';
 
 export const runtime = 'nodejs';
@@ -86,17 +86,17 @@ type Row = {
  * templates reading correctly for all three kinds rather than branching on the
  * booking kind in every sentence.
  */
-function bookingLabel(row: Row): string {
+async function bookingLabel(row: Row): Promise<string> {
   if (row.booking_kind === 'day' && row.booking_date) return formatDayLong(row.booking_date);
   if (row.booking_kind === 'monthly') {
     return isMonthlySpot(row.spot_type)
       ? MONTHLY_PRICING[row.spot_type].label
       : 'Permanent monthly spot';
   }
-  return EVENTS.find((e) => e.slug === row.event_slug)?.name ?? row.event_slug ?? 'Coyoteville';
+  return await eventNameFor(row.event_slug);
 }
 
-function toEmail(row: Row): RegistrationEmail {
+async function toEmail(row: Row): Promise<RegistrationEmail> {
   return {
     id: row.id,
     business_name: row.business_name,
@@ -105,7 +105,7 @@ function toEmail(row: Row): RegistrationEmail {
     email: row.email,
     spot_type: row.spot_type,
     event_slug: row.event_slug ?? '',
-    event_name: bookingLabel(row),
+    event_name: await bookingLabel(row),
     sells: row.sells,
     notes: row.notes,
     serves_food: Boolean(row.serves_food),
@@ -321,7 +321,7 @@ export async function POST(request: Request) {
           .update({ refund_error: outcome.error, updated_at: new Date().toISOString() })
           .eq('id', row.id);
 
-        await notifyApproved(toEmail(row));
+        await notifyApproved(await toEmail(row));
 
         return NextResponse.json({
           ok: true,
@@ -330,7 +330,7 @@ export async function POST(request: Request) {
         });
       }
 
-      await notifyApproved(toEmail(row));
+      await notifyApproved(await toEmail(row));
 
       return NextResponse.json({
         ok: true,
@@ -340,7 +340,7 @@ export async function POST(request: Request) {
       });
     }
 
-    await notifyApproved(toEmail(row));
+    await notifyApproved(await toEmail(row));
     return NextResponse.json({ ok: true, approval_status: 'approved' });
   }
 
@@ -421,7 +421,7 @@ export async function POST(request: Request) {
      automatic one failed, because the money is owed regardless and the tracker
      is already flagging it for the admin to settle. */
   await notifyDenied({
-    ...toEmail(row),
+    ...(await toEmail(row)),
     reason,
     refund_amount_cents: refundedCents > 0 ? refundedCents : owed,
   });
