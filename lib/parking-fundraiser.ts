@@ -60,21 +60,11 @@ export const PARKING_PRICE_CENTS = 1000;
 /** The organization's share of gross parking. */
 export const PAYOUT_RATE = 0.5;
 
-/**
- * Bumped when the terms change, and stamped on every application.
- *
- * Bumped for the rename. The clauses did not change, but the program's name
- * appears inside several of them, so the text an applicant reads today is not
- * byte for byte the text 'fnf-v1.0-2026' rows were shown. A version that covers
- * two different documents is worse than useless on the day somebody asks what
- * an organization actually agreed to.
- *
- * Rows signed before this bump still carry 'fnf-v1.0-2026' and that text is no
- * longer in the repo. The vendor agreement keeps every version it has ever
- * shipped under lib/agreement/versions for this reason; these terms do not yet,
- * and should.
- */
-export const TERMS_VERSION = 'fundraiser-v1.1-2026';
+/* TERMS_VERSION used to be declared here as a literal. It now lives on the
+   terms document itself, in lib/fundraiser-terms/versions, so the version
+   string and the text it names cannot be changed independently of each other.
+   Import it from lib/fundraiser-terms/current. */
+
 
 export const ORG_TYPES = [
   'School or school group',

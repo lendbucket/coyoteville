@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { TermsBlock } from '@/lib/fundraiser-terms';
+import type { TermsBlock } from '@/lib/fundraiser-terms/current';
 
 /* Kept in step with lib/uploads, which is server-only because it holds the
    storage client. The server re-validates every file regardless. */

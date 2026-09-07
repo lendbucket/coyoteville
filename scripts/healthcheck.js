@@ -693,6 +693,81 @@ async function stepDeny(ctx) {
   return `denied ${String(target.id).slice(0, 8)}, no refund attempted, denied_at stamped`;
 }
 
+/**
+ * 11. The volunteer waiver page renders, with the text and the version on it.
+ *
+ * Deliberately does not submit. This form writes a signed legal record with a
+ * real person's date of birth and emergency contact on it, and a health check
+ * has no business signing one every six hours.
+ *
+ * What can break here without anybody noticing is the page. It reads the events
+ * table for the game and org_applications for the organization name, and either
+ * failing leaves a page that looks fine and cannot be signed. The version
+ * string is asserted because it is what every row is stamped with: a page that
+ * renders the form and no version is a page filing waivers that name nothing.
+ *
+ * The moment this matters is the one moment nobody will be looking at a
+ * dashboard: a volunteer standing at a table at dusk with a phone, five minutes
+ * before parking opens.
+ */
+async function stepVolunteerWaiver(ctx) {
+  const page = await newPage();
+  ctx.volPage = page;
+
+  const res = await page.goto(`${BASE}/volunteer`, {
+    waitUntil: 'networkidle0',
+    timeout: 60_000,
+  });
+  assert(res && res.ok(), `/volunteer returned ${res && res.status()}`);
+  await settle(page, 600);
+
+  const seen = await page.evaluate(() => {
+    const terms = document.querySelector('.terms');
+    return {
+      h1: (document.querySelector('h1') || {}).innerText || '',
+      hasForm: Boolean(document.querySelector('form input[name="full_name"]')),
+      hasDob: Boolean(document.querySelector('form input[name="date_of_birth"]')),
+      hasEmergency: Boolean(document.querySelector('form input[name="emergency_contact_name"]')),
+      hasSignature: Boolean(document.querySelector('form input[name="signature_name"]')),
+      hasAccept: Boolean(document.querySelector('form input[name="waiver_accepted"]')),
+      hasEventSlug: Boolean(document.querySelector('form input[name="event_slug"]')),
+      eventSlug: (document.querySelector('form input[name="event_slug"]') || {}).value || '',
+      termsLength: terms ? (terms.innerText || '').length : 0,
+      conspicuous: document.querySelectorAll('.terms__loud').length,
+      body: (document.body.innerText || ''),
+    };
+  });
+
+  assert(/waiver/i.test(seen.h1), `the page rendered no waiver heading: "${seen.h1.slice(0, 60)}"`);
+  assert(seen.hasForm, 'the waiver form is not on the page');
+  assert(seen.hasDob, 'the date of birth field is missing, so nobody could be aged');
+  assert(seen.hasEmergency, 'the emergency contact field is missing');
+  assert(seen.hasSignature, 'the waiver has no signature field, so nothing would be signed');
+  assert(seen.hasAccept, 'the waiver has no acceptance checkbox');
+  assert(
+    seen.hasEventSlug && seen.eventSlug.length > 0,
+    'the form carries no event, so a signature would file against no game'
+  );
+
+  /* The text itself, not just a container. An empty scroller is what a broken
+     import looks like from the outside. */
+  assert(
+    seen.termsLength > 2000,
+    `the waiver text is ${seen.termsLength} characters, which is too short to be the waiver`
+  );
+  assert(
+    seen.conspicuous >= 4,
+    `only ${seen.conspicuous} conspicuous blocks rendered, so the release is not being marked`
+  );
+
+  /* The version, visible on the page. Every row is stamped with it. */
+  const version = (seen.body.match(/vol-v[0-9A-Za-z.-]+/) || [])[0] || '';
+  assert(version, 'no waiver version string is visible anywhere on the page');
+
+  return `renders for ${seen.eventSlug}, ${seen.termsLength} characters of waiver, ` +
+    `${seen.conspicuous} conspicuous blocks, version ${version}`;
+}
+
 /* ------------------------------------------------------------- the runner */
 
 const STEPS = [
@@ -705,6 +780,7 @@ const STEPS = [
   ['agreement-pdf', stepAgreementPdf],
   ['parking-fundraiser', stepParkingFundraiser],
   ['webhook', stepWebhook],
+  ['volunteer-waiver', stepVolunteerWaiver],
   ['deny', stepDeny],
 ];
 

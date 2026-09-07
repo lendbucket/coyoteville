@@ -65,6 +65,13 @@ org_event_awards
   parking_gross_cents, payout_cents, paid_at, paid_method, published_at,
   notes, created_at, updated_at
 
+volunteer_waivers
+  id, event_slug, org_application_id, full_name, phone, email,
+  date_of_birth, is_adult, guardian_name, guardian_phone,
+  guardian_signature_name, emergency_contact_name,
+  emergency_contact_phone, waiver_version, signature_name, signed_at,
+  signer_ip, signer_user_agent, created_at
+
 subscribers
   id, email, source, signup_ip, confirmed_at, unsubscribed_at,
   created_at, updated_at
@@ -153,6 +160,24 @@ org_applications.status
 interchangeable. `denied` is a decision somebody made and it refunds.
 `cancelled` is a checkout the vendor walked away from, aged out automatically,
 and there is nothing to refund because nothing was ever paid.
+
+## The volunteer waiver
+
+Every individual who works a game signs one on their phone at the lot, before
+they start. `event_slug` is NOT NULL and references `events.slug`, so a waiver
+is always for one night: signing once does not cover the season.
+`org_application_id` is nullable because the QR code carries it and somebody
+who types the URL by hand will not have it, and a signed waiver with no
+organization against it is still a signed waiver.
+
+`is_adult` is computed on the server from `date_of_birth` against the event
+date, never taken from the form. A volunteer is not asked to declare it. When it
+is false the guardian columns are required, and `guardian_signature_name` is the
+parent's signature rather than the minor's.
+
+RLS is enabled with no policies, so only the service role reaches it. Nothing
+about a volunteer's date of birth or their emergency contact should be readable
+by an anonymous key.
 
 ## The events table is the calendar
 

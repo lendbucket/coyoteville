@@ -18,6 +18,7 @@ import { getWaitlist } from '@/lib/waitlist';
 import { PRICING } from '@/lib/seo';
 import { getEvents, getNextEvent } from '@/lib/events-source';
 import { getAwards, getGameSlots, getOrgApplications } from '@/lib/parking-fundraiser';
+import { emptyWaivers, getWaiversForEvents } from '@/lib/volunteer-waivers';
 import { dayKeyFromTimestamp, formatDayLong } from '@/lib/booking';
 import { ordinalFor } from '@/lib/vendor-history';
 
@@ -138,6 +139,11 @@ export default async function AdminPage({
     getGameSlots(),
     getAwards(),
   ]);
+
+  /* Signed volunteer waivers for every upcoming game, in one query rather than
+     one per game. This is the number Robert reads on the night, before parking
+     opens, to decide whether the forfeit applies. */
+  const waivers = await getWaiversForEvents(orgSlots.map((s) => s.event.slug));
   const allEvents = await getEvents();
   const filters = normaliseFilters(searchParams, knownSlugs, fallback);
 
@@ -355,6 +361,19 @@ export default async function AdminPage({
             payoutCents: award?.payout_cents ?? null,
             paidAt: award?.paid_at ? when(award.paid_at) : '',
             published: Boolean(award?.published_at),
+            /* The organization's id, not just its name, because the QR sheet
+               is per game and per organization and has to name both. */
+            orgId: award?.org_application_id ?? null,
+            waivers: (() => {
+              const w = waivers[s.event.slug] ?? emptyWaivers(s.event.slug);
+              return {
+                adults: w.adults.map((x) => x.full_name),
+                minors: w.minors.map((x) => x.full_name),
+                minimum: w.minimum,
+                short: w.short,
+                met: w.met,
+              };
+            })(),
           };
         })}
         abandoned={abandoned.map((r) => ({

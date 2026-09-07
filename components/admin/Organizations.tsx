@@ -28,6 +28,15 @@ export type GameRow = {
   payoutCents: number | null;
   paidAt: string;
   published: boolean;
+  /** The drawn organization's id, for the QR sheet. Null until a draw. */
+  orgId: string | null;
+  waivers: {
+    adults: string[];
+    minors: string[];
+    minimum: number;
+    short: number;
+    met: boolean;
+  };
 };
 
 const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US')}`;
@@ -38,6 +47,60 @@ const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US')}`;
  * Reads the same density, type scale and chip discipline as the rest of the
  * tracker: neutral by default, orange only where something needs doing.
  */
+/**
+ * Signed waivers for one game, read at a glance in the dark.
+ *
+ * The adult count against the minimum is the whole point and is the only thing
+ * here in large type: it decides whether the forfeit in section 4 applies, and
+ * that decision gets made standing in a lot a few minutes before parking opens.
+ * So it says "4 of 6" and, when it is short, exactly how many are missing.
+ *
+ * Minors are counted and named and never added in. A minor who has signed is a
+ * real volunteer with a real waiver and is explicitly not one of the six, so a
+ * single total would answer the wrong question at the one moment it matters.
+ */
+function Waivers({ game }: { game: GameRow }) {
+  const { adults, minors, minimum, short, met } = game.waivers;
+  const qr = `/api/admin/volunteer-qr?event=${encodeURIComponent(game.slug)}${
+    game.orgId ? `&org=${encodeURIComponent(game.orgId)}` : ''
+  }`;
+
+  return (
+    <div className="wv">
+      <div className="wv__top">
+        <span className={`wv__count ${met ? 'is-met' : 'is-short'}`}>
+          {adults.length} of {minimum}
+        </span>
+        <span className="wv__label">adults signed</span>
+        <a className="btn btn--sm btn--ghost wv__qr" href={qr} target="_blank" rel="noreferrer">
+          Print QR
+        </a>
+      </div>
+
+      <p className="wv__state">
+        {met
+          ? 'The adult minimum is met.'
+          : `${short} more ${short === 1 ? 'adult' : 'adults'} needed to meet the minimum.`}
+        {minors.length ? ` ${minors.length} under 18 signed, not counted.` : ''}
+      </p>
+
+      {adults.length ? (
+        <p className="wv__names">
+          <span className="wv__names-head">Adults</span> {adults.join(', ')}
+        </p>
+      ) : (
+        <p className="wv__names wv__names--none">Nobody has signed for this game yet.</p>
+      )}
+
+      {minors.length ? (
+        <p className="wv__names">
+          <span className="wv__names-head">Under 18</span> {minors.join(', ')}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export default function Organizations({
   applications,
   games,
@@ -97,6 +160,11 @@ export default function Organizations({
               <span className="orgs__game-name">{g.name}</span>
               <span className="badge">{g.displayDate}</span>
             </div>
+
+            {/* Outside the drawn branch on purpose. Somebody can sign before a
+                draw is made, and a count that only appears after one would hide
+                exactly the signatures nobody expected. */}
+            <Waivers game={g} />
 
             {g.orgName ? (
               <>

@@ -4,7 +4,7 @@ import Footer from '@/components/Footer';
 import StringLights from '@/components/StringLights';
 import JsonLd from '@/components/JsonLd';
 import OrgApplicationForm, { type GameOption } from '@/components/OrgApplicationForm';
-import { FNF_TERMS, FNF_TERMS_VERSION } from '@/lib/fundraiser-terms';
+import { TERMS, TERMS_VERSION } from '@/lib/fundraiser-terms/current';
 import {
   PARKING_PRICE_CENTS,
   PAYOUT_WINDOW_DAYS,
@@ -516,8 +516,8 @@ export default async function FridayNightFundPage() {
               Pick every game you could work. You are only ever drawn for a night you chose.
             </p>
             <OrgApplicationForm
-              terms={FNF_TERMS}
-              termsVersion={FNF_TERMS_VERSION}
+              terms={TERMS}
+              termsVersion={TERMS_VERSION}
               games={games}
               volunteerMinimum={VOLUNTEER_MINIMUM}
               programName={PROGRAM_NAME}

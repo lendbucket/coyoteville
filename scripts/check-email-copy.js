@@ -9,9 +9,16 @@
  * renders as a box in a handful of older clients and Windows mail readers, and
  * an emoji in a subject line is what a filter is looking for.
  *
- * Scans the source of every template under lib/email. That is the whole surface
- * we write: a vendor's own business name can contain anything and is not ours
- * to police.
+ * Scans the source of every template under lib/email, and every versioned legal
+ * document under lib/fundraiser-terms/versions and lib/volunteer-waiver/versions.
+ * That is the whole surface we write: a vendor's own business name can contain
+ * anything and is not ours to police.
+ *
+ * The legal documents are in scope for a second reason on top of typography.
+ * They are frozen: once somebody has signed a version it can never be edited,
+ * so a stray en dash that arrives with a lawyer's marked up draft is permanent
+ * in that version and gets copied into the next one. The cheapest moment to
+ * catch it is the build before it ships, and this is that build.
  *
  * Runs as part of prebuild, so a violation fails the build rather than the send.
  */
@@ -19,7 +26,14 @@
 const fs = require('fs');
 const path = require('path');
 
-const DIR = path.join(__dirname, '..', 'lib', 'email');
+const ROOT = path.join(__dirname, '..');
+
+/** Every directory whose prose is ours and has to follow house style. */
+const DIRS = [
+  ['lib/email', 'template'],
+  ['lib/fundraiser-terms/versions', 'terms version'],
+  ['lib/volunteer-waiver/versions', 'waiver version'],
+];
 
 const DASHES = [
   ['‒', 'figure dash'],
@@ -46,17 +60,27 @@ function lineOf(source, index) {
 const failures = [];
 let scanned = 0;
 
-for (const file of fs.readdirSync(DIR).sort()) {
-  if (!file.endsWith('.ts')) continue;
+const files = [];
+for (const [dir] of DIRS) {
+  const full = path.join(ROOT, dir);
+  if (!fs.existsSync(full)) {
+    failures.push(`${dir} does not exist, so its copy cannot be checked.`);
+    continue;
+  }
+  for (const name of fs.readdirSync(full).sort()) {
+    if (name.endsWith('.ts')) files.push([dir, name]);
+  }
+}
 
-  const full = path.join(DIR, file);
+for (const [dir, file] of files) {
+  const full = path.join(ROOT, dir, file);
   const source = fs.readFileSync(full, 'utf8');
   scanned += 1;
 
   for (const [char, name] of DASHES) {
     let at = source.indexOf(char);
     while (at !== -1) {
-      failures.push(`lib/email/${file}:${lineOf(source, at)} contains a ${name}. Use a plain hyphen, a comma, or two sentences.`);
+      failures.push(`${dir}/${file}:${lineOf(source, at)} contains a ${name}. Use a plain hyphen, a comma, or two sentences.`);
       at = source.indexOf(char, at + 1);
     }
   }
@@ -66,7 +90,7 @@ for (const file of fs.readdirSync(DIR).sort()) {
     const width = cp > 0xffff ? 2 : 1;
     if (isEmoji(cp)) {
       failures.push(
-        `lib/email/${file}:${lineOf(source, i)} contains an emoji (U+${cp.toString(16).toUpperCase()}). Transactional mail carries none.`
+        `${dir}/${file}:${lineOf(source, i)} contains an emoji (U+${cp.toString(16).toUpperCase()}). Our own copy carries none.`
       );
     }
     i += width;
@@ -79,4 +103,7 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`check-email-copy: ${scanned} templates, no dashes beyond the hyphen, no emoji.`);
+console.log(
+  `check-email-copy: ${scanned} files across ${DIRS.length} directories, ` +
+    'no dashes beyond the hyphen, no emoji.'
+);

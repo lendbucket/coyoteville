@@ -7,9 +7,9 @@ import {
   ORG_TYPES,
   PAYOUT_WINDOW_DAYS,
   PROGRAM_NAME,
-  TERMS_VERSION,
   VOLUNTEER_MINIMUM,
 } from '@/lib/parking-fundraiser';
+import { TERMS_VERSION } from '@/lib/fundraiser-terms/current';
 import { renderOrgConfirmation, renderOrgNotification } from '@/lib/email/org-application';
 import { sendReminderEmail } from '@/lib/notify';
 import { supportEmail } from '@/lib/support';

@@ -7512,3 +7512,250 @@ p {
 .fnf__cta {
   margin-top: 1.6rem;
 }
+
+/* ============================================================
+   The volunteer waiver, /volunteer
+   ============================================================
+
+   Signed on a phone, standing on gravel, at dusk, with people waiting behind.
+   That is the whole design brief and it rules most things out. One column, big
+   targets, nothing clever, and no site chrome: there is nowhere else to go from
+   this page and a nav would only offer ways to lose the form. */
+
+.vol {
+  min-height: 100dvh;
+  padding: clamp(1.25rem, 5vw, 2.5rem) var(--gutter) 4rem;
+  background: var(--char);
+}
+
+.vol__shell {
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+.vol__eyebrow {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-condensed);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+.vol__title {
+  margin: 0 0 1rem;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 9vw, 2.75rem);
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.vol__event {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0 0 0.75rem;
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--ember);
+  background: rgba(240, 169, 75, 0.08);
+  font-size: 1.05rem;
+}
+
+.vol__event-date {
+  font-size: 0.95rem;
+  color: var(--cream-70);
+}
+
+.vol__org {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.vol__org--none {
+  color: var(--cream-70);
+  font-size: 0.92rem;
+}
+
+.vol__intro {
+  margin: 0 0 1.75rem;
+}
+
+/* The draft notice. It says out loud that a lawyer has not seen this yet,
+   because somebody signing a release deserves to know that, and because
+   quietly dropping the notice is how a draft becomes permanent. */
+.vol__draft {
+  margin: 0 0 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px dashed var(--ember);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  color: var(--ember);
+}
+
+/* 16px minimum on every input. Anything smaller and iOS zooms the page on
+   focus, which on this form means somebody pinching to find the next field
+   while a queue builds behind them. */
+.vol__form .input,
+.vol__form .select {
+  font-size: 16px;
+  min-height: 48px;
+}
+
+.vol__form .check input {
+  width: 22px;
+  height: 22px;
+}
+
+.vol__submit {
+  width: 100%;
+  min-height: 52px;
+  font-size: 1rem;
+}
+
+/* The guardian block, which appears only when the date of birth says it must.
+   Marked out rather than folded into the form, because it is a different
+   person signing and that should look like a different thing. */
+.vol__minor {
+  margin: 0 0 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--ember);
+  border-radius: var(--radius-sm);
+  background: rgba(240, 169, 75, 0.06);
+}
+
+.vol__minor-head {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-condensed);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.vol__minor-loud {
+  margin: 0 0 1rem;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+/* The confirmation. Held up and read at arm's length by somebody else, so the
+   name is the biggest thing on it and nothing competes. */
+.vol__done {
+  padding: 2rem 0;
+  text-align: center;
+}
+
+.vol__done-tick {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-condensed);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.vol__done-name {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 8vw, 2.6rem);
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.vol__done-line {
+  margin: 0 0 0.2rem;
+  font-size: 1.05rem;
+}
+
+.vol__done-org {
+  margin: 0.6rem 0 0;
+  font-size: 1rem;
+  color: var(--cream-70);
+}
+
+.vol__done-kind {
+  margin: 1.25rem 0 1rem;
+  font-size: 0.95rem;
+  color: var(--cream-70);
+}
+
+/* -------------------------------------- volunteer waivers, in the tracker */
+
+/* Read on the night, in the dark, a few minutes before parking opens. The
+   adult count against the minimum is the only thing in large type because it is
+   the only thing that decides anything: it is what says whether the forfeit in
+   section 4 of the terms applies. */
+
+.wv {
+  margin: 8px 0 12px;
+  padding: 12px;
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.wv__top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wv__count {
+  font-family: var(--font-condensed);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Green would be a new colour in a tracker that is deliberately neutral, so met
+   is simply cream and short is the accent. Short is the state that needs
+   somebody to do something, and it is the only one that gets colour. */
+.wv__count.is-met {
+  color: var(--cream);
+}
+
+.wv__count.is-short {
+  color: var(--ember);
+}
+
+.wv__label {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+.wv__qr {
+  margin-left: auto;
+}
+
+.wv__state {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.wv__names {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.wv__names--none {
+  color: var(--cream-50);
+}
+
+.wv__names-head {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
