@@ -4,7 +4,8 @@ import { PRICING } from '../seo';
 import { getEventBySlug } from '../events-source';
 import { HEALTHCHECK_BUSINESS_NAME } from '../healthcheck';
 import { formatDayLong, isDayKey } from '../booking';
-import { DAY_SCOPE, MONTHLY_SCOPE } from '../admin-scope';
+import { ALL_SCOPE, DAY_SCOPE, MONTHLY_SCOPE } from '../admin-scope';
+import { RELEASING_STATUSES } from '../approval';
 
 /**
  * One signed agreement, as the PDF needs it.
@@ -74,7 +75,8 @@ const COLUMNS = [
 ].join(', ');
 
 /** The column and value a tracker scope filters on. Mirrors lib/admin-data. */
-function scopeFilter(scope: string): { column: string; value: string } {
+function scopeFilter(scope: string): { column: string; value: string } | null {
+  if (scope === ALL_SCOPE) return null;
   if (scope === DAY_SCOPE) return { column: 'booking_kind', value: 'day' };
   if (scope === MONTHLY_SCOPE) return { column: 'booking_kind', value: 'monthly' };
   return { column: 'event_slug', value: scope };
@@ -104,13 +106,19 @@ export async function getSignedAgreementsForScope(scope: string): Promise<Signed
   if (!isSupabaseConfigured()) return [];
 
   const filter = scopeFilter(scope);
-  const { data, error } = await getSupabaseAdmin()
+  let query = getSupabaseAdmin()
     .from('vendor_applications')
     .select(COLUMNS)
     .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
-    .eq(filter.column, filter.value)
     .eq('waiver_accepted', true)
     .order('created_at', { ascending: true });
+
+  // Everything scope: every signed agreement that is still live. A denied or
+  // aged out row's agreement is still on its own event, where it belongs.
+  if (filter) query = query.eq(filter.column, filter.value);
+  else query = query.not('approval_status', 'in', `(${RELEASING_STATUSES.join(',')})`);
+
+  const { data, error } = await query;
 
   if (error || !data) return [];
 
@@ -164,8 +172,8 @@ export function paymentMethodLabel(row: SignedAgreementRow): string {
   const method =
     row.payment_method === 'offline'
       ? 'Paid offline, registered by staff'
-      : row.payment_method === 'square'
-        ? 'Square'
+      : row.payment_method === 'online'
+        ? 'Paid online through Square'
         : (row.payment_method ?? 'Not recorded');
 
   const status =

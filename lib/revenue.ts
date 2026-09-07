@@ -12,14 +12,24 @@
  * follow it without anyone editing this file.
  */
 
+import { isSettled, isAbandonedCheckout, RELEASED_APPROVAL_STATUSES } from './holds-spot';
+
 /** The columns the summary needs. A subset of the application row. */
 export type RevenueRow = {
+  /** Named on the outstanding list, because "1 unpaid" is not actionable. */
+  business_name?: string | null;
   spot_type: string;
   amount_cents: number;
   payment_status: string;
   payment_method: string | null;
   approval_status: string;
   square_order_id: string | null;
+  /**
+   * Set once Square actually charged. An order with no payment against it is a
+   * checkout somebody started and walked away from, which is the difference
+   * between money that is coming and a row standing on a spot.
+   */
+  square_payment_id?: string | null;
   created_at: string;
   /**
    * Cash actually counted against an offline row, recorded by hand in the
@@ -51,7 +61,15 @@ export type ProjectedLine = {
 };
 
 export type RevenueSummary = {
-  /** Settled money, broken out by spot type. */
+  /**
+   * Money in hand, broken out by spot type.
+   *
+   * Settled rows only, and an offline row counts what has actually been
+   * counted against it rather than what it claims. Nothing unpaid is ever in
+   * here. That sounds obvious and it was not true of the strip that shipped:
+   * the headline was booked money, so a prepaid row nobody had collected from
+   * raised the total the moment the form was submitted.
+   */
   collected: {
     cents: number;
     truck: RevenueLine;
@@ -66,8 +84,24 @@ export type RevenueSummary = {
     square: RevenueLine;
     prepaid: RevenueLine;
   };
-  /** Unpaid rows that have a Square order sitting against them. */
+  /**
+   * Approved and unpaid. Money that is owed by somebody who has a spot.
+   *
+   * This used to be every unpaid row carrying a Square order, which is the
+   * definition of an abandoned checkout, not of a debt. Five people who closed
+   * a tab were reported as outstanding revenue while the one vendor who
+   * genuinely owes for a spot she was given sat in the same number,
+   * indistinguishable.
+   */
   outstanding: RevenueLine;
+  /** Who owes it. Same rows as outstanding, in the order they applied. */
+  outstandingRows: { name: string; cents: number }[];
+  /**
+   * Unpaid, Square made an order, no payment ever arrived. Counted in neither
+   * collected nor outstanding: nobody is coming and nobody owes anything. Shown
+   * so the rows are accounted for rather than silently missing.
+   */
+  abandoned: RevenueLine;
   /**
    * What was sold against what is actually in hand.
    *
@@ -96,20 +130,27 @@ export type RevenueSummary = {
 };
 
 /**
- * Payment states that mean the money is settled.
+ * Rows that are still part of the event's money.
  *
- * 'paid' is a Square payment that cleared or a prepaid row booked through the
- * hidden link. 'not_required' is a free Alice organisation spot, confirmed the
- * moment it is submitted. Both are counted so the free spots show a real count
- * against their zero dollars; they carry amount_cents 0, so including them
- * cannot move a dollar figure. This is the same pair lib/spots.ts treats as
- * claimed, and the same pair the tracker already labels "Paid or free".
+ * Denied and cancelled are both out. A denied row was refunded, so its money
+ * went back; a cancelled row is a checkout nobody finished. This used to
+ * exclude cancelled alone, on the reasoning that a denial is visible elsewhere,
+ * which left a refunded spot sitting in the collected total.
  */
-const SETTLED = new Set(['paid', 'not_required']);
-
-/** Cancelled rows are money that went away, so nothing counts them. */
 function live(row: RevenueRow): boolean {
-  return row.approval_status !== 'cancelled';
+  return !(RELEASED_APPROVAL_STATUSES as readonly string[]).includes(row.approval_status);
+}
+
+/**
+ * What this row is actually worth, in hand.
+ *
+ * An online row cleared through Square, so its fee is money. An offline row is
+ * worth what somebody has counted against it and nothing until they do,
+ * however confidently the column says paid.
+ */
+function cashOf(row: RevenueRow): number {
+  if (row.payment_method === 'offline') return Math.max(0, row.amount_received_cents ?? 0);
+  return Math.max(0, row.amount_cents);
 }
 
 function emptyLine(): RevenueLine {
@@ -180,9 +221,9 @@ export type CashReconciliation = {
   /** Sum of amount_cents on settled rows. What was sold. */
   bookedCents: number;
   /**
-   * What is actually held. Square settled the online rows, so those count at
-   * their full amount. An offline row counts only what someone has recorded
-   * receiving against it.
+   * What is actually held, and the same number as collected.cents. Kept as its
+   * own field because the pair is the point: booked against received is where
+   * an unreconciled prepaid row shows up as a difference.
    */
   receivedCents: number;
   /**
@@ -211,29 +252,41 @@ export type Capacities = {
  * figures stay meaningful while the tracker is being searched. Capacities come
  * from the event row via lib/spots.ts.
  */
-export function summariseRevenue(rows: RevenueRow[], capacities: Capacities): RevenueSummary {
+export function summariseRevenue(
+  rows: RevenueRow[],
+  capacities: Capacities,
+  now: number = Date.now()
+): RevenueSummary {
   const truck = emptyLine();
   const booth = emptyLine();
   const free = emptyLine();
   const square = emptyLine();
   const prepaid = emptyLine();
   const outstanding = emptyLine();
+  const abandoned = emptyLine();
   const unreconciled = emptyLine();
+  const outstandingRows: { name: string; cents: number }[] = [];
 
+  let bookedCents = 0;
   let collectedCents = 0;
-  let receivedCents = 0;
 
   for (const row of rows) {
     if (!live(row)) continue;
 
     const amount = Math.max(0, row.amount_cents);
 
-    if (SETTLED.has(row.payment_status)) {
-      collectedCents += amount;
+    if (isSettled(row.payment_status)) {
+      const cash = cashOf(row);
+      bookedCents += amount;
+      collectedCents += cash;
 
+      /* The per type lines carry cash, not the booked fee, so they add up to
+         the headline exactly. A prepaid row nobody has collected from shows in
+         the count and contributes nothing to the dollars, which is the truth
+         about it. */
       const line = row.spot_type === 'truck' ? truck : row.spot_type === 'booth' ? booth : free;
       line.count += 1;
-      line.cents += amount;
+      line.cents += cash;
 
       /* How it was collected.
        *
@@ -248,32 +301,37 @@ export function summariseRevenue(rows: RevenueRow[], capacities: Capacities): Re
         bucket.cents += amount;
       }
 
-      /* What is actually held.
-       *
-       * An online row cleared through Square, so the booked amount is the
-       * received amount. An offline row is only worth what somebody has
-       * counted against it, and until that happens it contributes nothing
-       * however confidently the row says paid. */
-      if (row.payment_method === 'offline') {
-        const received = row.amount_received_cents;
-        if (received === null || received === undefined) {
-          unreconciled.count += 1;
-          unreconciled.cents += amount;
-        } else {
-          receivedCents += Math.max(0, received);
-        }
-      } else {
-        receivedCents += amount;
+      /* Claims paid with nothing counted against it. The cents figure is what
+         it is booked at, which is what is unaccounted for. */
+      if (
+        row.payment_method === 'offline' &&
+        (row.amount_received_cents === null || row.amount_received_cents === undefined)
+      ) {
+        unreconciled.count += 1;
+        unreconciled.cents += amount;
       }
       continue;
     }
 
-    // Money that is sitting there. A Square order exists, so the vendor was
-    // sent to checkout and never finished. This is the same test the abandoned
-    // list uses to decide a row is chaseable.
-    if (row.payment_status === 'unpaid' && row.square_order_id) {
+    /* Unpaid from here down, and none of it is ever collected money.
+     *
+     * A vendor who walked away from a checkout owes nothing: there is no spot
+     * held and nobody to chase. A vendor who was approved and has not paid does
+     * owe, and is named, because a bare count of one is not something you can
+     * act on. Everything else, an unpaid application still waiting on review,
+     * is neither: it is a queue item, not a debt. */
+    if (row.payment_status !== 'unpaid' || amount <= 0) continue;
+
+    if (isAbandonedCheckout({ ...row, square_payment_id: row.square_payment_id ?? null }, now)) {
+      abandoned.count += 1;
+      abandoned.cents += amount;
+      continue;
+    }
+
+    if (row.approval_status === 'approved') {
       outstanding.count += 1;
       outstanding.cents += amount;
+      outstandingRows.push({ name: row.business_name || 'Unnamed vendor', cents: amount });
     }
   }
 
@@ -291,10 +349,12 @@ export function summariseRevenue(rows: RevenueRow[], capacities: Capacities): Re
     collected: { cents: collectedCents, truck, booth, free },
     bySource: { square, prepaid },
     outstanding,
+    outstandingRows,
+    abandoned,
     cash: {
-      bookedCents: collectedCents,
-      receivedCents,
-      differenceCents: collectedCents - receivedCents,
+      bookedCents,
+      receivedCents: collectedCents,
+      differenceCents: bookedCents - collectedCents,
       unreconciled,
     },
     projected: {

@@ -21,12 +21,15 @@ export default function VendorCard({
   selectable,
   selected,
   onToggle,
+  showBooking = false,
 }: {
   row: VendorCardRow;
   onOpen: (id: string) => void;
   selectable: boolean;
   selected: boolean;
   onToggle: (id: string) => void;
+  /** Under the Everything scope, say what every row is booked for. */
+  showBooking?: boolean;
 }) {
   const settled = isSettled(row);
   const waiting = needsReview(row);
@@ -88,8 +91,10 @@ export default function VendorCard({
 
         {/* What they booked, only where it is not obvious. In an event scope
             every row is the same event and saying so on each one is noise; a
-            day or a permanent spot is the thing you are scanning for. */}
-        {row.bookingKind !== 'event' ? (
+            day or a permanent spot is the thing you are scanning for. Under
+            Everything nothing is obvious, so every row says which night, which
+            date, or that it is a permanent spot. */}
+        {showBooking || row.bookingKind !== 'event' ? (
           <span className="vcard__booking">{row.bookingLabel}</span>
         ) : null}
       </button>

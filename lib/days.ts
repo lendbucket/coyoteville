@@ -1,4 +1,5 @@
 import 'server-only';
+import { holdsSpot, type HoldsSpotRow } from './holds-spot';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { getEvents } from './events-source';
 import { RELEASING_STATUSES } from './approval';
@@ -79,7 +80,7 @@ type AvailabilityRow = {
   note: string | null;
 };
 
-type BookingRow = {
+type BookingRow = HoldsSpotRow & {
   booking_date: string;
   spot_type: string;
 };
@@ -90,8 +91,6 @@ async function eventDays(): Promise<Map<DayKey, { slug: string; name: string }>>
   for (const e of await getEvents()) map.set(e.date, { slug: e.slug, name: e.name });
   return map;
 }
-
-const SETTLED = ['paid', 'not_required'];
 
 /**
  * Status for every day in a range, inclusive.
@@ -131,13 +130,11 @@ export async function getDayStatuses(
           .lte('booking_date', to),
         supabase
           .from('vendor_applications')
-          .select('booking_date, spot_type')
+          .select('booking_date, spot_type, payment_status, approval_status, created_at')
           .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
           .eq('booking_kind', 'day')
           .gte('booking_date', from)
-          .lte('booking_date', to)
-          .in('payment_status', SETTLED)
-          .not('approval_status', 'in', `(${RELEASING_STATUSES.join(',')})`),
+          .lte('booking_date', to),
       ]);
 
       if (availability.error) throw availability.error;
@@ -147,7 +144,14 @@ export async function getDayStatuses(
         exceptions.set(row.booking_date, row);
       }
 
+      /* holdsSpot decides which of these count, in code rather than in the
+         query, because the rule involves the clock. This used to ask the
+         database for settled rows only, which is a third rule again: the day
+         calendar showed a date as open while somebody was part way through
+         paying for it, so two people could buy the last booth on the same
+         evening. */
       for (const row of (bookings.data ?? []) as BookingRow[]) {
+        if (!holdsSpot(row)) continue;
         const target = row.spot_type === 'truck' ? truckClaimed : boothClaimed;
         if (row.spot_type === 'truck' || row.spot_type === 'booth') {
           target.set(row.booking_date, (target.get(row.booking_date) ?? 0) + 1);
@@ -289,6 +293,15 @@ export type MonthlyHolders = { booth: number; truck: number };
  * more vendors being approved than there is room for, and a spot somebody is
  * about to be granted is not free. A denied or cancelled one, or a subscription
  * Square has finished cancelling, is not counted.
+ *
+ * This is the one capacity count that does NOT go through holdsSpot, and the
+ * reason is that a monthly row is supposed to be unpaid. Its card is authorised
+ * and held, and approving it is what takes the first charge, so an unpaid
+ * monthly row three days old is a normal application waiting on a decision and
+ * not an abandoned checkout. subscription_status is the money signal here, and
+ * it is the one read below. Putting these rows through the thirty minute window
+ * would drop every pending monthly application off the meter and let the lot be
+ * oversold.
  */
 export async function getMonthlyHolders(): Promise<MonthlyHolders> {
   if (!isSupabaseConfigured()) return { booth: 0, truck: 0 };

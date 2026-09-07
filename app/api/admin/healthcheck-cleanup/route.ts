@@ -28,6 +28,41 @@ export const dynamic = 'force-dynamic';
  * check ever creates. That is deliberate. This endpoint runs on a schedule
  * against the live vendor table and its blast radius should be provably zero.
  */
+/**
+ * Read back the rows the health check created.
+ *
+ * Read only, filtered on the same one column the delete is, and it returns
+ * four fields. It exists because the health check has to be able to check its
+ * own work: the Deny step presses the real button through the real admin
+ * session, and the only way to prove the decision landed is to look at the row
+ * afterwards. Every other query in the app excludes this business name on
+ * purpose, so there was nothing that could see it.
+ *
+ * Same secret as the delete, and a strictly smaller blast radius.
+ */
+export async function GET(request: Request) {
+  if (!isHealthcheckRequest(request.headers)) {
+    return NextResponse.json({ ok: false, error: 'Not signed in.' }, { status: 401 });
+  }
+
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ ok: false, error: 'Database is not connected.' }, { status: 503 });
+  }
+
+  const { data, error } = await getSupabaseAdmin()
+    .from('vendor_applications')
+    .select('id, approval_status, payment_status, denied_at, square_payment_id, created_at')
+    .eq('business_name', HEALTHCHECK_BUSINESS_NAME)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('healthcheck read failed', error);
+    return NextResponse.json({ ok: false, error: 'Read failed.' }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, rows: data ?? [] });
+}
+
 export async function POST(request: Request) {
   if (!isHealthcheckRequest(request.headers)) {
     // Deliberately the same answer an unauthenticated admin call gets, so this

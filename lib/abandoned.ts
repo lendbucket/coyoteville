@@ -1,6 +1,7 @@
 import 'server-only';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { HEALTHCHECK_BUSINESS_NAME } from './healthcheck';
+import { ABANDON_AFTER_MS, isAbandonedCheckout } from './holds-spot';
 
 /**
  * Started but not paid.
@@ -134,4 +135,107 @@ export function shortStamp(iso: string): string {
     hour: 'numeric',
     minute: '2-digit',
   }).format(new Date(iso));
+}
+
+/**
+ * Age out checkouts nobody finished.
+ *
+ * Square creates the order before the card is charged, so a vendor who picks a
+ * spot and then closes the tab leaves a real row behind: unpaid, pending, with
+ * a square_order_id and no square_payment_id. Five of those were sitting on the
+ * September lot four days before the event. The homepage advertised two booths
+ * left when five were free, and three of the five were the same vendors who had
+ * come back and paid properly on a second attempt.
+ *
+ * A day is long enough that nobody who is genuinely coming back is caught by
+ * this. lib/holds-spot stops these rows holding a spot after thirty minutes, so
+ * the meter is right long before the row is touched; this is the tidying that
+ * follows, and its job is to get them out of the tracker and out of the money.
+ *
+ * They become 'cancelled', not 'denied'. Denied is a decision somebody made and
+ * it fires a refund. Cancelled is a vendor who walked away. Keeping the two
+ * apart is what stops the denied list filling up with people who closed a tab,
+ * and it is why the check constraint carries both.
+ *
+ * Runs when the tracker loads, and therefore also inside the production health
+ * check, which signs in and loads the tracker as one of its steps. Not a cron:
+ * a scheduled job that writes to the vendor table is a thing that can go wrong
+ * at three in the morning with nobody watching, and there is no urgency here
+ * that a page load does not satisfy.
+ *
+ * Never throws. A tracker that will not open because the tidying failed is a
+ * worse outcome than a stale row.
+ */
+export const ABANDONED_MARKER = 'Checkout abandoned, cancelled automatically';
+
+export async function ageOutAbandonedCheckouts(now: number = Date.now()): Promise<number> {
+  if (!isSupabaseConfigured()) return 0;
+
+  const cutoff = new Date(now - ABANDON_AFTER_MS).toISOString();
+
+  try {
+    const supabase = getSupabaseAdmin();
+
+    const { data, error } = await supabase
+      .from('vendor_applications')
+      .select('id, admin_notes, created_at, payment_status, approval_status, square_order_id, square_payment_id')
+      .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
+      .eq('payment_status', 'unpaid')
+      .eq('approval_status', 'pending')
+      .not('square_order_id', 'is', null)
+      .is('square_payment_id', null)
+      .lt('created_at', cutoff);
+
+    if (error) throw error;
+
+    const rows = (data ?? []) as {
+      id: string;
+      admin_notes: string | null;
+      created_at: string;
+      payment_status: string;
+      approval_status: string;
+      square_order_id: string | null;
+      square_payment_id: string | null;
+    }[];
+
+    let cancelled = 0;
+
+    for (const row of rows) {
+      /* The query above and isAbandonedCheckout say the same thing. Asking
+         both is not redundant: the query is what makes this one round trip
+         instead of a table scan, and the predicate is the definition. If they
+         ever disagree the predicate wins and the row is left alone. */
+      if (!isAbandonedCheckout(row, now)) continue;
+
+      const note = [row.admin_notes, stampNote(ABANDONED_MARKER, new Date(now))]
+        .filter(Boolean)
+        .join(' · ');
+
+      const { error: updateError } = await supabase
+        .from('vendor_applications')
+        .update({
+          approval_status: 'cancelled',
+          admin_notes: note,
+          updated_at: new Date(now).toISOString(),
+        })
+        .eq('id', row.id)
+        /* Re-asserted at write time so two tracker loads at once cannot both
+           cancel the same row, and so a vendor who paid in the moment between
+           the read and the write is not cancelled out from under their
+           payment. */
+        .eq('payment_status', 'unpaid')
+        .eq('approval_status', 'pending');
+
+      if (updateError) {
+        console.error('could not cancel abandoned checkout', row.id, updateError);
+        continue;
+      }
+      cancelled += 1;
+    }
+
+    return cancelled;
+  } catch (err) {
+    console.error('aging out abandoned checkouts failed', err);
+    return 0;
+  }
 }

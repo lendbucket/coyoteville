@@ -1,4 +1,5 @@
 import 'server-only';
+import { holdsSpot, type HoldsSpotRow } from './holds-spot';
 import { cache } from 'react';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { getNextEvent } from './events-source';
@@ -38,16 +39,12 @@ import { HEALTHCHECK_BUSINESS_NAME } from './healthcheck';
  * the UI shows a count with no percentage rather than inventing a denominator.
  */
 
-/**
- * The one decision that hands a spot back.
- *
- * Everything else counts, including a row still waiting on review and a row
- * whose checkout was never finished. A spot is taken until it is refused.
- *
- * Named rather than inlined because it is the whole capacity rule: widening or
- * narrowing what releases a spot is a one line change here and nowhere else.
- */
-const RELEASES_SPOT = 'denied';
+/* The capacity rule used to live here, as a single value: a spot was taken
+   until somebody refused it. That was wrong twice over. It compared against
+   'denied', which the check constraint did not permit, so it released nothing
+   at all; and it counted an unfinished checkout forever, so five vendors who
+   closed a tab held five spots for days. The rule now lives in lib/holds-spot
+   and every meter on the site reads it. */
 
 /**
  * Whether a free Alice organisation spot consumes a booth.
@@ -272,15 +269,21 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
 
     const [counts, rowsResult, monthly] = await Promise.all([
       fetchEventCounts(supabase, eventSlug),
-      /* Every row for the event that has not been refused. Payment status is
-         deliberately not filtered on: an unfinished checkout is still holding
-         the spot it picked until somebody denies it. */
+      /* Every row for the event. Which of them actually holds a spot is
+          decided by holdsSpot, in code rather than in this query, because the
+          rule involves the clock: an unpaid row is a checkout in progress for
+          thirty minutes and dead weight after that.
+
+          This used to filter on approval_status <> 'denied' and nothing else,
+          which released nothing at all, because the check constraint did not
+          permit 'denied' and no row could hold it. Five abandoned checkouts sat
+          on five spots and the homepage advertised two booths left on a night
+          when five were free. */
       supabase
         .from('vendor_applications')
-        .select('spot_type')
+        .select('spot_type, payment_status, approval_status, created_at')
         .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
-        .eq('event_slug', eventSlug)
-        .neq('approval_status', RELEASES_SPOT),
+        .eq('event_slug', eventSlug),
       /* Permanent vendors are included in every event at no extra charge, so
          their space is already spoken for on an event night and has to come off
          the top here as well as off the daily calendar. Without this the event
@@ -294,7 +297,10 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
     let truckWebsite = 0;
     let freeClaimed = 0;
 
-    for (const row of rowsResult.data ?? []) {
+    for (const row of (rowsResult.data ?? []) as unknown as (HoldsSpotRow & {
+      spot_type: string;
+    })[]) {
+      if (!holdsSpot(row)) continue;
       if (row.spot_type === 'booth') boothWebsite += 1;
       else if (row.spot_type === 'truck') truckWebsite += 1;
       else if (row.spot_type === 'free') freeClaimed += 1;

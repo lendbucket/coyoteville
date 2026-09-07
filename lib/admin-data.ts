@@ -4,8 +4,11 @@ import { loadVendorHistory, type VendorHistoryMap } from './vendor-history';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { getEvents, getNextEvent } from './events-source';
 import { getSpotsFresh } from './spots';
+import { isSettled } from './holds-spot';
+import { ageOutAbandonedCheckouts } from './abandoned';
 import { summariseRevenue, type RevenueRow, type RevenueSummary } from './revenue';
-import { DAY_SCOPE, MONTHLY_SCOPE, isEventScope } from './admin-scope';
+import { ALL_SCOPE, DAY_SCOPE, MONTHLY_SCOPE, isEventScope } from './admin-scope';
+import { RELEASING_STATUSES } from './approval';
 
 /** One row as the tracker needs it. */
 export type AdminApplication = {
@@ -106,6 +109,18 @@ export type AdminView = {
      * with the search box.
      */
     unreconciled: number;
+    /**
+     * The same two jobs, counted across every scope rather than this one.
+     *
+     * These are the numbers the chips carry. A chip that counts only the scope
+     * you happen to have open is how a day booking sat unpaid and unnoticed for
+     * a week: no figure on the page included her, so there was nothing to
+     * notice. Tapping a chip whose everywhere number is larger than its scoped
+     * one takes you to the Everything scope, so the count and the list you land
+     * on still agree.
+     */
+    unpaidEverywhere: number;
+    pendingEverywhere: number;
   };
   /**
    * How many times each vendor on this page has applied, and what for.
@@ -150,11 +165,77 @@ export type ReviewSlotLine = {
   held: number;
 };
 
-const EMPTY_COUNTS = { total: 0, paid: 0, unpaid: 0, pending: 0, signed: 0, unreconciled: 0 };
+const EMPTY_COUNTS = {
+  total: 0,
+  paid: 0,
+  unpaid: 0,
+  pending: 0,
+  signed: 0,
+  unreconciled: 0,
+  unpaidEverywhere: 0,
+  pendingEverywhere: 0,
+};
+
+/**
+ * Unpaid and waiting-on-review, across every scope at once.
+ *
+ * The two chips that are a job rather than a view have to count everything or
+ * they lie by omission. A vendor part way through a single day booking owes
+ * money whichever event you happen to have selected, and the whole reason she
+ * went unnoticed for a week is that no number on the page included her.
+ *
+ * The same two rules the per scope counts use, so a chip and the list it opens
+ * agree: owed means unpaid, not monthly, and carrying a fee; review means a
+ * pending decision on a row whose money has settled, or any monthly row, whose
+ * card is held and unpaid by design.
+ */
+async function countEverywhere(): Promise<{ unpaid: number; pending: number }> {
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from('vendor_applications')
+      .select('payment_status, approval_status, booking_kind, amount_cents')
+      .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
+      .not('approval_status', 'in', `(${RELEASING_STATUSES.join(',')})`);
+
+    if (error) throw error;
+
+    let unpaid = 0;
+    let pending = 0;
+
+    for (const row of (data ?? []) as unknown as {
+      payment_status: string;
+      approval_status: string;
+      booking_kind: string | null;
+      amount_cents: number | null;
+    }[]) {
+      const settled = isSettled(row.payment_status);
+
+      if (
+        !settled &&
+        row.payment_status === 'unpaid' &&
+        row.booking_kind !== 'monthly' &&
+        Number(row.amount_cents ?? 0) > 0
+      ) {
+        unpaid += 1;
+      }
+
+      if ((settled || row.booking_kind === 'monthly') && row.approval_status === 'pending') {
+        pending += 1;
+      }
+    }
+
+    return { unpaid, pending };
+  } catch (err) {
+    /* Zero would quietly hide the very rows this exists to surface, so a read
+       failure falls back to the per scope numbers at the call site. */
+    console.error('cross scope counts failed', err);
+    return { unpaid: -1, pending: -1 };
+  }
+}
 
 /** Columns the revenue summary reads, on top of the ones the tracker shows. */
 const REVENUE_COLUMNS =
-  'spot_type, amount_cents, amount_received_cents, payment_status, payment_method, approval_status, square_order_id, created_at, booking_kind, waiver_accepted, agreement_version';
+  'business_name, spot_type, amount_cents, amount_received_cents, payment_status, payment_method, approval_status, square_order_id, square_payment_id, created_at, booking_kind, waiver_accepted, agreement_version';
 
 const COLUMNS = [
   'id',
@@ -244,7 +325,7 @@ export function normaliseFilters(
   const q = one('q').slice(0, 80);
 
   const known =
-    event === DAY_SCOPE || event === MONTHLY_SCOPE || knownSlugs.includes(event);
+    !isEventScope(event) || knownSlugs.includes(event);
 
   return {
     event: known ? event : fallback,
@@ -263,7 +344,11 @@ export function normaliseFilters(
  * generic wrapper blows the instantiation depth limit, and a pair of strings
  * says the same thing with none of that.
  */
-function scopeFilter(scope: string): { column: string; value: string } {
+function scopeFilter(scope: string): { column: string; value: string } | null {
+  // Everything: no column narrows it. The caller drops the .eq() entirely
+  // rather than passing a filter that matches all rows, because there is no
+  // such filter to pass.
+  if (scope === ALL_SCOPE) return null;
   if (scope === DAY_SCOPE) return { column: 'booking_kind', value: 'day' };
   if (scope === MONTHLY_SCOPE) return { column: 'booking_kind', value: 'monthly' };
   return { column: 'event_slug', value: scope };
@@ -287,6 +372,13 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
     };
   }
 
+  /* Tidy before reading, so the page cannot render a row this pass is about to
+     cancel. Awaited rather than fired and forgotten: an unawaited write on a
+     serverless function is a write that may never happen, the instance having
+     been frozen the moment the response went out. It is one indexed query on
+     the common path where nothing needs cancelling. */
+  await ageOutAbandonedCheckouts();
+
   try {
     const supabase = getSupabaseAdmin();
 
@@ -298,8 +390,14 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
       /* The production health check writes real rows through the real route,
          because the insert is what broke. They must never reach the tracker. */
       .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
-      .eq(scope.column, scope.value)
       .order('created_at', { ascending: false });
+
+    if (scope) query = query.eq(scope.column, scope.value);
+    /* Everything live, not everything ever. A denied vendor and an aged out
+       checkout are both settled questions, and a list of every row this park
+       has ever seen is not a tracker. They stay reachable under their own
+       event. */
+    else query = query.not('approval_status', 'in', `(${RELEASING_STATUSES.join(',')})`);
 
     if (filters.status) query = query.eq('payment_status', filters.status);
 
@@ -317,12 +415,21 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
     // Counts and money come from a separate unfiltered read of the same event,
     // so the figures at the top of the page stay meaningful while you search.
     // Capacity for the projection rides along from the cached spot snapshot.
-    const [countResult, spots] = await Promise.all([
-      supabase
-        .from('vendor_applications')
-        .select(REVENUE_COLUMNS)
-        .neq('business_name', HEALTHCHECK_BUSINESS_NAME)
-        .eq(scope.column, scope.value),
+    const [countResult, spots, everywhere] = await Promise.all([
+      (() => {
+        let counted = supabase
+          .from('vendor_applications')
+          .select(REVENUE_COLUMNS)
+          .neq('business_name', HEALTHCHECK_BUSINESS_NAME);
+        if (scope) counted = counted.eq(scope.column, scope.value);
+        else
+          counted = counted.not(
+            'approval_status',
+            'in',
+            `(${RELEASING_STATUSES.join(',')})`
+          );
+        return counted;
+      })(),
       /* Capacity only means something for an event scope. The day and monthly
          views are not measured against one event's booth and truck numbers, so
          they read the next event's snapshot purely to keep the projection
@@ -330,6 +437,7 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
       getSpotsFresh(
         isEventScope(filters.event) ? filters.event : ((await getNextEvent())?.slug ?? '')
       ),
+      countEverywhere(),
     ]);
 
     if (countResult.error) throw countResult.error;
@@ -349,7 +457,7 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
       // stamped with the version it was signed under.
       if (row.waiver_accepted && row.agreement_version) signed += 1;
 
-      const settled = row.payment_status === 'paid' || row.payment_status === 'not_required';
+      const settled = isSettled(row.payment_status);
 
       /* Claims paid, with nothing counted against it. The database stamps a
          prepaid row paid the moment the vendor submits, so this is the only
@@ -399,7 +507,20 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
       available: true,
       rows,
       history,
-      counts: { total: allRows.length, paid, unpaid, pending, signed, unreconciled },
+      counts: {
+        total: allRows.length,
+        paid,
+        unpaid,
+        pending,
+        signed,
+        unreconciled,
+        /* A failed cross scope read comes back as -1 rather than 0, and falls
+           back to the scoped number here. Showing a smaller count than the
+           truth is the bug being fixed; showing the scoped one is where the
+           page already was. */
+        unpaidEverywhere: everywhere.unpaid < 0 ? unpaid : everywhere.unpaid,
+        pendingEverywhere: everywhere.pending < 0 ? pending : everywhere.pending,
+      },
       revenue: summariseRevenue(allRows, {
         truck: spots.truck.capacity,
         booth: spots.booth.capacity,

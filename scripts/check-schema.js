@@ -328,6 +328,144 @@ function checkHealthcheckExclusion(files) {
   return problems;
 }
 
+/**
+ * Allowed values, not just column names.
+ *
+ * This is the rule that was missing. approval_status allowed 'declined' while
+ * every line of code wrote 'denied', so the Deny button in the tracker had
+ * never once worked: every press failed with Postgres 23514, and the capacity
+ * filter "<> 'denied'" excluded nothing, because no row could ever hold that
+ * value. A build that checks column names cannot see any of that.
+ *
+ * So: read the values block out of SCHEMA.md, find every string literal the
+ * code writes to or compares against one of those columns, and fail on any
+ * value not in the list.
+ *
+ * What counts as "against that column", deliberately narrow so this reports
+ * real problems rather than noise:
+ *
+ *   column: 'value'                 an object literal being inserted or updated
+ *   .eq('column', 'value')          and neq, is, not
+ *   row.column === 'value'          and !==, and the bracket form
+ *
+ * A literal built at runtime is invisible to this, as is a value arriving from
+ * a variable. That is a real limit and worth stating: what it catches is the
+ * constant that was typed wrong, which is the entire family of bug it exists
+ * for.
+ */
+function readAllowedValues() {
+  const text = fs.readFileSync(SCHEMA_FILE, 'utf8');
+  const FENCE = BACKTICK + BACKTICK + BACKTICK;
+  const after = text.split(FENCE + 'values')[1];
+  if (!after) return null;
+
+  const body = after.split(FENCE)[0];
+  const allowed = {};
+  let current = null;
+
+  for (const line of body.split(NEWLINE)) {
+    const row = line.replace(/\r$/, '');
+    if (!row.trim()) continue;
+
+    if (!row.startsWith('  ')) {
+      current = row.trim();
+      allowed[current] = new Set();
+      continue;
+    }
+    if (current) {
+      for (const value of row.split(',')) {
+        const v = value.trim();
+        if (v) allowed[current].add(v);
+      }
+    }
+  }
+  return allowed;
+}
+
+/** Column names too common to identify a database column by name alone. */
+const GENERIC_COLUMNS = new Set(['status']);
+
+function checkAllowedValues(files, allowed) {
+  const problems = [];
+
+  /* Column name to every qualified key that constrains it. A bare column can
+     belong to more than one table, so a literal passes if it is valid for any
+     table carrying that column: narrowing further would need to know which
+     table a given expression is about, which this cannot see. */
+  const byColumn = new Map();
+  for (const key of Object.keys(allowed)) {
+    const column = key.split('.').pop();
+    if (!byColumn.has(column)) byColumn.set(column, []);
+    byColumn.get(column).push(key);
+  }
+
+  const Q = "['\"]";
+  const W = BACKSLASH + 's*';
+
+  for (const file of files) {
+    const rel = path.relative(root, file).split(path.sep).join('/');
+    if (rel.startsWith('scripts/check-schema')) continue;
+
+    const source = stripComments(fs.readFileSync(file, 'utf8'));
+
+    for (const [column, keys] of byColumn) {
+      const values = new Set();
+      for (const key of keys) for (const v of allowed[key]) values.add(v);
+
+      const NAME = '([a-z_]+)';
+
+      /* A word boundary in front of the column name, so "status" does not also
+         match the tail of payment_status, approval_status and
+         subscription_status, and report each of their values against the wrong
+         list. That was the first version's mistake. */
+      const START = '(?<![A-Za-z0-9_])';
+
+      /* PostgREST filter form: unambiguous, because naming a column in .eq()
+         is only ever about that column. Safe for every column. */
+      const patterns = [
+        /* .eq and .neq take (column, value). .not and .is take
+           (column, operator, value), so they are matched separately or the
+           operator gets read as the value. */
+        new RegExp(
+          BACKSLASH + '.(?:eq|neq)' + BACKSLASH + '(' + W + Q + column + Q + W + ',' + W + Q + NAME + Q,
+          'g'
+        ),
+        new RegExp(
+          BACKSLASH + '.(?:not|is)' + BACKSLASH + '(' + W + Q + column + Q + W + ',' + W + Q + '[a-z]+' + Q + W + ',' + W + Q + NAME + Q,
+          'g'
+        ),
+      ];
+
+      /* The object literal and comparison forms read any identifier with this
+         name, which is fine for a distinctive column and useless for a generic
+         one. "status" is a variable name all over the email and notify code,
+         none of it about a database column, so those two forms are only applied
+         to columns whose names cannot plausibly be anything else. */
+      if (!GENERIC_COLUMNS.has(column)) {
+        patterns.push(new RegExp(START + column + W + ':' + W + Q + NAME + Q, 'g'));
+        patterns.push(new RegExp(START + column + W + '(?:===|!==|==|!=)' + W + Q + NAME + Q, 'g'));
+      }
+
+      for (const pattern of patterns) {
+        for (const m of source.matchAll(pattern)) {
+          const value = m[1];
+          if (values.has(value)) continue;
+          const line = source.slice(0, m.index).split(NEWLINE).length;
+          problems.push({
+            file: rel,
+            line,
+            column,
+            value,
+            allowed: [...values].sort().join(', '),
+          });
+        }
+      }
+    }
+  }
+
+  return problems;
+}
+
 const tables = readSchema();
 
 if (!tables) {
@@ -350,6 +488,36 @@ unique.sort(
 );
 
 if (!unique.length) {
+  const allowed = readAllowedValues();
+  if (!allowed) {
+    console.error(NEWLINE + 'check-schema: SCHEMA.md has no ```values block, so allowed values cannot be checked.' + NEWLINE);
+    process.exit(1);
+  }
+
+  const badValues = checkAllowedValues(walk(root), allowed);
+  if (badValues.length) {
+    console.error(
+      NEWLINE + 'check-schema: ' + badValues.length + ' literal(s) that no check constraint accepts.' + NEWLINE
+    );
+    for (const b of badValues) {
+      console.error('  ' + b.file + ':' + b.line + '  ' + b.column + " = '" + b.value + "'  allowed: " + b.allowed);
+    }
+    console.error(
+      [
+        '',
+        'Postgres rejects a value outside a check constraint with error 23514 and',
+        'fails the whole statement, the same way an unknown column fails with',
+        '42703. approval_status allowed "declined" while the code wrote "denied",',
+        'so the Deny button never once worked and nothing in a build could see it.',
+        '',
+        'Either the literal is wrong, or the constraint changed and the values',
+        'block in SCHEMA.md has not been updated to match production.',
+        '',
+      ].join(NEWLINE)
+    );
+    process.exit(1);
+  }
+
   const leaks = checkHealthcheckExclusion(walk(root));
 
   if (leaks.length) {
@@ -377,7 +545,7 @@ check-schema: ${leaks.length} query/queries read vendor_applications without exc
 
   console.log(
     `check-schema: ${scanned} files, ${Object.keys(tables).length} tables, no unknown columns, ` +
-      'and every multi row read of vendor_applications excludes health check rows.'
+      'every multi row read of vendor_applications excludes health check rows, and every constrained literal is one the database accepts.'
   );
   process.exit(0);
 }

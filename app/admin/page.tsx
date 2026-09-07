@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import AdminLogin from '@/components/admin/AdminLogin';
 import AdminShell from '@/components/admin/AdminShell';
 import { loginErrorMessage } from '@/components/admin/login-errors';
-import type { VendorCardRow } from '@/components/admin/types';
+import { FILTERS, type FilterKey, type VendorCardRow } from '@/components/admin/types';
 import StringLights from '@/components/StringLights';
 import {
   getAbandoned,
@@ -140,6 +140,14 @@ export default async function AdminPage({
   ]);
   const allEvents = await getEvents();
   const filters = normaliseFilters(searchParams, knownSlugs, fallback);
+
+  /* Which chip to open on. Set when a chip in a narrower scope sent you to
+     Everything, so you land on the rows the number was counting. Validated
+     against the chip list rather than trusted, because it comes off the URL. */
+  const chipParam = Array.isArray(searchParams.chip) ? searchParams.chip[0] : searchParams.chip;
+  const initialFilter: FilterKey = FILTERS.some((f) => f.key === chipParam)
+    ? (chipParam as FilterKey)
+    : 'all';
   const eventScoped = isEventScope(filters.event);
 
   /* The waitlist and the abandoned checkout list are both keyed on an event.
@@ -311,6 +319,7 @@ export default async function AdminPage({
         eventSlug={filters.event}
         events={allEvents.map((e) => ({ slug: e.slug, name: e.name }))}
         filters={filters}
+      initialFilter={initialFilter}
         exportHref={exportHref}
         mediaVendorCount={mediaVendorCount}
         mediaFileCount={mediaFileCount}

@@ -16,6 +16,7 @@ import {
   timestampFromDayKey,
 } from '@/lib/booking';
 import { notifyApproved, notifyDenied } from '@/lib/notify';
+import { HEALTHCHECK_BUSINESS_NAME } from '@/lib/healthcheck';
 import { eventNameFor } from '@/lib/events-source';
 import type { RegistrationEmail } from '@/lib/notify-types';
 
@@ -131,6 +132,24 @@ async function toEmail(row: Row): Promise<RegistrationEmail> {
           ? 'every day, until you cancel'
           : undefined,
   };
+}
+
+/**
+ * A row the production health check created.
+ *
+ * The health check denies one of its own rows every run, which is the only way
+ * to prove the Deny button works: it never did, for months, because the check
+ * constraint on approval_status permitted 'declined' and every line of code
+ * writes 'denied'. Every press failed with Postgres 23514 and nothing but the
+ * live table could have told anyone.
+ *
+ * The decision itself runs through the real handler with no branch of its own.
+ * The one thing skipped is the email, because the health check's contact
+ * address is on an unroutable domain and sending to it every six hours would
+ * hard bounce on Resend and cost the real vendor mail its reputation.
+ */
+function isHealthcheckRow(row: Row): boolean {
+  return row.business_name === HEALTHCHECK_BUSINESS_NAME;
 }
 
 /** Money that is actually sitting with Square and can be sent back. */
@@ -257,10 +276,29 @@ export async function POST(request: Request) {
 
   /* Claim the decision. Conditional on 'pending', so only one caller can ever
      win it and only the winner goes on to refund and email. */
+  /* approved_at and denied_at are set alongside reviewed_at, not instead of it.
+     Both columns have existed since the table was created and nothing has ever
+     written to them: every decision recorded when it was made and not what it
+     was, so "when was this vendor turned down" was unanswerable from the row.
+     reviewed_at stays because it is what the tracker sorts and displays. */
   const patch: Record<string, unknown> =
     decision === 'approve'
-      ? { approval_status: 'approved', reviewed_at: now, denial_reason: null, updated_at: now }
-      : { approval_status: 'denied', reviewed_at: now, denial_reason: reason, updated_at: now };
+      ? {
+          approval_status: 'approved',
+          reviewed_at: now,
+          approved_at: now,
+          denied_at: null,
+          denial_reason: null,
+          updated_at: now,
+        }
+      : {
+          approval_status: 'denied',
+          reviewed_at: now,
+          denied_at: now,
+          approved_at: null,
+          denial_reason: reason,
+          updated_at: now,
+        };
 
   const { data, error } = await supabase
     .from('vendor_applications')
@@ -340,7 +378,7 @@ export async function POST(request: Request) {
       });
     }
 
-    await notifyApproved(await toEmail(row));
+    if (!isHealthcheckRow(row)) await notifyApproved(await toEmail(row));
     return NextResponse.json({ ok: true, approval_status: 'approved' });
   }
 
@@ -420,11 +458,13 @@ export async function POST(request: Request) {
   /* The vendor is told either way. The email promises the refund even when the
      automatic one failed, because the money is owed regardless and the tracker
      is already flagging it for the admin to settle. */
-  await notifyDenied({
-    ...(await toEmail(row)),
-    reason,
-    refund_amount_cents: refundedCents > 0 ? refundedCents : owed,
-  });
+  if (!isHealthcheckRow(row)) {
+    await notifyDenied({
+      ...(await toEmail(row)),
+      reason,
+      refund_amount_cents: refundedCents > 0 ? refundedCents : owed,
+    });
+  }
 
   return NextResponse.json({
     ok: true,

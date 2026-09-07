@@ -25,7 +25,7 @@ import {
 import type { RevenueSummary } from '@/lib/revenue';
 import type { ReviewSlots } from '@/lib/admin-data';
 import type { WaitlistEntry } from '@/lib/waitlist';
-import { DAY_SCOPE, MONTHLY_SCOPE, SCOPE_LABELS } from '@/lib/admin-scope';
+import { ALL_SCOPE, DAY_SCOPE, MONTHLY_SCOPE, SCOPE_LABELS } from '@/lib/admin-scope';
 
 /**
  * The tracker shell.
@@ -98,6 +98,7 @@ export default function AdminShell({
   eventSlug,
   events,
   filters,
+  initialFilter,
   exportHref,
   mediaVendorCount,
   mediaFileCount,
@@ -116,6 +117,9 @@ export default function AdminShell({
     pending: number;
     signed: number;
     unreconciled: number;
+    /** The same two jobs across every scope. What the chips carry. */
+    unpaidEverywhere: number;
+    pendingEverywhere: number;
   };
   /** Null under the day and monthly scopes, and when no capacity is set. */
   reviewSlots: ReviewSlots | null;
@@ -126,6 +130,13 @@ export default function AdminShell({
   eventSlug: string;
   events: { slug: string; name: string }[];
   filters: { event: string; status: string; q: string };
+  /**
+   * Which chip to open on, from ?chip= in the URL.
+   *
+   * Set when a chip in another scope sent you here, so you land on the list the
+   * number promised rather than on everything with the count still to find.
+   */
+  initialFilter: FilterKey;
   exportHref: string;
   mediaVendorCount: number;
   mediaFileCount: number;
@@ -140,7 +151,7 @@ export default function AdminShell({
 
   const [tab, setTab] = useState<TabKey>('vendors');
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const [filter, setFilter] = useState<FilterKey>(initialFilter);
   const [openId, setOpenId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -279,6 +290,9 @@ export default function AdminShell({
             {/* Not events, but the same question: which set of vendors am I
                 looking at. Kept in the same control rather than added as a
                 second one beside it. */}
+            {/* First of the three, because it is the one that cannot hide
+                anything. The others are narrower views of the same rows. */}
+            <option value={ALL_SCOPE}>{SCOPE_LABELS[ALL_SCOPE]}</option>
             <option value={DAY_SCOPE}>{SCOPE_LABELS[DAY_SCOPE]}</option>
             <option value={MONTHLY_SCOPE}>{SCOPE_LABELS[MONTHLY_SCOPE]}</option>
           </select>
@@ -392,14 +406,23 @@ export default function AdminShell({
                mean both. */
             const badge =
               f.key === 'review'
-                ? counts.pending
+                ? counts.pendingEverywhere
                 : f.key === 'cash'
                   ? counts.unreconciled
                   : f.key === 'unpaid'
-                    ? counts.unpaid
+                    ? counts.unpaidEverywhere
                     : f.key === 'returning'
                       ? returningCount
                       : 0;
+
+            /* Unpaid and Review count everything, so when this scope holds
+               fewer than the badge says, tapping has to go and get the rest.
+               A chip whose number does not match the list it opens is the
+               thing that let a day booking go unnoticed, and swapping one for
+               the other would not have fixed it. */
+            const elsewhere =
+              (f.key === 'unpaid' && counts.unpaidEverywhere > counts.unpaid) ||
+              (f.key === 'review' && counts.pendingEverywhere > counts.pending);
 
             return (
               <button
@@ -407,7 +430,15 @@ export default function AdminShell({
                 type="button"
                 className={`fchip ${filter === f.key ? 'is-on' : ''}`}
                 aria-pressed={filter === f.key}
-                onClick={() => setFilter(f.key)}
+                onClick={() => {
+                  if (elsewhere) {
+                    window.location.assign(
+                      `/admin?event=${encodeURIComponent(ALL_SCOPE)}&chip=${f.key}`
+                    );
+                    return;
+                  }
+                  setFilter(f.key);
+                }}
               >
                 {f.label}
                 {badge > 0 ? <span className="fchip__count">{badge}</span> : null}
@@ -466,6 +497,7 @@ export default function AdminShell({
                   selectable={selectMode}
                   selected={selectedIds.includes(row.id)}
                   onToggle={toggle}
+                  showBooking={filters.event === ALL_SCOPE}
                 />
               ))}
             </ul>

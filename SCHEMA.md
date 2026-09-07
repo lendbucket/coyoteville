@@ -15,7 +15,7 @@ that references one fails the whole statement with Postgres error 42703.
 `npm run check:schema` checks the repo against this file, and runs
 automatically before `npm run build`. See "Checking the schema" below.
 
-Last verified against production: 2026-09-07.
+Last verified against production: 2026-09-08.
 
 ```
 day_availability
@@ -102,6 +102,57 @@ correct and is what the table now accepts.
 Nothing enforces the table above in the database yet. Until it does,
 `scripts/check-booking-shape.js` enforces it against the real route on every
 build.
+
+## Allowed values
+
+**A column list is not enough. These are the values the check constraints
+accept, and a literal outside them fails the whole statement with Postgres
+23514 exactly the way an unknown column fails with 42703.**
+
+This section exists because it was not here. `approval_status` allowed
+`declined` while every line of code wrote `denied`, so the Deny button in the
+tracker had never once worked: every press failed with 23514, and the capacity
+filter `<> 'denied'` had been excluding nothing because no row could hold that
+value. Nothing in a column-name check can see that. `npm run check:schema` now
+reads the block below and fails the build on any literal the code writes or
+compares against one of these columns that is not in its list.
+
+```values
+vendor_applications.approval_status
+  pending, approved, waitlist, denied, cancelled
+
+vendor_applications.payment_status
+  unpaid, paid, not_required, refunded, expired
+
+vendor_applications.booking_kind
+  event, day, monthly
+
+vendor_applications.spot_type
+  booth, truck, free
+
+vendor_applications.payment_method
+  online, offline
+
+vendor_applications.subscription_status
+  pending, active, past_due, canceled
+
+waitlist.status
+  waiting, offered, converted, declined
+
+waitlist.spot_type
+  booth, truck, free
+
+waitlist.booking_kind
+  event, day, monthly
+
+org_applications.status
+  pending, selected, declined, withdrawn
+```
+
+`denied` and `cancelled` are both on `approval_status` and are not
+interchangeable. `denied` is a decision somebody made and it refunds.
+`cancelled` is a checkout the vendor walked away from, aged out automatically,
+and there is nothing to refund because nothing was ever paid.
 
 ## The events table is the calendar
 

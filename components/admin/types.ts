@@ -6,6 +6,9 @@
  * URL meant a round trip per keystroke, which at the gate on a bad signal is
  * the difference between a tool and a wait.
  */
+
+import { isSettled as settledPayment } from '@/lib/holds-spot';
+
 export type VendorCardRow = {
   id: string;
   businessName: string;
@@ -128,7 +131,7 @@ export const FILTERS: { key: FilterKey; label: string }[] = [
 
 /** Settled means paid or a free spot, the same pair used everywhere else. */
 export function isSettled(row: VendorCardRow): boolean {
-  return row.paymentStatus === 'paid' || row.paymentStatus === 'not_required';
+  return settledPayment(row.paymentStatus);
 }
 
 /**

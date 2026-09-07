@@ -38,7 +38,8 @@ export default function AdminRevenue({ revenue }: { revenue: RevenueSummary | nu
     );
   }
 
-  const { collected, bySource, outstanding, projected, cash } = revenue;
+  const { collected, bySource, outstanding, outstandingRows, abandoned, projected, cash } =
+    revenue;
   const owed = cash.differenceCents;
 
   return (
@@ -84,10 +85,28 @@ export default function AdminRevenue({ revenue }: { revenue: RevenueSummary | nu
             to it, so it counts an offline row at its fee whether or not anyone
             has been paid. Received above is the number that is money. */}
         <Row label="Prepaid (booked)" value={dollars(bySource.prepaid.cents)} />
+        {/* Owed, by somebody with a spot. Named, because a count of one is not
+            something anybody can act on: the point of this line is knowing who
+            to send a payment link to. */}
         <Row
-          label={`Unpaid, checkout started (${outstanding.count})`}
+          label={`Approved and unpaid (${outstanding.count})`}
           value={dollars(outstanding.cents)}
         />
+        {outstandingRows.length ? (
+          <p className="arev__note">
+            {outstandingRows.map((r) => `${r.name} ${dollars(r.cents)}`).join(', ')}. Open them
+            from the Unpaid chip to send a payment link.
+          </p>
+        ) : null}
+        {/* Not owed and not collected. Square made an order, no card was ever
+            charged, and the vendor is not coming back. These are aged out to
+            cancelled a day after they start, so this line should be short. */}
+        {abandoned.count ? (
+          <p className="arev__note">
+            {countOf(abandoned.count, 'checkout was', 'checkouts were')} started and never finished,{' '}
+            {dollars(abandoned.cents)}. Counted as neither collected nor owed.
+          </p>
+        ) : null}
         {projected.cents === null ? (
           <p className="arev__note">Set booth and truck capacity to project a full lot.</p>
         ) : (

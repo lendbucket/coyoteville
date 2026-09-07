@@ -106,6 +106,15 @@ async function cleanup(staleOnly) {
   return { status: res.status, ...body };
 }
 
+async function healthcheckRows() {
+  const res = await fetch(`${BASE}/api/admin/healthcheck-cleanup`, {
+    headers: healthcheckHeaders(),
+  });
+  const body = await res.json().catch(() => ({}));
+  assert(res.status === 200 && body.ok, `could not read the health check rows back: ${res.status}`);
+  return body.rows || [];
+}
+
 /* ------------------------------------------------------------- the steps */
 
 /** 1. The homepage renders, with no console errors and no CSP violations. */
@@ -313,7 +322,7 @@ async function stepSquareSdk(ctx) {
  * the build gate; what only production can prove is that the insert lands, and
  * that is a property of the route and the table rather than of the fields.
  */
-async function stepSignup() {
+async function stepSignup(ctx) {
   const CASES = [
     { label: 'Event + Booth', kind: 'event', spot: 'booth' },
     { label: 'Event + Truck', kind: 'event', spot: 'truck', permit: true },
@@ -398,6 +407,8 @@ async function stepSignup() {
       body.healthcheck === true,
       `${c.label}: the route did not take the health check branch, so this may have created a real Square order`
     );
+    ctx.applications = ctx.applications || [];
+    ctx.applications.push({ id: body.id, kind: c.kind, spot: c.spot });
     results.push(`${c.label}: row ${String(body.id).slice(0, 8)}`);
   }
 
@@ -437,7 +448,13 @@ async function stepAdminLogin(ctx) {
     'the admin login did not reach the tracker, so the password was not accepted'
   );
 
-  return 'signed in and the tracker shell rendered';
+  /* Loading the tracker is also what runs the abandoned checkout pass: a row
+     that has been unpaid with a Square order and no payment for a day is aged
+     out to cancelled on this page load. It is here rather than on a cron so
+     that a job writing to the vendor table cannot go wrong overnight with
+     nobody looking, and this step is the scheduled thing that makes sure it
+     still happens even on a day Robert does not open the page. */
+  return 'signed in, the tracker shell rendered, and the abandoned checkout pass ran';
 }
 
 /** 7. The agreement PDF renders in the deployed Lambda. The pdfkit check. */
@@ -571,6 +588,91 @@ async function stepWebhook() {
   return `signed payload acknowledged and ignored (${body.ignored || 'no reason given'})`;
 }
 
+/**
+ * 10. The Deny button actually denies.
+ *
+ * This is the step that would have caught the worst bug the site has had. The
+ * check constraint on approval_status permitted 'declined'; every line of code
+ * writes 'denied'. So every press of Deny failed with Postgres 23514, the
+ * tracker showed an error somebody read as a network blip, and no build gate,
+ * typecheck or unit test could see it, because the constraint only exists in
+ * the live database. The button was broken for months.
+ *
+ * The row denied here is an event booking that is unpaid with no Square
+ * payment against it, which is deliberately the hardest shape: the deny handler
+ * has to work out there is nothing to refund and skip that path cleanly rather
+ * than erroring on a null payment id. That is the exact shape of the real
+ * vendor waiting to be denied this week, so this proves her case and not an
+ * easier one.
+ *
+ * It presses the real endpoint through the real admin session and then reads
+ * the row back, because a 200 from the handler is not the same as a row that
+ * changed.
+ */
+async function stepDeny(ctx) {
+  const page = ctx.adminPage;
+  assert(page, 'the admin login step did not run, so Deny cannot be checked');
+
+  const made = ctx.applications || [];
+  const target = made.find((a) => a.kind === 'event') || made[0];
+  assert(target, 'the signup step created no row to deny');
+
+  const before = await healthcheckRows();
+  const start = before.find((r) => r.id === target.id);
+  assert(start, 'the row the signup step created is not in the database');
+  assert(
+    start.payment_status === 'unpaid' && !start.square_payment_id,
+    `expected an unpaid row with no payment, got ${start.payment_status} / ${start.square_payment_id}`
+  );
+
+  /* A retry after the write landed but the read back did not. Denying again
+     would get a 409 from the handler's one-winner guard, which is correct
+     behaviour and would read here as a failure. */
+  const alreadyDone = start.approval_status === 'denied';
+
+  const outcome = alreadyDone
+    ? { status: 200, body: { ok: true, refundedCents: 0, refundError: null } }
+    : await page.evaluate(async (id) => {
+        const res = await fetch('/api/admin/review', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id,
+            decision: 'deny',
+            reason: 'Automated production health check. This row is not a real vendor.',
+          }),
+        });
+        const body = await res.json().catch(() => ({}));
+        return { status: res.status, body };
+      }, target.id);
+
+  assert(
+    outcome.status === 200 && outcome.body.ok,
+    `Deny was refused: ${outcome.status} ${JSON.stringify(outcome.body).slice(0, 300)}`
+  );
+  assert(
+    !outcome.body.refundError,
+    `Deny reported a refund problem on a row that was never paid: ${outcome.body.refundError}`
+  );
+  assert(
+    outcome.body.refundedCents === 0,
+    `Deny refunded ${outcome.body.refundedCents} cents on a row that never paid`
+  );
+
+  /* The read back. A handler that returns ok and writes nothing is exactly the
+     failure this step exists for. */
+  const after = await healthcheckRows();
+  const row = after.find((r) => r.id === target.id);
+  assert(row, 'the denied row disappeared instead of being denied');
+  assert(
+    row.approval_status === 'denied',
+    `the row says ${row.approval_status} after being denied, so the write did not land`
+  );
+  assert(row.denied_at, 'the row was denied but denied_at was never stamped');
+
+  return `denied ${String(target.id).slice(0, 8)}, no refund attempted, denied_at stamped`;
+}
+
 /* ------------------------------------------------------------- the runner */
 
 const STEPS = [
@@ -583,6 +685,7 @@ const STEPS = [
   ['agreement-pdf', stepAgreementPdf],
   ['friday-night-fund', stepFridayNightFund],
   ['webhook', stepWebhook],
+  ['deny', stepDeny],
 ];
 
 async function screenshot(ctx, name) {
