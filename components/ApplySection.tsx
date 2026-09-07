@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import VendorForm from './VendorForm';
 import WaitlistForm from './WaitlistForm';
 import { isWaitlistForSpot, type EventOption } from '@/lib/event-options';
+import type { VendorPrefill } from './VendorForm';
 
 /**
  * The apply section: either the application form or the waitlist, depending on
@@ -28,6 +29,32 @@ export default function ApplySection({
   defaultSlug: string;
   supportEmail: string;
 }) {
+  /**
+   * The signed in vendor's saved details, or null.
+   *
+   * Fetched after mount rather than passed down from the page. Reading the
+   * session cookie on the server would make the homepage dynamic, and the
+   * homepage is ISR at revalidate 60 on purpose: almost nobody visiting it is
+   * signed in, and none of them should pay a database round trip so that the
+   * few who are get a form that is already filled in.
+   *
+   * Null for everybody else, which leaves the anonymous path byte for byte what
+   * it was.
+   */
+  const [profile, setProfile] = useState<VendorPrefill | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetch('/api/vendor/me')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (live && d?.profile) setProfile(d.profile as VendorPrefill);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
   const [slug, setSlug] = useState(defaultSlug);
   /* The spot type lives here rather than in the form, because intake is capped
      per type and so it is what decides between applying and waiting. Picking a
@@ -122,6 +149,7 @@ export default function ApplySection({
       supportEmail={supportEmail}
       spotType={spot}
       onSpotTypeChange={setSpot}
+      profile={profile}
     />
   );
 }

@@ -15,7 +15,7 @@ that references one fails the whole statement with Postgres error 42703.
 `npm run check:schema` checks the repo against this file, and runs
 automatically before `npm run build`. See "Checking the schema" below.
 
-Last verified against production: 2026-09-04.
+Last verified against production: 2026-09-07.
 
 ```
 day_availability
@@ -42,7 +42,12 @@ vendor_applications
   amount_received_cents, monthly_amount_cents,
   subscription_cancel_at_period_end, failed_payment_count, refund_error,
   last_invoice_status, last_invoice_at, square_payment_id,
-  refund_amount_cents, recurring_acknowledged, amount_received_at
+  refund_amount_cents, recurring_acknowledged, amount_received_at, vendor_id
+
+vendors
+  id, auth_user_id, email, business_name, contact_name, phone, sells,
+  serves_food, logo_path, photo_paths, permit_path, permit_expires_at,
+  claimed_at, invited_at, created_at, updated_at
 
 waitlist
   id, event_slug, position, business_name, contact_name, phone, email,
@@ -86,6 +91,52 @@ correct and is what the table now accepts.
 Nothing enforces the table above in the database yet. Until it does,
 `scripts/check-booking-shape.js` enforces it against the real route on every
 build.
+
+## Vendor profiles
+
+`vendors` is a returning vendor's saved details, so they stop re-uploading the
+same logo, photos and permit at every event.
+
+  `id`             uuid primary key
+  `auth_user_id`   uuid unique, NULL until the profile is claimed by signing in
+  `email`          unique, stored lowercased. The identity for a magic link
+  `photo_paths`    text[]
+  `permit_expires_at`  date. NULL means unknown, which is treated as expired
+  `claimed_at`     set when a magic link sign in first attaches an auth user
+  `invited_at`     set when the one time invite email goes out, so it cannot
+                   double send
+
+RLS is on: an authenticated user may select and update only the row where
+`auth_user_id = auth.uid()`. The service role bypasses that, and every read and
+write in this codebase goes through the service role inside a route handler, so
+the browser never holds a key that can reach this table.
+
+`vendor_applications.vendor_id` is a nullable FK to `vendors.id`. Nullable
+because an anonymous application is still a first class path and always will be.
+
+Backfilled 2026-09-07: 34 profiles, one per distinct email, populated from each
+vendor's most recent application, and every existing application already carries
+its `vendor_id`. Nine vendors have two or more applications.
+
+### What a profile does not hold
+
+**No part of the signature.** `signature_name`, `signed_at`, `signed_date`,
+`signer_ip`, `signer_user_agent` and `agreement_version` live on the
+application and only on the application. Every application is signed fresh. A
+profile must never pre-fill or skip any part of that step, because the signature
+is a record of a person agreeing to a specific version of the agreement at a
+specific moment, and a copied one is worth nothing.
+
+### The permit is the one thing that expires
+
+`permit_expires_at` is captured on every permit upload from now on, profile or
+not. A stored permit may be offered for reuse only when that date is present and
+falls on or after the event being booked. NULL, past, or earlier than the event
+date all require a fresh upload. A profile is a convenience; a lapsed health
+permit is a regulator's problem.
+
+The application stores the file paths that were actually used on its own row, so
+an application stays frozen even when the profile is edited later.
 
 ## Health check rows
 

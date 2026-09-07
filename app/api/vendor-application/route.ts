@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { isSquareConfigured } from '@/lib/square';
+import { currentVendor, permitRefusal, permitStanding } from '@/lib/vendors';
 import {
   HEALTHCHECK_BUSINESS_NAME,
   HEALTHCHECK_EMAIL_DOMAIN,
@@ -62,6 +63,8 @@ type Stage =
   /** No review slots left for the type asked for, so intake has shut. */
   | 'full'
   | 'upload-validation'
+  /** A stored profile permit that is missing an expiry, or has passed one. */
+  | 'permit-expiry'
   | 'db-config'
   | 'db-insert'
   | 'upload-storage'
@@ -160,6 +163,18 @@ function validate(body: Payload) {
   const booking_kind: BookingKind = isBookingKind(raw_kind) ? raw_kind : 'event';
   const booking_date = str(body.booking_date);
 
+  /* Captured on every permit upload from now on, profile or not. A permit with
+     no expiry is one nobody can vouch for, and the reuse rule has nothing to
+     check against. */
+  const permit_expires_at = str(body.permit_expires_at);
+
+  /* What a signed in vendor chose to keep rather than re-upload. The paths
+     themselves are never taken from the client: these are yes or no answers,
+     and the server reads the actual paths off the profile. */
+  const keep_logo = body.keep_logo === true || body.keep_logo === 'true';
+  const keep_photos = body.keep_photos === true || body.keep_photos === 'true';
+  const keep_permit = body.keep_permit === true || body.keep_permit === 'true';
+
   const waiver_accepted = body.waiver_accepted === true;
   const permits_confirmed = body.permits_confirmed === true;
   const serves_food = body.serves_food === true;
@@ -255,6 +270,10 @@ function validate(body: Payload) {
       permits_confirmed,
       serves_food,
       recurring_acknowledged,
+      permit_expires_at,
+      keep_logo,
+      keep_photos,
+      keep_permit,
       card_source_id,
       card_verification_token,
     },
@@ -297,7 +316,9 @@ function fieldsFromFormData(form: FormData): Payload {
 async function collectUploads(
   form: FormData,
   spotType: string,
-  servesFood: boolean
+  servesFood: boolean,
+  /** A valid stored permit is being reused, so no file is required for it. */
+  permitOnFile = false
 ): Promise<{ permit: ValidatedUpload | null; media: ValidatedUpload[]; issues: string[] }> {
   const media: ValidatedUpload[] = [];
   const issues: string[] = [];
@@ -318,7 +339,7 @@ async function collectUploads(
 
   if (permit instanceof File && permit.size > 0) {
     validatedPermit = await validateUpload(permit, 'permit', 'Your health permit');
-  } else if (permitRequired) {
+  } else if (permitRequired && !permitOnFile) {
     throw new UploadError(
       'Food trucks must upload a Texas DSHS health permit, and anyone serving food must upload their permit. Add yours and submit again.'
     );
@@ -536,6 +557,35 @@ export async function POST(request: Request) {
     bookingLabel = MONTHLY_PRICING[value.spot_type as MonthlySpot].label;
   }
 
+  /* The signed in vendor, if there is one. A profile is optional at every step
+     and an anonymous application never touches any of this. */
+  const profile = healthcheck ? null : await currentVendor();
+
+  /* Rule two, enforced on the server rather than only in the form.
+
+     A stored permit may be reused only when its expiry is known and falls on or
+     after the date being booked. Null, past, or earlier than the event all
+     require a fresh upload, and saying so here means a stale page or a hand
+     rolled post cannot get around it. bookingLabel is already resolved above,
+     so the refusal names the date the vendor was actually trying to book. */
+  const bookingDay =
+    value.booking_kind === 'day'
+      ? value.booking_date
+      : value.booking_kind === 'event'
+        ? (EVENTS.find((e) => e.slug === value.event_slug)?.date ?? null)
+        : null;
+
+  const permitRequired = value.spot_type === 'truck' || value.serves_food;
+
+  if (value.keep_permit && permitRequired) {
+    const standing = permitStanding(profile, bookingDay);
+    if (!standing.usable) {
+      const why = permitRefusal(standing, bookingLabel || 'the date you picked');
+      logFailure('permit-expiry', { reason: standing.usable ? 'ok' : standing.reason });
+      return bad(why ?? 'Upload a current Texas DSHS health permit.', 422);
+    }
+  }
+
   // Validate uploads before writing anything, so a bad file does not leave a
   // half finished application behind.
   let permitUpload: ValidatedUpload | null = null;
@@ -544,7 +594,15 @@ export async function POST(request: Request) {
 
   if (form) {
     try {
-      const collected = await collectUploads(form, value.spot_type, value.serves_food);
+      const collected = await collectUploads(
+        form,
+        value.spot_type,
+        value.serves_food,
+        /* A valid stored permit satisfies the requirement, so the uploader does
+           not demand a file the vendor has already given us. It was proved
+           usable against the booking date a few lines above. */
+        Boolean(value.keep_permit && profile?.permit_path)
+      );
       permitUpload = collected.permit;
       mediaUploads = collected.media;
       uploadIssues.push(...collected.issues);
@@ -556,7 +614,7 @@ export async function POST(request: Request) {
         400
       );
     }
-  } else if (value.spot_type === 'truck' || value.serves_food) {
+  } else if (permitRequired && !(value.keep_permit && profile?.permit_path)) {
     logFailure('upload-validation', { reason: 'no multipart body', spotType: value.spot_type });
     return bad(
       'Food trucks must upload a Texas DSHS health permit, and anyone serving food must upload their permit. Add yours and submit again.',
@@ -619,6 +677,10 @@ export async function POST(request: Request) {
      where a column value goes reads as a column name to check-schema, and a
      build gate that cannot parse its own codebase is worse than the ternary. */
   const businessName = healthcheck ? HEALTHCHECK_BUSINESS_NAME : value.business_name;
+
+  /* The profile this application belongs to, when there is one. Nullable
+     forever: an anonymous application is a first class path. */
+  const vendorId = profile?.id ?? null;
   const contactEmail = healthcheck
     ? `run-${Date.now()}@${HEALTHCHECK_EMAIL_DOMAIN}`
     : value.email;
@@ -630,6 +692,7 @@ export async function POST(request: Request) {
       contact_name: value.contact_name,
       phone: value.phone,
       email: contactEmail,
+      vendor_id: vendorId,
       spot_type: value.spot_type,
       event_slug: value.event_slug,
       booking_kind: value.booking_kind,
@@ -749,6 +812,23 @@ export async function POST(request: Request) {
     } catch (err) {
       logFailure('upload-storage', { file: upload.kind, applicationId: inserted.id }, err);
       uploadIssues.push(`${upload.kind} failed to store`);
+    }
+  }
+
+  /* Files kept from the profile are copied onto this row rather than looked up
+     through vendor_id later. The application is a record of what was submitted
+     on the day, so it has to stay true even after the profile is edited: a
+     vendor replacing their permit in March must not change what their January
+     application says they filed. */
+  if (profile) {
+    if (value.keep_logo && !paths.logo_path && profile.logo_path) {
+      paths.logo_path = profile.logo_path;
+    }
+    if (value.keep_permit && !paths.permit_path && profile.permit_path) {
+      paths.permit_path = profile.permit_path;
+    }
+    if (value.keep_photos && !photoPaths.length && (profile.photo_paths ?? []).length) {
+      photoPaths.push(...(profile.photo_paths ?? []));
     }
   }
 

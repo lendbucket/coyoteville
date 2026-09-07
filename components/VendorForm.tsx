@@ -11,6 +11,28 @@ import {
 import { REFUND_WINDOW, REVIEW_WINDOW } from '@/lib/approval';
 import CardOnFile, { type CardHandle } from './CardOnFile';
 import DayPicker from './DayPicker';
+import SaveDetailsOffer from './SaveDetailsOffer';
+
+/**
+ * What the form needs from a saved profile.
+ *
+ * Contact details and whether each file exists. Never a storage path, because
+ * the browser cannot read the private buckets and has no use for one, and never
+ * anything about a signature, because a profile holds none.
+ */
+export type VendorPrefill = {
+  businessName: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  sells: string;
+  servesFood: boolean;
+  hasLogo: boolean;
+  photoCount: number;
+  hasPermit: boolean;
+  /** YYYY-MM-DD, or empty when unknown, which counts as expired. */
+  permitExpiresAt: string;
+};
 import {
   BOOKING_LABELS,
   MONTHLY_PRICING,
@@ -106,7 +128,7 @@ function mb(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
 }
 
-type SubmitResponse = { ok?: boolean; error?: string; checkoutUrl?: string | null };
+type SubmitResponse = { ok?: boolean; error?: string; checkoutUrl?: string | null; id?: string };
 
 /**
  * Post the form and report upload progress.
@@ -183,6 +205,7 @@ export default function VendorForm({
   onEventChange,
   spotType,
   onSpotTypeChange,
+  profile = null,
 }: {
   signupClosed?: boolean;
   /**
@@ -215,6 +238,15 @@ export default function VendorForm({
    * bundle, so reading it here directly would disagree with the server render.
    */
   supportEmail?: string;
+  /**
+   * The signed in vendor's saved details, or null.
+   *
+   * Prefills the contact fields and offers each stored file for reuse. It never
+   * touches the signature block: the name, the date and the agreement itself
+   * are filled in fresh on every application, because a signature copied
+   * forward is a record of nobody agreeing to anything.
+   */
+  profile?: VendorPrefill | null;
 }) {
   const uid = useId();
   const [status, setStatus] = useState<Status>('idle');
@@ -243,6 +275,41 @@ export default function VendorForm({
   const [kind, setKind] = useState<BookingKind>('event');
   const [day, setDay] = useState<DayKey | ''>('');
   const [dayError, setDayError] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+
+  /* Which stored files the vendor is reusing. Default to keeping what is on
+     file, because that is the whole point of having a profile, except a permit
+     that cannot be used for this date. */
+  const [keepLogo, setKeepLogo] = useState(true);
+  const [keepPhotos, setKeepPhotos] = useState(true);
+  const [keepPermit, setKeepPermit] = useState(true);
+
+  /* Rule two, mirrored in the form so a vendor sees the problem before they
+     fill anything in. The server re-checks it against the same booking date and
+     refuses independently: this is the courtesy, not the enforcement.
+
+     A missing expiry is treated exactly like a lapsed one. A permit we cannot
+     put a date to is not one we can offer for reuse. */
+  const bookedDay =
+    kind === 'day'
+      ? day
+      : kind === 'event'
+        ? (EVENTS.find((e) => e.slug === eventSlug)?.date ?? '')
+        : '';
+
+  const storedPermitUsable = Boolean(
+    profile?.hasPermit &&
+      profile.permitExpiresAt &&
+      profile.permitExpiresAt >= (bookedDay || new Date().toISOString().slice(0, 10))
+  );
+
+  const storedPermitProblem = !profile?.hasPermit
+    ? null
+    : !profile.permitExpiresAt
+      ? 'We do not have an expiry date for the permit on file, so upload a current one.'
+      : !storedPermitUsable
+        ? `The permit on file expired on ${profile.permitExpiresAt}. Upload a current one for this date.`
+        : null;
 
   /* The recurring charge acknowledgement. Kept as its own piece of state and
      its own tick box rather than folded into the agreement one, because
@@ -489,6 +556,10 @@ export default function VendorForm({
         return;
       }
 
+      /* Kept so the finished screen can offer to save these details. Only used
+         when the vendor was not already signed in, since somebody with a
+         profile has nothing to be offered. */
+      setSavedId(data.id ?? null);
       setStatus('done');
       setMessage(
         prepaid
@@ -521,6 +592,11 @@ export default function VendorForm({
             Questions in the meantime, email <a href={`mailto:${supportEmail}`}>{supportEmail}</a>.
           </p>
         </div>
+
+        {/* Offered only to somebody who applied anonymously, and only after the
+            application is already complete. A vendor who is signed in has a
+            profile already, and a prepaid registration is not theirs to save. */}
+        {!profile && !prepaid && savedId ? <SaveDetailsOffer applicationId={savedId} /> : null}
 
         <NextSteps spot={spot} id="applied-next" />
       </section>
@@ -614,6 +690,28 @@ export default function VendorForm({
             </div>
           ) : null}
 
+          {profile ? (
+            <p className="formnote" role="note">
+              Signed in as {profile.email}. Your details are filled in below. You still sign the
+              agreement fresh, every time.
+            </p>
+          ) : null}
+
+          {/* What the vendor chose to reuse. Booleans only: the server reads the
+              actual file paths off the profile, so nothing here can point an
+              application at somebody else's files. */}
+          {profile ? (
+            <>
+              <input type="hidden" name="keep_logo" value={String(keepLogo && profile.hasLogo)} />
+              <input type="hidden" name="keep_photos" value={String(keepPhotos && profile.photoCount > 0)} />
+              <input
+                type="hidden"
+                name="keep_permit"
+                value={String(keepPermit && storedPermitUsable)}
+              />
+            </>
+          ) : null}
+
           <div className="form__row">
             <div className="field">
               <label className="label" htmlFor={`${uid}-business`}>
@@ -623,6 +721,7 @@ export default function VendorForm({
                 className="input"
                 id={`${uid}-business`}
                 name="business_name"
+                defaultValue={profile?.businessName ?? ''}
                 type="text"
                 required
                 maxLength={120}
@@ -639,6 +738,7 @@ export default function VendorForm({
                 className="input"
                 id={`${uid}-contact`}
                 name="contact_name"
+                defaultValue={profile?.contactName ?? ''}
                 type="text"
                 required
                 maxLength={120}
@@ -657,6 +757,7 @@ export default function VendorForm({
                 className="input"
                 id={`${uid}-phone`}
                 name="phone"
+                defaultValue={profile?.phone ?? ''}
                 type="tel"
                 required
                 maxLength={32}
@@ -673,6 +774,7 @@ export default function VendorForm({
                 className="input"
                 id={`${uid}-email`}
                 name="email"
+                defaultValue={profile?.email ?? ''}
                 type="email"
                 required
                 maxLength={180}
@@ -850,13 +952,22 @@ export default function VendorForm({
               <label className="label" htmlFor={`${uid}-logo`}>
                 Business logo
               </label>
-              <input
-                className="file"
-                id={`${uid}-logo`}
-                name="logo"
-                type="file"
-                accept={ACCEPT}
-              />
+              {profile?.hasLogo && keepLogo ? (
+                <p className="fieldnote">
+                  One on file.{' '}
+                  <button type="button" className="linkbtn" onClick={() => setKeepLogo(false)}>
+                    Upload a different one
+                  </button>
+                </p>
+              ) : (
+                <input
+                  className="file"
+                  id={`${uid}-logo`}
+                  name="logo"
+                  type="file"
+                  accept={ACCEPT}
+                />
+              )}
               <span className="hint">Optional. We post this with your name.</span>
             </div>
 
@@ -864,14 +975,23 @@ export default function VendorForm({
               <label className="label" htmlFor={`${uid}-photos`}>
                 Business or food photos
               </label>
-              <input
-                className="file"
-                id={`${uid}-photos`}
-                name="photos"
-                type="file"
-                accept={ACCEPT}
-                multiple
-              />
+              {profile?.photoCount && keepPhotos ? (
+                <p className="fieldnote">
+                  {profile.photoCount} on file.{' '}
+                  <button type="button" className="linkbtn" onClick={() => setKeepPhotos(false)}>
+                    Upload different ones
+                  </button>
+                </p>
+              ) : (
+                <input
+                  className="file"
+                  id={`${uid}-photos`}
+                  name="photos"
+                  type="file"
+                  accept={ACCEPT}
+                  multiple
+                />
+              )}
               <span className="hint">
                 Up to {MAX_PHOTOS}.
               </span>
@@ -882,15 +1002,44 @@ export default function VendorForm({
                 DSHS health permit{' '}
                 {permitRequired ? <span className="req">*</span> : <span>(if you serve food)</span>}
               </label>
-              <input
-                className="file"
-                id={`${uid}-permit`}
-                name="permit"
-                type="file"
-                accept={ACCEPT}
-                required={permitRequired}
-                aria-describedby={`${uid}-permit-hint`}
-              />
+              {storedPermitProblem ? (
+                <p className="formnote formnote--warn" role="note">
+                  {storedPermitProblem}
+                </p>
+              ) : null}
+
+              {profile?.hasPermit && storedPermitUsable && keepPermit ? (
+                <p className="fieldnote">
+                  On file, expires {profile.permitExpiresAt}.{' '}
+                  <button type="button" className="linkbtn" onClick={() => setKeepPermit(false)}>
+                    Upload a different one
+                  </button>
+                </p>
+              ) : (
+                <>
+                  <input
+                    className="file"
+                    id={`${uid}-permit`}
+                    name="permit"
+                    type="file"
+                    accept={ACCEPT}
+                    required={permitRequired}
+                    aria-describedby={`${uid}-permit-hint`}
+                  />
+                  {/* Captured on every permit upload from now on, profile or
+                      not, because a stored permit with no expiry is one nobody
+                      can vouch for and the reuse rule has nothing to check. */}
+                  <label className="label" htmlFor={`${uid}-permit-exp`}>
+                    Expiry date on the permit
+                  </label>
+                  <input
+                    className="input"
+                    id={`${uid}-permit-exp`}
+                    name="permit_expires_at"
+                    type="date"
+                  />
+                </>
+              )}
               <span className="hint" id={`${uid}-permit-hint`}>
                 {permitRequired
                   ? spot === 'truck'
