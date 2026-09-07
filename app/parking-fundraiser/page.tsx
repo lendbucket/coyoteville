@@ -286,6 +286,11 @@ export default async function FridayNightFundPage() {
                 days, with the number posted on this page.
               </li>
             </ol>
+            <p className="fnf__cta">
+              <a className="btn btn--rust" href="#apply-fnf">
+                Put your organization in the draw
+              </a>
+            </p>
           </div>
         </section>
 
@@ -341,6 +346,11 @@ export default async function FridayNightFundPage() {
               Payment is made within {PAYOUT_WINDOW_DAYS} days of the game. Both the gross and the
               payout are published below, so you can check the arithmetic and so can everybody else.
             </p>
+            <p className="fnf__cta">
+              <a className="btn btn--rust" href="#apply-fnf">
+                Apply for a game
+              </a>
+            </p>
           </div>
         </section>
 
@@ -364,6 +374,11 @@ export default async function FridayNightFundPage() {
             ) : (
               <p className="muted">Next season&apos;s dates go up here as soon as they are set.</p>
             )}
+            <p className="fnf__cta">
+              <a className="btn btn--rust" href="#apply-fnf">
+                Pick your games and apply
+              </a>
+            </p>
           </div>
         </section>
 
@@ -431,6 +446,11 @@ export default async function FridayNightFundPage() {
               guardian on site for the whole shift, does not direct traffic, and does not count
               toward the {VOLUNTEER_MINIMUM} adult minimum.
             </p>
+            <p className="fnf__cta">
+              <a className="btn btn--rust" href="#apply-fnf">
+                Start your application
+              </a>
+            </p>
           </div>
         </section>
 
@@ -478,6 +498,11 @@ export default async function FridayNightFundPage() {
                 </details>
               ))}
             </div>
+            <p className="fnf__cta">
+              <a className="btn btn--rust" href="#apply-fnf">
+                Enter your organization for a game
+              </a>
+            </p>
           </div>
         </section>
 

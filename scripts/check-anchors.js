@@ -144,6 +144,68 @@ const settle = (ms) => new Promise(r=>setTimeout(r,ms));
     await page.close();
   }
 
+  /* ------------------------------------ the fundraiser calls to action */
+
+  /* Six buttons on /parking-fundraiser point at #apply-fnf: the hero, and one
+     at the end of each section that makes an argument. They are the only way
+     into the form from the middle of a long page, so a fragment that stops
+     landing flush is a button that appears to do nothing.
+     Clicked as a real element rather than with location.hash, because an
+     untrusted click is exactly the shortcut that once reported four bugs that
+     did not exist. */
+  console.log([String.fromCharCode(10), '=== fundraiser buttons land flush ==='].join(''));
+
+  for (const vp of VIEWPORTS) {
+    const page = await browser.newPage();
+    await page.setViewport({ width: vp.width, height: vp.height, deviceScaleFactor: vp.dsf });
+    await page.goto(BASE + '/parking-fundraiser', { waitUntil: 'networkidle0' });
+    await page.evaluate(() => document.fonts.ready);
+
+    const labels = await page.evaluate(() =>
+      [...document.querySelectorAll('a[href="#apply-fnf"]')].map((a) => a.innerText.trim())
+    );
+
+    console.log('  ' + vp.label);
+
+    for (let i = 0; i < labels.length; i += 1) {
+      await page.goto(BASE + '/parking-fundraiser', { waitUntil: 'networkidle0' });
+      await page.evaluate(() => document.fonts.ready);
+      await settle(300);
+
+      const handles = await page.$$('a[href="#apply-fnf"]');
+      await handles[i].click();
+
+      await page.evaluate(async () => {
+        let last = -1;
+        let still = 0;
+        for (let n = 0; n < 120; n += 1) {
+          await new Promise((r) => setTimeout(r, 50));
+          const y = Math.round(window.scrollY);
+          if (y === last) {
+            if (++still >= 6) break;
+          } else {
+            still = 0;
+            last = y;
+          }
+        }
+      });
+
+      const gap = await page.evaluate(() => {
+        const el = document.getElementById('apply-fnf');
+        if (!el) return null;
+        return Math.round(window.scrollY - (el.getBoundingClientRect().top + window.scrollY));
+      });
+
+      const ok = gap === 0;
+      console.log(
+        '    ' + String(labels[i]).slice(0, 34).padEnd(36) + (gap === null ? 'NO TARGET' : String(gap).padStart(4))
+      );
+      if (!ok) process.exitCode = 1;
+    }
+
+    await page.close();
+  }
+
   /* ------------------------------------------------------- the redirects */
 
   /* The program was renamed and its page moved. /friday-night-fund is indexed

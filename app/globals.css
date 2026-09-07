@@ -7504,37 +7504,11 @@ p {
   color: var(--cream-50);
 }
 
-/* ------------------------------------ the fundraiser band, on the homepage */
 
-/* One number, one sentence, one button, sitting between the hero and the
-   events. It is a signpost for people arriving from the printed flyer, so it
-   is loud enough to catch the eye scanning for the word fundraiser and short
-   enough that it does not push the events below a phone screen. */
-
-.fband {
-  border-top: 1px solid var(--hairline-dark);
-  border-bottom: 1px solid var(--hairline-dark);
-  background: var(--char-2);
-}
-
-.fband__inner {
-  display: grid;
-  gap: 0.75rem;
-  justify-items: start;
-}
-
-.fband__claim {
-  margin: 0;
-  font-family: var(--font-condensed);
-  font-size: clamp(1.35rem, 5.4vw, 2.1rem);
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
-  color: var(--ember);
-}
-
-.fband__lede {
-  margin: 0;
-  max-width: 58ch;
+/* The repeated call to action at the end of a section.
+   Same button as the hero, no new variant. This rule exists only to give it
+   room above: a button that butts straight up against the last paragraph reads
+   as part of the sentence rather than as the next thing to do. */
+.fnf__cta {
+  margin-top: 1.6rem;
 }
