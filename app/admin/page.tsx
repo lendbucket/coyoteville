@@ -17,7 +17,7 @@ import { lastComposeSendFrom } from '@/lib/compose-log';
 import { getWaitlist } from '@/lib/waitlist';
 import { PRICING } from '@/lib/seo';
 import { getEvents, getNextEvent } from '@/lib/events-source';
-import { getAwards, getGameSlots, getOrgApplications } from '@/lib/friday-night-fund';
+import { getAwards, getGameSlots, getOrgApplications } from '@/lib/parking-fundraiser';
 import { dayKeyFromTimestamp, formatDayLong } from '@/lib/booking';
 import { ordinalFor } from '@/lib/vendor-history';
 
@@ -131,7 +131,7 @@ export default async function AdminPage({
       Read once here and handed to the pure normaliser, so it stays sync. */
   const { knownSlugs, fallback } = await filterContext();
 
-  /* The Friday Night Fund panel. Two reads, both scoped to the whole season
+  /* The Parking Fundraiser panel. Two reads, both scoped to the whole season
      rather than the selected event, because a draw is a season level decision. */
   const [orgApps, orgSlots, orgAwards] = await Promise.all([
     getOrgApplications(),

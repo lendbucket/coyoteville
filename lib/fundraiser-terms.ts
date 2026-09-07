@@ -4,7 +4,7 @@ import {
   PROGRAM_NAME,
   TERMS_VERSION,
   VOLUNTEER_MINIMUM,
-} from './friday-night-fund';
+} from './parking-fundraiser';
 
 /**
  * The program terms an organization signs.

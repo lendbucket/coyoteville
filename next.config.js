@@ -154,6 +154,13 @@ const nextConfig = {
       { source: '/vendors', destination: '/#vendors', permanent: true },
       { source: '/apply', destination: '/#apply', permanent: true },
       { source: '/food-trucks', destination: '/', permanent: true },
+      /* The program was called the Friday Night Fund until the flyer named it
+         Parking Fundraiser. The old path is printed nowhere, but it has been
+         live and indexed, so it moves rather than dies. /fundraiser is here
+         because it is what somebody types after reading a flyer that says
+         coyoteville.com and the word fundraiser. */
+      { source: '/friday-night-fund', destination: '/parking-fundraiser', permanent: true },
+      { source: '/fundraiser', destination: '/parking-fundraiser', permanent: true },
     ];
   },
 };

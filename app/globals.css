@@ -7413,3 +7413,128 @@ p {
   line-height: 1.4;
   color: #ff9b7a;
 }
+
+/* ------------------------------------ Parking Fundraiser, the flyer lockup */
+
+/* The printed flyer sets "Parking" in a heavy condensed face and "Fundraiser"
+   in a yellow script underneath it. This is that lockup in the site's own
+   faces, so the page reads as the same object as the sheet of paper somebody
+   is holding. It is one h1: the spans carry type, not structure. */
+
+.pf__lockup {
+  display: grid;
+  gap: 0;
+  margin: 0 0 1rem;
+  line-height: 0.92;
+}
+
+/* The brand, above the lockup and smaller than it. Inside the h1 so the
+   heading reads as the whole phrase somebody searched for, sized so the flyer's
+   own two word lockup still dominates. */
+.pf__lockup-brand {
+  font-family: var(--font-condensed);
+  font-size: clamp(0.95rem, 3.4vw, 1.25rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cream-70);
+  margin-bottom: 0.35rem;
+}
+
+.pf__lockup-head {
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 12vw, 5.5rem);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.pf__lockup-script {
+  font-family: var(--font-script);
+  font-size: clamp(2.5rem, 11vw, 5rem);
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  text-transform: none;
+  color: var(--ember);
+  /* The script face sits high in its box and the descender on the y needs
+     room, so the two halves are nudged together by hand rather than by
+     line-height, which would clip it. */
+  margin-top: -0.12em;
+  padding-bottom: 0.12em;
+}
+
+/* The 50 percent line. The flyer's actual promise, and the reason anybody
+   reads further, so it is the largest thing after the name. */
+.pf__claim {
+  margin-top: 0.6rem;
+  font-family: var(--font-condensed);
+  font-size: clamp(1.05rem, 4.2vw, 1.6rem);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.pf__scope {
+  margin-top: 1.1rem;
+  max-width: 46ch;
+}
+
+/* The flyer itself, below the fold. Portrait, so it is capped by height rather
+   than width or it would push the whole page down on a phone. */
+.pf__flyer {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+}
+
+.pf__flyer img {
+  width: auto;
+  max-width: min(100%, 26rem);
+  height: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline-dark);
+}
+
+.pf__flyer figcaption {
+  font-size: 0.85rem;
+  color: var(--cream-50);
+}
+
+/* ------------------------------------ the fundraiser band, on the homepage */
+
+/* One number, one sentence, one button, sitting between the hero and the
+   events. It is a signpost for people arriving from the printed flyer, so it
+   is loud enough to catch the eye scanning for the word fundraiser and short
+   enough that it does not push the events below a phone screen. */
+
+.fband {
+  border-top: 1px solid var(--hairline-dark);
+  border-bottom: 1px solid var(--hairline-dark);
+  background: var(--char-2);
+}
+
+.fband__inner {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+}
+
+.fband__claim {
+  margin: 0;
+  font-family: var(--font-condensed);
+  font-size: clamp(1.35rem, 5.4vw, 2.1rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.fband__lede {
+  margin: 0;
+  max-width: 58ch;
+}

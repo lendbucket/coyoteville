@@ -92,11 +92,11 @@ const settle = (ms) => new Promise(r=>setTimeout(r,ms));
 
   /* Every link in the shared header and footer has to go somewhere from every
      page, not just from the homepage. A bare #about resolves against whatever
-     page it is on, which is how the whole nav on /friday-night-fund pointed at
+     page it is on, which is how the whole nav on /parking-fundraiser pointed at
      sections that do not exist and silently did nothing. */
   console.log([String.fromCharCode(10), '=== links that go nowhere ==='].join(''));
 
-  for (const path of ['/', '/friday-night-fund']) {
+  for (const path of ['/', '/parking-fundraiser']) {
     const page = await browser.newPage();
     await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 3 });
     await page.goto(BASE + path, { waitUntil: 'networkidle0' });
@@ -119,7 +119,7 @@ const settle = (ms) => new Promise(r=>setTimeout(r,ms));
       }
 
       /* A path with a fragment has to resolve on the page it points at. This is
-         the one that actually mattered: /#about written on /friday-night-fund
+         the one that actually mattered: /#about written on /parking-fundraiser
          is only a real link if the homepage still has an #about. */
       const hash = href.indexOf('#');
       if (hash > 0 && href.startsWith('/')) {
@@ -141,6 +141,32 @@ const settle = (ms) => new Promise(r=>setTimeout(r,ms));
       '  ' + path.padEnd(22) + (dead.length ? 'DEAD: ' + dead.join(', ') : 'no dead fragments')
     );
     if (dead.length) process.exitCode = 1;
+    await page.close();
+  }
+
+  /* ------------------------------------------------------- the redirects */
+
+  /* The program was renamed and its page moved. /friday-night-fund is indexed
+     and /fundraiser is what somebody types after reading a flyer that prints
+     the domain and the word fundraiser and nothing else. A redirect that stops
+     working is invisible from every other angle: the new page is fine, the old
+     path simply 404s for people who are not looking at this repo. */
+  console.log([String.fromCharCode(10), '=== old paths still arrive ==='].join(''));
+
+  for (const from of ['/friday-night-fund', '/fundraiser']) {
+    const page = await browser.newPage();
+    let landed = '';
+    try {
+      await page.goto(BASE + from, { waitUntil: 'domcontentloaded' });
+      const here = new URL(page.url()).pathname;
+      landed = here.length > 1 && here.endsWith('/') ? here.slice(0, -1) : here;
+    } catch {
+      landed = '(did not load)';
+    }
+
+    const ok = landed === '/parking-fundraiser';
+    console.log('  ' + from.padEnd(22) + (ok ? '-> /parking-fundraiser' : 'WRONG: ' + landed));
+    if (!ok) process.exitCode = 1;
     await page.close();
   }
 

@@ -12,7 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
-      url: `${SITE_URL}/friday-night-fund`,
+      url: `${SITE_URL}/parking-fundraiser`,
       lastModified: now,
       changeFrequency: 'weekly',
       priority: 0.8,

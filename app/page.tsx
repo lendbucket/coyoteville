@@ -3,6 +3,7 @@ import DeadlineBarMount from '@/components/DeadlineBarMount';
 import Nav from '@/components/Nav';
 import Hero from '@/components/Hero';
 import Ticker from '@/components/Ticker';
+import FundraiserBand from '@/components/FundraiserBand';
 import EventsSection from '@/components/EventsSection';
 import Split from '@/components/Split';
 import Mission from '@/components/Mission';
@@ -102,6 +103,10 @@ export default async function HomePage() {
       <main id="main">
         <Hero />
         <Ticker />
+        {/* Straight after the hero furniture, because the flyer prints the
+            domain and not the path: somebody who read it arrives here looking
+            for the fundraiser and should not have to hunt for it. */}
+        <FundraiserBand />
         <EventsSection />
         <Split />
         <Mission />

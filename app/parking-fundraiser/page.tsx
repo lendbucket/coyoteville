@@ -4,21 +4,26 @@ import Footer from '@/components/Footer';
 import StringLights from '@/components/StringLights';
 import JsonLd from '@/components/JsonLd';
 import OrgApplicationForm, { type GameOption } from '@/components/OrgApplicationForm';
-import { FNF_TERMS, FNF_TERMS_VERSION } from '@/lib/fnf-terms';
+import { FNF_TERMS, FNF_TERMS_VERSION } from '@/lib/fundraiser-terms';
 import {
   PARKING_PRICE_CENTS,
   PAYOUT_WINDOW_DAYS,
   PROGRAM_NAME,
   VOLUNTEER_MINIMUM,
+  FLYER_AVAILABLE,
+  FLYER_HEIGHT,
+  FLYER_OG_SRC,
+  FLYER_SRC,
+  FLYER_WIDTH,
   dollars,
   getGameSlots,
   getPublishedLedger,
-} from '@/lib/friday-night-fund';
+} from '@/lib/parking-fundraiser';
 import { ADDRESS, OG_IMAGE, SITE, SITE_URL } from '@/lib/seo';
 import { supportEmail } from '@/lib/support';
 
 /**
- * The Friday Night Fund.
+ * The Parking Fundraiser.
  *
  * ISR at sixty seconds, like the homepage: the ledger and which games are
  * spoken for both change, and neither changes often enough to justify a
@@ -26,18 +31,53 @@ import { supportEmail } from '@/lib/support';
  */
 export const revalidate = 60;
 
-/* The phrase this page is trying to rank for. Written once so the title, the
-   description and the H1 cannot drift apart, which is the usual way a page
-   ends up optimised for three slightly different things. */
+/* Two phrases, not one, and the difference is the flyer.
+ *
+ * "Alice TX fundraiser" is what somebody types who does not know we exist.
+ * "Coyoteville Parking Fundraiser" is what somebody types who has the flyer in
+ * their hand, because the flyer prints the program name and coyoteville.com and
+ * nothing else to search for. A page optimised for only the first would be
+ * invisible to exactly the people the flyer was printed for.
+ *
+ * Written once here so the title, the H1 and the description cannot drift
+ * apart, which is the usual way a page ends up optimised for three slightly
+ * different things. The H1 leads with the program name because that is the
+ * phrase the reader arrived holding. */
+const BRANDED = `Coyoteville ${PROGRAM_NAME}`;
 const TARGET = 'Alice TX Fundraiser';
-const TITLE = `${TARGET} for Local Organizations: The ${PROGRAM_NAME}`;
-const DESCRIPTION = `An Alice TX fundraiser for schools, booster clubs, teams and nonprofits. Work a Coyoteville home game and your organization keeps 50 percent of the gross parking revenue, paid within ${PAYOUT_WINDOW_DAYS} days.`;
+const TITLE = `${BRANDED} | ${TARGET} for Local Organizations`;
+const CLAIM = '50% of Parking Revenue to Your Alice Organization';
+const H1 = `${BRANDED}: ${CLAIM}`;
+
+/* The flyer sets the last word of the program name in a script face and the
+   rest in the condensed display face. Split off PROGRAM_NAME rather than typed
+   out, so the lockup follows the next rename the way everything else does. A
+   one word name simply loses the script half and renders as one line. */
+/* The social card. The flyer's own landscape crop once it exists, cropped to
+   keep the football and the 50 percent line, because that number is the whole
+   reason a link gets clicked. Until then the site card, which is a real image
+   rather than a broken one. */
+const FLYER_CARD = FLYER_AVAILABLE
+  ? {
+      url: `${SITE_URL}${FLYER_OG_SRC}`,
+      width: 1200,
+      height: 630,
+      alt: `Coyoteville ${PROGRAM_NAME}: 50 percent of parking revenue to your organization`,
+    }
+  : { ...OG_IMAGE, alt: `${PROGRAM_NAME} at Coyoteville` };
+
+const SPLIT = PROGRAM_NAME.lastIndexOf(' ');
+const NAME_HEAD = SPLIT === -1 ? PROGRAM_NAME : PROGRAM_NAME.slice(0, SPLIT);
+const NAME_SCRIPT = SPLIT === -1 ? '' : PROGRAM_NAME.slice(SPLIT + 1);
+const DESCRIPTION = `The Coyoteville ${PROGRAM_NAME} is an Alice TX fundraiser for schools, booster clubs, teams, clubs and nonprofits. Work a game day at Coyoteville and your organization keeps 50 percent of the gross parking revenue, paid within ${PAYOUT_WINDOW_DAYS} days and posted publicly.`;
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: '/friday-night-fund' },
+  alternates: { canonical: '/parking-fundraiser' },
   keywords: [
+    BRANDED,
+    'Coyoteville parking fundraiser',
     'Alice TX fundraiser',
     'Alice Texas fundraiser',
     'fundraiser for schools Alice TX',
@@ -48,23 +88,23 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: `${SITE_URL}/friday-night-fund`,
+    url: `${SITE_URL}/parking-fundraiser`,
     siteName: SITE.name,
     title: TITLE,
     description: DESCRIPTION,
-    images: [{ ...OG_IMAGE, alt: `${PROGRAM_NAME} at Coyoteville` }],
+    images: [FLYER_CARD],
   },
   twitter: {
     card: 'summary_large_image',
     title: TITLE,
     description: DESCRIPTION,
-    images: [OG_IMAGE.url],
+    images: [FLYER_CARD.url],
   },
 };
 
 const FAQ: { q: string; a: string }[] = [
   {
-    q: 'Who can apply to the Friday Night Fund?',
+    q: 'Who can apply to the Parking Fundraiser?',
     a: 'Any Alice area organization: schools and school groups, booster clubs, sports teams, churches, youth organizations, civic clubs and nonprofits. You do not need 501(c)(3) status. You need adults who will turn up.',
   },
   {
@@ -112,7 +152,7 @@ export default async function FridayNightFundPage() {
     {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
-      '@id': `${SITE_URL}/friday-night-fund#faq`,
+      '@id': `${SITE_URL}/parking-fundraiser#faq`,
       mainEntity: FAQ.map((item) => ({
         '@type': 'Question',
         name: item.q,
@@ -122,8 +162,8 @@ export default async function FridayNightFundPage() {
     {
       '@context': 'https://schema.org',
       '@type': 'WebPage',
-      '@id': `${SITE_URL}/friday-night-fund`,
-      url: `${SITE_URL}/friday-night-fund`,
+      '@id': `${SITE_URL}/parking-fundraiser`,
+      url: `${SITE_URL}/parking-fundraiser`,
       name: TITLE,
       description: DESCRIPTION,
       isPartOf: { '@id': `${SITE_URL}/#website` },
@@ -141,7 +181,7 @@ export default async function FridayNightFundPage() {
           '@type': 'ListItem',
           position: 2,
           name: PROGRAM_NAME,
-          item: `${SITE_URL}/friday-night-fund`,
+          item: `${SITE_URL}/parking-fundraiser`,
         },
       ],
     },
@@ -159,19 +199,69 @@ export default async function FridayNightFundPage() {
         <section className="section fnf__hero" aria-labelledby="fnf-title">
           <StringLights tone="dark" variant="top" swags={5} sag={30} bulbsPerSwag={7} id="fnf-lights" />
           <div className="shell">
-            <p className="eyebrow">{PROGRAM_NAME}</p>
-            <h1 id="fnf-title">{TITLE}</h1>
+            {/* The flyer's own lockup, in the site's faces. Somebody arriving
+                from a sheet of paper taped to a door should recognise the page
+                as the same thing before they read a word of it. One h1: the
+                spans are typography, not structure, so the accessible name is
+                still the whole sentence. */}
+            <p className="eyebrow">For local organizations</p>
+            <h1 id="fnf-title" className="pf__lockup">
+              {/* Coyoteville belongs inside the h1, not in the eyebrow above
+                  it. The phrase somebody types after reading the flyer is
+                  "Coyoteville Parking Fundraiser", and a heading that starts at
+                  "Parking" is optimised for half of it. */}
+              <span className="pf__lockup-brand">Coyoteville</span>
+              <span className="pf__lockup-head">{NAME_HEAD}</span>
+              {NAME_SCRIPT ? <span className="pf__lockup-script">{NAME_SCRIPT}</span> : null}
+              <span className="pf__claim">{CLAIM}</span>
+            </h1>
             <p className="lede">
-              Work a Coyoteville home game and your organization keeps half the parking money, paid
-              within {PAYOUT_WINDOW_DAYS} days and posted publicly, game by game.
+              Work a game day at Coyoteville and your organization keeps half the parking money,
+              paid within {PAYOUT_WINDOW_DAYS} days and posted publicly, game by game.
             </p>
             <p>
               <a className="btn btn--rust" href="#apply-fnf">
                 Apply to work a game
               </a>
             </p>
+            {/* The flyer says game days, future events and community nights.
+                What exists today is home games, so that is what the page sells,
+                with the rest named as intent rather than as a date. */}
+            <p className="hint pf__scope">
+              The {PROGRAM_NAME} starts with Coyoteville home games. It opens to other event nights
+              and community nights as those get scheduled, and this page is where they will appear.
+            </p>
           </div>
         </section>
+
+        {/* --------------------------------------------------- the flyer */}
+        {/* Below the fold and lazy, deliberately. It is a portrait sheet of
+            paper and it is not the LCP element: the lockup above is. Somebody
+            who arrived holding this wants to see it to know they are in the
+            right place, which is worth a scroll and is not worth blocking the
+            first paint. Width and height are the real ones so the box is
+            reserved and nothing jumps when it arrives. */}
+        {FLYER_AVAILABLE ? (
+          <section className="section" aria-labelledby="fnf-flyer">
+            <div className="shell">
+              <h2 id="fnf-flyer" className="sr-only">
+                The flyer
+              </h2>
+              <figure className="pf__flyer">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={FLYER_SRC}
+                  width={FLYER_WIDTH}
+                  height={FLYER_HEIGHT}
+                  loading="lazy"
+                  decoding="async"
+                  alt={`Coyoteville ${PROGRAM_NAME} flyer: 50 percent of parking revenue goes to your organization. Game days, future events and community nights.`}
+                />
+                <figcaption>The flyer, if you saw it around town.</figcaption>
+              </figure>
+            </div>
+          </section>
+        ) : null}
 
         {/* -------------------------------------------------- how it works */}
         <section className="section" aria-labelledby="fnf-how">

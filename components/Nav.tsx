@@ -5,7 +5,7 @@ import Brand from './Brand';
  *
  * Every link is an absolute path with a fragment, /#about rather than #about.
  * A bare fragment resolves against whatever page you are on, so on
- * /friday-night-fund the whole nav pointed at sections that do not exist there
+ * /parking-fundraiser the whole nav pointed at sections that do not exist there
  * and did nothing at all. On the homepage /#about still behaves as an in page
  * anchor, so nothing about that page changes.
  *
@@ -32,7 +32,7 @@ export default function Nav({
           <a className="nav__hide-sm" href="/#vendors">
             Vendors
           </a>
-          <a className="nav__hide-sm" href="/friday-night-fund">
+          <a className="nav__hide-sm" href="/parking-fundraiser">
             Fundraiser
           </a>
           <a className="nav__hide-sm" href="/#faq">

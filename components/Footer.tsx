@@ -40,7 +40,7 @@ export default function Footer() {
               <a href="/#apply">Apply to vend</a>
             </li>
             <li>
-              <a href="/friday-night-fund">Friday Night Fund</a>
+              <a href="/parking-fundraiser">Parking Fundraiser</a>
             </li>
             <li>
               <a href="/#faq">FAQ</a>

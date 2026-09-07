@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { getEvents } from '@/lib/events-source';
-import { DRAWABLE_STATUSES, drawOne, payoutFor } from '@/lib/friday-night-fund';
+import { DRAWABLE_STATUSES, drawOne, payoutFor } from '@/lib/parking-fundraiser';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * The Friday Night Fund, from the tracker.
+ * The Parking Fundraiser, from the tracker.
  *
  * Four actions on one route because they are all one job: decide who is in,
  * draw a game, record what came in, publish it.
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
       .eq('id', winner.id);
 
     console.log(
-      '[friday-night-fund] drew',
+      '[parking-fundraiser] drew',
       JSON.stringify({ eventSlug, winner: winner.org_name, from: eligible.length })
     );
 

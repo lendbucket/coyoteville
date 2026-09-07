@@ -141,7 +141,7 @@ export default function AdminShell({
   mediaVendorCount: number;
   mediaFileCount: number;
   available: boolean;
-  /** Friday Night Fund applications, newest first. */
+  /** Parking Fundraiser applications, newest first. */
   orgApplications: OrgRow[];
   /** Upcoming home games with whoever is working them. */
   orgGames: GameRow[];

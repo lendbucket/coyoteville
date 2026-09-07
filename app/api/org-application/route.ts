@@ -9,7 +9,7 @@ import {
   PROGRAM_NAME,
   TERMS_VERSION,
   VOLUNTEER_MINIMUM,
-} from '@/lib/friday-night-fund';
+} from '@/lib/parking-fundraiser';
 import { renderOrgConfirmation, renderOrgNotification } from '@/lib/email/org-application';
 import { sendReminderEmail } from '@/lib/notify';
 import { supportEmail } from '@/lib/support';

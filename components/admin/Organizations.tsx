@@ -33,7 +33,7 @@ export type GameRow = {
 const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US')}`;
 
 /**
- * The Friday Night Fund panel.
+ * The Parking Fundraiser panel.
  *
  * Reads the same density, type scale and chip discipline as the rest of the
  * tracker: neutral by default, orange only where something needs doing.

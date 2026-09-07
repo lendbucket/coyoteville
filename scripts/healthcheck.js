@@ -495,7 +495,7 @@ async function stepAgreementPdf(ctx) {
 }
 
 /**
- * The Friday Night Fund page renders and its form is there.
+ * The Parking Fundraiser page renders and its form is there.
  *
  * Deliberately does not submit. The organization application writes a real row
  * with a signature on it, and a health check has no business signing anything.
@@ -503,15 +503,15 @@ async function stepAgreementPdf(ctx) {
  * table and the awards table, and either one failing leaves a page that looks
  * fine and offers no games.
  */
-async function stepFridayNightFund(ctx) {
+async function stepParkingFundraiser(ctx) {
   const page = await newPage();
   ctx.fnfPage = page;
 
-  const res = await page.goto(`${BASE}/friday-night-fund`, {
+  const res = await page.goto(`${BASE}/parking-fundraiser`, {
     waitUntil: 'networkidle0',
     timeout: 60_000,
   });
-  assert(res && res.ok(), `the Friday Night Fund page returned ${res && res.status()}`);
+  assert(res && res.ok(), `the Parking Fundraiser page returned ${res && res.status()}`);
   await settle(page, 600);
 
   const seen = await page.evaluate(() => ({
@@ -539,10 +539,30 @@ async function stepFridayNightFund(ctx) {
 
   assert(
     page.__cspViolations.length === 0,
-    `CSP violations on the Friday Night Fund page: ${page.__cspViolations.join(' | ')}`
+    `CSP violations on the Parking Fundraiser page: ${page.__cspViolations.join(' | ')}`
   );
 
-  return `renders, ${seen.gameBoxes} game(s) offered, form and terms present, ledger shown`;
+  /* The program was renamed and the page moved. Both old paths are indexed or
+     guessable, so a redirect that quietly stops working is a page somebody
+     cannot reach holding a flyer. Checked here rather than assumed, because a
+     redirect lives in next.config and nothing else would ever notice. */
+  const moved = [];
+  for (const from of ['/friday-night-fund', '/fundraiser']) {
+    const hop = await page.goto(`${BASE}${from}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    assert(hop && hop.ok(), `${from} returned ${hop && hop.status()} instead of redirecting`);
+    const path = new URL(page.url()).pathname;
+    const landed = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
+    assert(
+      landed === '/parking-fundraiser',
+      `${from} landed on ${landed} rather than /parking-fundraiser`
+    );
+    moved.push(from);
+  }
+
+  return (
+    `renders, ${seen.gameBoxes} game(s) offered, form and terms present, ledger shown, ` +
+    `${moved.join(' and ')} still redirect`
+  );
 }
 
 /** 8. The Square webhook accepts a correctly signed payload. */
@@ -683,7 +703,7 @@ const STEPS = [
   ['signup', stepSignup],
   ['admin-login', stepAdminLogin],
   ['agreement-pdf', stepAgreementPdf],
-  ['friday-night-fund', stepFridayNightFund],
+  ['parking-fundraiser', stepParkingFundraiser],
   ['webhook', stepWebhook],
   ['deny', stepDeny],
 ];
