@@ -150,7 +150,9 @@ export default async function FridayNightFundPage() {
   return (
     <>
       <JsonLd schemas={schemas} />
-      <Nav />
+      {/* Apply points at this page's own form. Sending an organization to the
+          vendor application would be sending them to the wrong form. */}
+      <Nav applyHref="#apply-fnf" applyLabel="Apply" />
 
       <main id="main">
         {/* ------------------------------------------------------- hero */}

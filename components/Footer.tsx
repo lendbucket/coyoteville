@@ -25,21 +25,28 @@ export default function Footer() {
 
         <div>
           <h3>The park</h3>
+          {/* Absolute paths, not bare fragments. A bare #about resolves against
+              whatever page the footer is on, so on every page except the
+              homepage these pointed at sections that do not exist and did
+              nothing. On the homepage /#about is still an in page anchor. */}
           <ul>
             <li>
-              <a href="#about">About</a>
+              <a href="/#about">About</a>
             </li>
             <li>
-              <a href="#vendors">Vendor spots</a>
+              <a href="/#vendors">Vendor spots</a>
             </li>
             <li>
-              <a href="#apply">Apply to vend</a>
+              <a href="/#apply">Apply to vend</a>
             </li>
             <li>
-              <a href="#faq">FAQ</a>
+              <a href="/friday-night-fund">Friday Night Fund</a>
             </li>
             <li>
-              <a href="#visit">Visit</a>
+              <a href="/#faq">FAQ</a>
+            </li>
+            <li>
+              <a href="/#visit">Visit</a>
             </li>
           </ul>
         </div>

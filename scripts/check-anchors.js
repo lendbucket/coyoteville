@@ -88,5 +88,61 @@ const settle = (ms) => new Promise(r=>setTimeout(r,ms));
     require('fs').writeFileSync(process.argv[2], JSON.stringify(results, null, 1));
     console.log([String.fromCharCode(10), 'wrote ' + process.argv[2]].join(''));
   }
+  /* ------------------------------------------------- dead links, per page */
+
+  /* Every link in the shared header and footer has to go somewhere from every
+     page, not just from the homepage. A bare #about resolves against whatever
+     page it is on, which is how the whole nav on /friday-night-fund pointed at
+     sections that do not exist and silently did nothing. */
+  console.log([String.fromCharCode(10), '=== links that go nowhere ==='].join(''));
+
+  for (const path of ['/', '/friday-night-fund']) {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 3 });
+    await page.goto(BASE + path, { waitUntil: 'networkidle0' });
+    await page.evaluate(() => document.fonts.ready);
+
+    const links = await page.evaluate(() =>
+      [...new Set([...document.querySelectorAll('a[href]')].map((a) => a.getAttribute('href') || ''))]
+    );
+
+    const dead = [];
+
+    for (const href of links) {
+      if (!href || href === '#') continue;
+
+      /* A bare fragment has to resolve on the page it is written on. */
+      if (href.startsWith('#')) {
+        const here = await page.evaluate((id) => Boolean(document.getElementById(id)), href.slice(1));
+        if (!here) dead.push(href);
+        continue;
+      }
+
+      /* A path with a fragment has to resolve on the page it points at. This is
+         the one that actually mattered: /#about written on /friday-night-fund
+         is only a real link if the homepage still has an #about. */
+      const hash = href.indexOf('#');
+      if (hash > 0 && href.startsWith('/')) {
+        const target = href.slice(0, hash);
+        const id = href.slice(hash + 1);
+        const probe = await browser.newPage();
+        try {
+          await probe.goto(BASE + target, { waitUntil: 'domcontentloaded' });
+          const there = await probe.evaluate((x) => Boolean(document.getElementById(x)), id);
+          if (!there) dead.push(href);
+        } catch {
+          dead.push(href + ' (page did not load)');
+        }
+        await probe.close();
+      }
+    }
+
+    console.log(
+      '  ' + path.padEnd(22) + (dead.length ? 'DEAD: ' + dead.join(', ') : 'no dead fragments')
+    );
+    if (dead.length) process.exitCode = 1;
+    await page.close();
+  }
+
   await browser.close();
 })();
