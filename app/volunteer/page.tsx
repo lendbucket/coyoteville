@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import VolunteerWaiverForm from '@/components/VolunteerWaiverForm';
-import { WAIVER, WAIVER_IS_DRAFT, WAIVER_VERSION } from '@/lib/volunteer-waiver/current';
+import { WAIVER, WAIVER_VERSION } from '@/lib/volunteer-waiver/current';
 import { getEventBySlug, getEvents } from '@/lib/events-source';
 import { endsAtMs } from '@/lib/events-source';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
@@ -132,7 +132,6 @@ export default async function VolunteerPage({
         <VolunteerWaiverForm
           waiver={WAIVER}
           waiverVersion={WAIVER_VERSION}
-          isDraft={WAIVER_IS_DRAFT}
           eventSlug={event.slug}
           eventName={event.name}
           eventDate={event.displayDate}

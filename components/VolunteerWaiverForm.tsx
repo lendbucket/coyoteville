@@ -23,7 +23,6 @@ import { isAdultOn } from '@/lib/volunteer';
 export default function VolunteerWaiverForm({
   waiver,
   waiverVersion,
-  isDraft,
   eventSlug,
   eventName,
   eventDate,
@@ -34,7 +33,6 @@ export default function VolunteerWaiverForm({
 }: {
   waiver: WaiverBlock[];
   waiverVersion: string;
-  isDraft: boolean;
   eventSlug: string;
   eventName: string;
   eventDate: string;
@@ -269,11 +267,6 @@ export default function VolunteerWaiverForm({
           is what the Texas fair notice doctrine is about. */}
       <div className="field">
         <span className="label">The waiver</span>
-        {isDraft ? (
-          <p className="vol__draft" role="note">
-            This text is a draft and has not been reviewed by a lawyer yet.
-          </p>
-        ) : null}
         <div className="terms" tabIndex={0} aria-label="Volunteer waiver">
           {waiver.map((block, i) => {
             if (block.kind === 'heading') {

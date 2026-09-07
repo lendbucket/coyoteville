@@ -21,33 +21,6 @@ import type { EventConfig } from './seo';
 /** Working name. Change here and it changes everywhere. */
 export const PROGRAM_NAME = 'Parking Fundraiser';
 
-/* ------------------------------------------------------------- the flyer */
-
-/**
- * Whether the printed flyer is in the repo yet.
- *
- * A plain constant rather than a check for the file on disk, and the reason is
- * where this code runs. The page revalidates on a serverless function whose
- * filesystem does not necessarily carry public/, so an existsSync here would
- * answer true at build and false on the first revalidation, and the flyer would
- * quietly vanish from a page that had it a minute ago. One boolean cannot do
- * that.
- *
- * Flip this to true in the same commit that adds
- * public/photos/parking-fundraiser.png, and set the two dimensions below to the
- * real ones. scripts/make-flyer-og.js prints all three lines ready to paste,
- * and produces the landscape crop the social card uses.
- */
-export const FLYER_AVAILABLE = false;
-
-/** The flyer's real pixel dimensions. Wrong values shift the layout on load. */
-export const FLYER_WIDTH = 0;
-export const FLYER_HEIGHT = 0;
-
-/** The portrait flyer, and the 1200x630 crop made from it for social cards. */
-export const FLYER_SRC = '/photos/parking-fundraiser.png';
-export const FLYER_OG_SRC = '/photos/parking-fundraiser-og.jpg';
-
 /** Adults an organization has to bring on the night. */
 export const VOLUNTEER_MINIMUM = 6;
 

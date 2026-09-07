@@ -10,11 +10,6 @@ import {
   PAYOUT_WINDOW_DAYS,
   PROGRAM_NAME,
   VOLUNTEER_MINIMUM,
-  FLYER_AVAILABLE,
-  FLYER_HEIGHT,
-  FLYER_OG_SRC,
-  FLYER_SRC,
-  FLYER_WIDTH,
   dollars,
   getGameSlots,
   getPublishedLedger,
@@ -53,19 +48,6 @@ const H1 = `${BRANDED}: ${CLAIM}`;
    rest in the condensed display face. Split off PROGRAM_NAME rather than typed
    out, so the lockup follows the next rename the way everything else does. A
    one word name simply loses the script half and renders as one line. */
-/* The social card. The flyer's own landscape crop once it exists, cropped to
-   keep the football and the 50 percent line, because that number is the whole
-   reason a link gets clicked. Until then the site card, which is a real image
-   rather than a broken one. */
-const FLYER_CARD = FLYER_AVAILABLE
-  ? {
-      url: `${SITE_URL}${FLYER_OG_SRC}`,
-      width: 1200,
-      height: 630,
-      alt: `Coyoteville ${PROGRAM_NAME}: 50 percent of parking revenue to your organization`,
-    }
-  : { ...OG_IMAGE, alt: `${PROGRAM_NAME} at Coyoteville` };
-
 const SPLIT = PROGRAM_NAME.lastIndexOf(' ');
 const NAME_HEAD = SPLIT === -1 ? PROGRAM_NAME : PROGRAM_NAME.slice(0, SPLIT);
 const NAME_SCRIPT = SPLIT === -1 ? '' : PROGRAM_NAME.slice(SPLIT + 1);
@@ -92,17 +74,22 @@ export const metadata: Metadata = {
     siteName: SITE.name,
     title: TITLE,
     description: DESCRIPTION,
-    images: [FLYER_CARD],
+    images: [{ ...OG_IMAGE, alt: `${PROGRAM_NAME} at Coyoteville` }],
   },
   twitter: {
     card: 'summary_large_image',
     title: TITLE,
     description: DESCRIPTION,
-    images: [FLYER_CARD.url],
+    images: [OG_IMAGE.url],
   },
 };
 
-const FAQ: { q: string; a: string }[] = [
+/* An answer may carry a link. It is rendered as a real anchor after the
+   paragraph, while the answer string that feeds the FAQPage structured data
+   stays plain text and names the path in words: a JSON-LD answer containing
+   markup is not an answer, and a page that only names a URL in prose is not a
+   link. Both readers get the version that works for them. */
+const FAQ: { q: string; a: string; link?: { href: string; text: string } }[] = [
   {
     q: 'Who can apply to the Parking Fundraiser?',
     a: 'Any Alice area organization: schools and school groups, booster clubs, sports teams, churches, youth organizations, civic clubs and nonprofits. You do not need 501(c)(3) status. You need adults who will turn up.',
@@ -117,7 +104,8 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'What does my organization do on the night?',
-    a: `Run parking, keep the lot clean during and after the event, and help keep the crowd in good order. You bring at least ${VOLUNTEER_MINIMUM} adults for the whole shift. Someone from Coyoteville is on site the entire time.`,
+    a: `Run parking, keep the lot clean during and after the event, and help keep the crowd in good order. You bring at least ${VOLUNTEER_MINIMUM} adults for the whole shift. Someone from Coyoteville is on site the entire time. Every volunteer signs a waiver before they start, and you can read it in advance at coyoteville.com/volunteer.`,
+    link: { href: '/volunteer', text: 'Read the volunteer waiver' },
   },
   {
     q: 'Can students or young people help?',
@@ -233,35 +221,6 @@ export default async function FridayNightFundPage() {
             </p>
           </div>
         </section>
-
-        {/* --------------------------------------------------- the flyer */}
-        {/* Below the fold and lazy, deliberately. It is a portrait sheet of
-            paper and it is not the LCP element: the lockup above is. Somebody
-            who arrived holding this wants to see it to know they are in the
-            right place, which is worth a scroll and is not worth blocking the
-            first paint. Width and height are the real ones so the box is
-            reserved and nothing jumps when it arrives. */}
-        {FLYER_AVAILABLE ? (
-          <section className="section" aria-labelledby="fnf-flyer">
-            <div className="shell">
-              <h2 id="fnf-flyer" className="sr-only">
-                The flyer
-              </h2>
-              <figure className="pf__flyer">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={FLYER_SRC}
-                  width={FLYER_WIDTH}
-                  height={FLYER_HEIGHT}
-                  loading="lazy"
-                  decoding="async"
-                  alt={`Coyoteville ${PROGRAM_NAME} flyer: 50 percent of parking revenue goes to your organization. Game days, future events and community nights.`}
-                />
-                <figcaption>The flyer, if you saw it around town.</figcaption>
-              </figure>
-            </div>
-          </section>
-        ) : null}
 
         {/* -------------------------------------------------- how it works */}
         <section className="section" aria-labelledby="fnf-how">
@@ -471,7 +430,9 @@ export default async function FridayNightFundPage() {
               </li>
               <li>
                 Every individual volunteer signs a waiver on the night, before they start. We
-                provide the form.
+                provide the form, and you can{' '}
+                <a href="/volunteer">read the waiver in full now</a> so nobody is reading it for
+                the first time in a dark parking lot.
               </li>
               <li>
                 Coyoteville counts the vehicles and determines what the parking revenue was for the
@@ -495,6 +456,11 @@ export default async function FridayNightFundPage() {
                 <details className="faq__item" key={item.q}>
                   <summary>{item.q}</summary>
                   <p>{item.a}</p>
+                  {item.link ? (
+                    <p className="faq__link">
+                      <a href={item.link.href}>{item.link.text}</a>
+                    </p>
+                  ) : null}
                 </details>
               ))}
             </div>

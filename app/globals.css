@@ -7482,29 +7482,6 @@ p {
   max-width: 46ch;
 }
 
-/* The flyer itself, below the fold. Portrait, so it is capped by height rather
-   than width or it would push the whole page down on a phone. */
-.pf__flyer {
-  margin: 0;
-  display: grid;
-  justify-items: center;
-  gap: 0.6rem;
-}
-
-.pf__flyer img {
-  width: auto;
-  max-width: min(100%, 26rem);
-  height: auto;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--hairline-dark);
-}
-
-.pf__flyer figcaption {
-  font-size: 0.85rem;
-  color: var(--cream-50);
-}
-
-
 /* The repeated call to action at the end of a section.
    Same button as the hero, no new variant. This rule exists only to give it
    room above: a button that butts straight up against the last paragraph reads
@@ -7579,18 +7556,6 @@ p {
 
 .vol__intro {
   margin: 0 0 1.75rem;
-}
-
-/* The draft notice. It says out loud that a lawyer has not seen this yet,
-   because somebody signing a release deserves to know that, and because
-   quietly dropping the notice is how a draft becomes permanent. */
-.vol__draft {
-  margin: 0 0 0.6rem;
-  padding: 0.6rem 0.8rem;
-  border: 1px dashed var(--ember);
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
-  color: var(--ember);
 }
 
 /* 16px minimum on every input. Anything smaller and iOS zooms the page on
@@ -7758,4 +7723,12 @@ p {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--cream-50);
+}
+
+/* A link under an FAQ answer. The answer itself stays plain text so the
+   FAQPage structured data carries an answer rather than markup; this is the
+   version a person clicks. */
+.faq__link {
+  margin: 0.6rem 0 0;
+  font-size: 0.95rem;
 }

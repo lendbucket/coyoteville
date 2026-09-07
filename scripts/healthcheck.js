@@ -709,7 +709,14 @@ async function stepDeny(ctx) {
  * The moment this matters is the one moment nobody will be looking at a
  * dashboard: a volunteer standing at a table at dusk with a phone, five minutes
  * before parking opens.
+ *
+ * The version is asserted exactly, not loosely. It is the counsel approved one,
+ * and a page that quietly reverts to a draft, or to some future version that
+ * has not been reviewed, is a page collecting signatures against text nobody
+ * agreed to publish. Bumping the waiver means bumping this string too, on
+ * purpose, in the same commit.
  */
+const EXPECTED_WAIVER_VERSION = 'vol-v1.0-2026';
 async function stepVolunteerWaiver(ctx) {
   const page = await newPage();
   ctx.volPage = page;
@@ -763,6 +770,14 @@ async function stepVolunteerWaiver(ctx) {
   /* The version, visible on the page. Every row is stamped with it. */
   const version = (seen.body.match(/vol-v[0-9A-Za-z.-]+/) || [])[0] || '';
   assert(version, 'no waiver version string is visible anywhere on the page');
+  assert(
+    version === EXPECTED_WAIVER_VERSION,
+    `the page is serving waiver ${version}, not the approved ${EXPECTED_WAIVER_VERSION}`
+  );
+  assert(
+    !/draft/i.test(seen.body),
+    'the waiver page still says draft somewhere, so an unreviewed version is live'
+  );
 
   return `renders for ${seen.eventSlug}, ${seen.termsLength} characters of waiver, ` +
     `${seen.conspicuous} conspicuous blocks, version ${version}`;
