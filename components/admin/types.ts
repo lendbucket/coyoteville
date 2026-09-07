@@ -75,6 +75,10 @@ export type VendorCardRow = {
   visitNumber: number;
   /** Whether somebody has actually signed in and claimed the profile. */
   profileClaimed: boolean;
+  /** When the one time invite went out, formatted. Empty means never invited. */
+  invitedAt: string;
+  /** When they first signed in, formatted. Empty while unclaimed. */
+  claimedAt: string;
   /** That vendor's other applications, most recent first. */
   history: {
     id: string;

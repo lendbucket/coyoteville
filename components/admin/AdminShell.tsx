@@ -8,6 +8,7 @@ import AdminSendAllPhotos from '../AdminSendAllPhotos';
 import AdminWaitlist from '../AdminWaitlist';
 import AdminCalendar from './AdminCalendar';
 import { AgreementBulkDownload } from './AgreementDownload';
+import InviteVendors from './InviteVendors';
 import { useLiveRefresh } from './useLiveRefresh';
 import VendorCard from './VendorCard';
 import VendorSheet from './VendorSheet';
@@ -476,6 +477,11 @@ export default function AdminShell({
               scopeName={eventName}
               signedCount={counts.signed}
             />
+
+            {/* A one time thing, sat with the other bulk actions rather than
+                given a home of its own, because once it has run there is
+                nothing left for it to do. */}
+            <InviteVendors />
           </div>
         </div>
       </section>

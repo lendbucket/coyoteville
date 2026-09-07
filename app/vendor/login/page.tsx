@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default async function VendorLoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string };
+  searchParams: { error?: string; email?: string };
 }) {
   // Already signed in, so there is nothing to ask for.
   if (await currentVendor()) redirect('/vendor/profile');
@@ -34,7 +34,7 @@ export default async function VendorLoginPage({
             Your logo, your photos and your permit stay on file so you are not photographing
             paperwork in the parking lot again.
           </p>
-          <VendorLogin initialError={searchParams.error} />
+          <VendorLogin initialError={searchParams.error} initialEmail={searchParams.email} />
           <p className="hint vlogin__note">
             You do not need an account to apply. The application form works exactly as it always
             has without one.

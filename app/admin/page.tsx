@@ -18,6 +18,11 @@ import { getWaitlist } from '@/lib/waitlist';
 import { EVENTS, PRICING, nextEventByDate } from '@/lib/seo';
 import { dayKeyFromTimestamp, formatDayLong } from '@/lib/booking';
 import { ordinalFor } from '@/lib/vendor-history';
+
+/** A formatted timestamp, or empty when there is none. */
+function whenOrBlank(at: string | null | undefined): string {
+  return at ? when(at) : '';
+}
 import { DAY_SCOPE, SCOPE_LABELS, isEventScope } from '@/lib/admin-scope';
 import { bookingWindow, getDayStatuses } from '@/lib/days';
 
@@ -248,6 +253,8 @@ export default async function AdminPage({
        row. Zero for an anonymous application, which has no profile to count. */
     visitNumber: r.vendor_id ? ordinalFor(view.history[r.vendor_id], r.id) : 0,
     profileClaimed: r.vendor_id ? (view.history[r.vendor_id]?.claimed ?? false) : false,
+    invitedAt: whenOrBlank(r.vendor_id ? view.history[r.vendor_id]?.invitedAt : null),
+    claimedAt: whenOrBlank(r.vendor_id ? view.history[r.vendor_id]?.claimedAt : null),
     history: (r.vendor_id ? (view.history[r.vendor_id]?.entries ?? []) : [])
       // Their other applications. This row is already on screen.
       .filter((e) => e.id !== r.id)

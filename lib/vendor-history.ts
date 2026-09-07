@@ -34,6 +34,10 @@ export type VendorHistory = {
   entries: VendorHistoryEntry[];
   /** Whether somebody has actually signed in and claimed the profile. */
   claimed: boolean;
+  /** When the one time invite went out. Null means never invited. */
+  invitedAt: string | null;
+  /** When they first signed in. Null means the profile is still unclaimed. */
+  claimedAt: string | null;
 };
 
 /** id -> history, for every vendor_id present on the page. */
@@ -65,14 +69,26 @@ export async function loadVendorHistory(vendorIds: string[]): Promise<VendorHist
       .neq('approval_status', DENIED)
       .in('vendor_id', ids)
       .order('created_at', { ascending: false }),
-    supabase.from('vendors').select('id, auth_user_id').in('id', ids),
+    supabase.from('vendors').select('id, auth_user_id, invited_at, claimed_at').in('id', ids),
   ]);
 
   if (applications.error) throw applications.error;
 
-  const claimedById = new Map<string, boolean>();
-  for (const row of (profiles.data ?? []) as { id: string; auth_user_id: string | null }[]) {
-    claimedById.set(row.id, Boolean(row.auth_user_id));
+  const profileById = new Map<
+    string,
+    { claimed: boolean; invitedAt: string | null; claimedAt: string | null }
+  >();
+  for (const row of (profiles.data ?? []) as {
+    id: string;
+    auth_user_id: string | null;
+    invited_at: string | null;
+    claimed_at: string | null;
+  }[]) {
+    profileById.set(row.id, {
+      claimed: Boolean(row.auth_user_id),
+      invitedAt: row.invited_at,
+      claimedAt: row.claimed_at,
+    });
   }
 
   const out: VendorHistoryMap = {};
@@ -88,7 +104,15 @@ export async function loadVendorHistory(vendorIds: string[]): Promise<VendorHist
     created_at: string;
   })[]) {
     const key = row.vendor_id;
-    if (!out[key]) out[key] = { entries: [], claimed: claimedById.get(key) ?? false };
+    if (!out[key]) {
+      const p = profileById.get(key);
+      out[key] = {
+        entries: [],
+        claimed: p?.claimed ?? false,
+        invitedAt: p?.invitedAt ?? null,
+        claimedAt: p?.claimedAt ?? null,
+      };
+    }
     out[key].entries.push({
       id: row.id,
       eventSlug: row.event_slug,

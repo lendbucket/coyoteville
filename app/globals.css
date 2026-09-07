@@ -7011,3 +7011,54 @@ p {
   line-height: 1.4;
   color: var(--dust);
 }
+
+/* --------------------------------------------------- invite past vendors */
+
+/* Same neutral treatment as the other bulk actions. The only orange is the
+   send button itself, which is the one thing here that is work. */
+
+.invite {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(243, 238, 229, 0.12);
+}
+
+.invite__head {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cream-deep);
+  line-height: 1.4;
+}
+
+.invite__state {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cream-deep);
+}
+
+.invite__names,
+.invite__hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--dust);
+  overflow-wrap: anywhere;
+}
+
+.invite__fails {
+  margin: 0 0 12px;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ff9b7a;
+}
+
+.invite__error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ff9b7a;
+}

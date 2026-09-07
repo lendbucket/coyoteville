@@ -13,8 +13,15 @@ import { useState } from 'react';
  * same way either way, and so does this, because "no account for that address"
  * is a way to find out who sells at Coyoteville.
  */
-export default function VendorLogin({ initialError }: { initialError?: string }) {
-  const [email, setEmail] = useState('');
+export default function VendorLogin({
+  initialError,
+  initialEmail,
+}: {
+  initialError?: string;
+  /** Prefilled from the invite link, so claiming is a tap and then a tap. */
+  initialEmail?: string;
+}) {
+  const [email, setEmail] = useState(initialEmail ?? '');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(

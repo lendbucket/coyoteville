@@ -221,7 +221,14 @@ export default function VendorSheet({
               <p className="hist__head">
                 {ordinalLabel(row.visitNumber)} event
                 <span className="hist__profile">
-                  {row.profileClaimed ? 'Profile claimed' : 'Profile not claimed'}
+                  {/* Three states, not two. "Not invited" and "invited but not
+                      claimed" look the same from the outside and mean opposite
+                      things: one of them never heard from us. */}
+                  {row.claimedAt
+                    ? 'Claimed ' + row.claimedAt
+                    : row.invitedAt
+                      ? 'Invited ' + row.invitedAt + ', not claimed'
+                      : 'Not invited'}
                 </span>
               </p>
 
