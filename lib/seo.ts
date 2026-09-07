@@ -332,7 +332,13 @@ export function faqItems(
     },
     {
       q: 'What happens if it rains?',
-      a: 'Events run rain or shine and vendor fees are not refundable. If we cancel an event ourselves, your fee is credited to the next one.',
+      /* Matched to Section 15 of the Vendor Participation Agreement, which says
+         Coyoteville will make a reasonable effort but is not obligated to
+         credit a fee when it cancels. This used to promise the credit outright,
+         which is a better deal than the agreement anybody signed, and the FAQ
+         is not the place to quietly extend one. The agreement text is
+         unchanged. */
+      a: 'Events run rain or shine and vendor fees are not refundable. If we cancel a date ourselves, we will make a reasonable effort to credit your fee toward a future event, though we are not obligated to.',
     },
     {
       q: 'When is the next event?',

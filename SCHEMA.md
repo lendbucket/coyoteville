@@ -54,6 +54,17 @@ waitlist
   spot_type, sells, notes, status, offered_at, admin_notes, created_at,
   updated_at, booking_date, booking_kind
 
+org_applications
+  id, org_name, org_type, contact_name, email, phone, ein, is_501c3,
+  volunteer_count, story, logo_path, event_slugs, status, terms_accepted,
+  terms_version, signature_name, signed_at, signer_ip, signer_user_agent,
+  admin_notes, created_at, updated_at
+
+org_event_awards
+  id, event_slug, org_application_id, picked_at, picked_from_count,
+  parking_gross_cents, payout_cents, paid_at, paid_method, published_at,
+  notes, created_at, updated_at
+
 subscribers
   id, email, source, signup_ip, confirmed_at, unsubscribed_at,
   created_at, updated_at
@@ -169,6 +180,40 @@ permit is a regulator's problem.
 
 The application stores the file paths that were actually used on its own row, so
 an application stays frozen even when the profile is edited later.
+
+## The Friday Night Fund
+
+Half the gross parking from each home game goes to one Alice organization, which
+works the event in return: runs parking, keeps the lot clean, helps keep the
+crowd in order. One org per game, drawn at random from the eligible applicants.
+
+`org_applications` is an application to the program, not to one game.
+`event_slugs` is the list of home games that org can actually work, so the
+draw for a given game only considers people who said they could be there.
+`status` is one of `pending`, `selected`, `declined`, `withdrawn`.
+
+The signature block mirrors `vendor_applications` and for the same reason:
+`terms_accepted`, `terms_version`, `signature_name`, `signed_at`,
+`signer_ip` and `signer_user_agent` are captured per application. An
+organization agrees to a specific version of the program terms at a specific
+moment, and that record lives on the application.
+
+`org_event_awards` is one row per home game once an org has been picked, and
+it is the public ledger. `event_slug` is unique, which is the database
+enforcing one org per game rather than the code remembering to.
+
+`picked_from_count` records how many organizations were in the draw. It exists
+so the pick can be audited afterwards: a program that says "picked at random"
+and keeps no record of the pool is asking to be taken on trust.
+
+Money is in cents, like everywhere else. `payout_cents` is fifty percent of
+`parking_gross_cents`, computed when the gross is entered rather than stored as
+a rate, so the arithmetic on the ledger is checkable. `published_at` is what
+puts a row on the public page: a game can be paid before it is published, and
+nothing appears publicly until somebody decides it should.
+
+Both tables have RLS on with no policies, so only the service role reaches them,
+the same as `vendor_applications`.
 
 ## Health check rows
 

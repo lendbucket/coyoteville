@@ -17,6 +17,7 @@ import { lastComposeSendFrom } from '@/lib/compose-log';
 import { getWaitlist } from '@/lib/waitlist';
 import { PRICING } from '@/lib/seo';
 import { getEvents, getNextEvent } from '@/lib/events-source';
+import { getAwards, getGameSlots, getOrgApplications } from '@/lib/friday-night-fund';
 import { dayKeyFromTimestamp, formatDayLong } from '@/lib/booking';
 import { ordinalFor } from '@/lib/vendor-history';
 
@@ -129,6 +130,14 @@ export default async function AdminPage({
   /* The events table decides which scopes are real and which one to land on.
       Read once here and handed to the pure normaliser, so it stays sync. */
   const { knownSlugs, fallback } = await filterContext();
+
+  /* The Friday Night Fund panel. Two reads, both scoped to the whole season
+     rather than the selected event, because a draw is a season level decision. */
+  const [orgApps, orgSlots, orgAwards] = await Promise.all([
+    getOrgApplications(),
+    getGameSlots(),
+    getAwards(),
+  ]);
   const allEvents = await getEvents();
   const filters = normaliseFilters(searchParams, knownSlugs, fallback);
   const eventScoped = isEventScope(filters.event);
@@ -305,6 +314,40 @@ export default async function AdminPage({
         exportHref={exportHref}
         mediaVendorCount={mediaVendorCount}
         mediaFileCount={mediaFileCount}
+        orgApplications={orgApps.map((a) => ({
+          id: a.id,
+          orgName: a.org_name,
+          orgType: a.org_type ?? '',
+          contactName: a.contact_name,
+          email: a.email,
+          phone: a.phone ?? '',
+          volunteerCount: a.volunteer_count ?? 0,
+          is501c3: Boolean(a.is_501c3),
+          story: a.story ?? '',
+          games: (a.event_slugs ?? []).map(
+            (slug: string) => allEvents.find((e) => e.slug === slug)?.name ?? slug
+          ),
+          status: a.status ?? 'pending',
+          appliedAt: when(a.created_at),
+        }))}
+        orgGames={orgSlots.map((s) => {
+          const award = orgAwards.find((x) => x.event_slug === s.event.slug);
+          return {
+            slug: s.event.slug,
+            name: s.event.name,
+            displayDate: s.event.displayDate,
+            /* The tracker sees who was picked whether or not it is published.
+               The public page only sees it once it is. */
+            orgName: award
+              ? (orgApps.find((a) => a.id === award.org_application_id)?.org_name ?? 'Picked')
+              : null,
+            pickedFromCount: award?.picked_from_count ?? null,
+            parkingGrossCents: award?.parking_gross_cents ?? null,
+            payoutCents: award?.payout_cents ?? null,
+            paidAt: award?.paid_at ? when(award.paid_at) : '',
+            published: Boolean(award?.published_at),
+          };
+        })}
         abandoned={abandoned.map((r) => ({
           id: r.id,
           business_name: r.business_name,

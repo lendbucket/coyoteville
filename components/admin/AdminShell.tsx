@@ -9,6 +9,7 @@ import AdminWaitlist from '../AdminWaitlist';
 import AdminCalendar from './AdminCalendar';
 import { AgreementBulkDownload } from './AgreementDownload';
 import InviteVendors from './InviteVendors';
+import Organizations, { type GameRow, type OrgRow } from './Organizations';
 import { useLiveRefresh } from './useLiveRefresh';
 import VendorCard from './VendorCard';
 import VendorSheet from './VendorSheet';
@@ -45,6 +46,7 @@ const TABS = [
   { key: 'calendar', label: 'Calendar' },
   { key: 'waitlist', label: 'Waitlist' },
   { key: 'money', label: 'Money' },
+  { key: 'orgs', label: 'Orgs' },
   { key: 'compose', label: 'Compose' },
 ] as const;
 
@@ -57,6 +59,7 @@ function TabIcon({ tab }: { tab: TabKey }) {
       'M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7ZM5 9h14v10H5V9Zm2 2v2h2v-2H7Zm4 0v2h2v-2h-2Zm4 0v2h2v-2h-2Z',
     waitlist: 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 10.6 4 2.3-.8 1.4L11 13V6h2Z',
     money: 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm.9 15.3v1.4h-1.6v-1.4a4 4 0 0 1-2.9-1.7l1.3-1.1a2.7 2.7 0 0 0 2.3 1.2c1 0 1.7-.4 1.7-1.2s-.6-1-2-1.4c-1.7-.5-3-1.1-3-2.9a2.9 2.9 0 0 1 2.6-2.8V6h1.6v1.4a3.6 3.6 0 0 1 2.5 1.5l-1.3 1.1a2.3 2.3 0 0 0-1.9-1c-1 0-1.5.5-1.5 1.1s.6 1 2 1.4c1.8.5 3 1.2 3 3a3 3 0 0 1-2.8 2.8Z',
+    orgs: 'M12 2 3 7v2h18V7Zm-7 9v7H3v2h18v-2h-2v-7h-2v7h-3v-7h-2v7H7v-7Z',
     compose: 'M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25ZM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z',
   };
 
@@ -99,6 +102,8 @@ export default function AdminShell({
   mediaVendorCount,
   mediaFileCount,
   available,
+  orgApplications,
+  orgGames,
 }: {
   rows: VendorCardRow[];
   revenue: RevenueSummary | null;
@@ -125,6 +130,10 @@ export default function AdminShell({
   mediaVendorCount: number;
   mediaFileCount: number;
   available: boolean;
+  /** Friday Night Fund applications, newest first. */
+  orgApplications: OrgRow[];
+  /** Upcoming home games with whoever is working them. */
+  orgGames: GameRow[];
 }) {
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
@@ -548,6 +557,11 @@ export default function AdminShell({
             <span>Unpaid</span>
           </li>
         </ul>
+      </section>
+
+      {/* ------------------------------------------------------------ orgs */}
+      <section className="ash__panel" data-panel="orgs" aria-label="Organizations">
+        <Organizations applications={orgApplications} games={orgGames} />
       </section>
 
       {/* -------------------------------------------------------- compose */}

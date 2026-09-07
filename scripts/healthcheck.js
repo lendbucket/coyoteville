@@ -477,6 +477,57 @@ async function stepAgreementPdf(ctx) {
   return `rendered a ${result.bytes} byte PDF from the deployed function`;
 }
 
+/**
+ * The Friday Night Fund page renders and its form is there.
+ *
+ * Deliberately does not submit. The organization application writes a real row
+ * with a signature on it, and a health check has no business signing anything.
+ * What can break here without anybody noticing is the page: it reads the events
+ * table and the awards table, and either one failing leaves a page that looks
+ * fine and offers no games.
+ */
+async function stepFridayNightFund(ctx) {
+  const page = await newPage();
+  ctx.fnfPage = page;
+
+  const res = await page.goto(`${BASE}/friday-night-fund`, {
+    waitUntil: 'networkidle0',
+    timeout: 60_000,
+  });
+  assert(res && res.ok(), `the Friday Night Fund page returned ${res && res.status()}`);
+  await settle(page, 600);
+
+  const seen = await page.evaluate(() => ({
+    h1: (document.querySelector('h1') || {}).innerText || '',
+    hasForm: Boolean(document.querySelector('form input[name="org_name"]')),
+    hasSignature: Boolean(document.querySelector('form input[name="signature_name"]')),
+    hasTerms: Boolean(document.querySelector('.terms')),
+    gameBoxes: document.querySelectorAll('input[name="event_slugs"]').length,
+    ledger: Boolean(document.querySelector('.fnf__table, .fnf__empty')),
+  }));
+
+  assert(seen.h1.trim().length > 0, 'the page rendered no h1');
+  assert(
+    /fundraiser/i.test(seen.h1),
+    `the h1 does not lead with the target phrase: "${seen.h1.trim().slice(0, 60)}"`
+  );
+  assert(seen.hasForm, 'the organization application form is not on the page');
+  assert(seen.hasSignature, 'the application has no signature field, so nothing would be signed');
+  assert(seen.hasTerms, 'the program terms block is missing from the application');
+  assert(
+    seen.gameBoxes > 0,
+    'the form offers no games to work, which means the events or awards read failed'
+  );
+  assert(seen.ledger, 'the ledger section rendered neither a table nor its empty state');
+
+  assert(
+    page.__cspViolations.length === 0,
+    `CSP violations on the Friday Night Fund page: ${page.__cspViolations.join(' | ')}`
+  );
+
+  return `renders, ${seen.gameBoxes} game(s) offered, form and terms present, ledger shown`;
+}
+
 /** 8. The Square webhook accepts a correctly signed payload. */
 async function stepWebhook() {
   if (!WEBHOOK_KEY) return 'SKIPPED: SQUARE_WEBHOOK_SIGNATURE_KEY is not set';
@@ -530,6 +581,7 @@ const STEPS = [
   ['signup', stepSignup],
   ['admin-login', stepAdminLogin],
   ['agreement-pdf', stepAgreementPdf],
+  ['friday-night-fund', stepFridayNightFund],
   ['webhook', stepWebhook],
 ];
 

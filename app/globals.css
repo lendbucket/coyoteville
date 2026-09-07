@@ -7062,3 +7062,354 @@ p {
   line-height: 1.4;
   color: #ff9b7a;
 }
+
+/* ==================================================== Friday Night Fund */
+
+/* Same system as the rest of the public site: the section rhythm, the display
+   face on headings, rust for the primary action. Nothing new invented. */
+
+.fnf__hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.fnf__hero h1 {
+  max-width: 18ch;
+}
+
+.fnf__steps {
+  counter-reset: fnf;
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: grid;
+  gap: 1.1rem;
+  max-width: 62ch;
+}
+
+.fnf__steps li {
+  counter-increment: fnf;
+  position: relative;
+  padding-left: 2.6rem;
+}
+
+.fnf__steps li::before {
+  content: counter(fnf);
+  position: absolute;
+  left: 0;
+  top: 0.1em;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--rust);
+  color: var(--cream);
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.fnf__list {
+  margin: 1.4rem 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.9rem;
+  max-width: 66ch;
+}
+
+/* ------------------------------------------------------------ the games */
+
+.fnf__games-list {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+  max-width: 46rem;
+}
+
+.fnf__game {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+}
+
+.fnf__game-name {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.fnf__game-when {
+  color: var(--cream-70);
+  flex: 1 1 auto;
+}
+
+.fnf__game-state {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.fnf__game-state.is-open {
+  color: var(--ember);
+}
+
+.fnf__game-state.is-taken {
+  color: var(--dust);
+}
+
+/* ----------------------------------------------------------- the ledger */
+
+/* Deliberately the most prominent block on the page after the hero. A program
+   that only ever promises a number is a promise; one that posts the number
+   afterwards, game by game, is a record, and that is the whole argument. */
+
+.fnf__ledger-section {
+  border-top: 2px solid var(--rust);
+}
+
+.fnf__table-wrap {
+  margin-top: 1.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fnf__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  min-width: 34rem;
+}
+
+.fnf__table th {
+  text-align: left;
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cream-70);
+  padding: 0 1rem 0.6rem 0;
+  border-bottom: 1px solid var(--hairline-dark);
+}
+
+.fnf__table td {
+  padding: 0.9rem 1rem 0.9rem 0;
+  border-bottom: 1px solid var(--hairline-dark);
+  vertical-align: top;
+}
+
+.fnf__cell-sub {
+  display: block;
+  color: var(--cream-70);
+  font-size: 0.9rem;
+}
+
+.fnf__empty {
+  margin-top: 1.5rem;
+  padding: 1.2rem 1.3rem;
+  border: 1px dashed var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  color: var(--cream-70);
+  max-width: 52rem;
+}
+
+/* ------------------------------------------------------------- the form */
+
+.fnf__apply {
+  position: relative;
+  overflow: hidden;
+}
+
+.fnf__form {
+  margin-top: 1.6rem;
+  max-width: 46rem;
+}
+
+.fnf__games .check {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin-top: 0.6rem;
+}
+
+.fnf__taken {
+  color: var(--dust);
+  font-size: 0.9rem;
+}
+
+.fnf__done {
+  max-width: 46rem;
+}
+
+/* The terms block, given the same treatment as the vendor agreement: scrollable
+   so its length is honest, with the clauses that decide money and obligation
+   marked so they cannot be skimmed past. */
+.terms {
+  max-height: 22rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.terms__h {
+  font-family: var(--font-condensed);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 1.4rem 0 0.5rem;
+  color: var(--cream);
+}
+
+.terms__h:first-child {
+  margin-top: 0;
+}
+
+.terms__list {
+  margin: 0 0 0.9rem;
+  padding-left: 1.1rem;
+}
+
+.terms__loud {
+  margin: 0.9rem 0;
+  padding: 0.9rem 1rem;
+  border-left: 3px solid var(--ember);
+  background: rgba(240, 169, 75, 0.08);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* ------------------------------------------- Friday Night Fund, tracker */
+
+/* 12/14 scale and the 4px grid, same as the rest of the tracker. Neutral
+   everywhere: a draw and a payout are decisions, not alarms. */
+
+.orgs {
+  display: grid;
+  gap: 16px;
+}
+
+.orgs__head {
+  margin: 8px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cream-deep);
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.orgs__games,
+.orgs__apps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.orgs__game,
+.orgs__app {
+  padding: 12px;
+  border: 1px solid rgba(243, 238, 229, 0.12);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 8px;
+}
+
+.orgs__game-top,
+.orgs__app-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.orgs__game-name {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--cream);
+  overflow-wrap: anywhere;
+}
+
+.orgs__game-org,
+.orgs__numbers,
+.orgs__meta,
+.orgs__games-for,
+.orgs__story {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cream-deep);
+  overflow-wrap: anywhere;
+}
+
+.orgs__meta,
+.orgs__games-for {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--dust);
+}
+
+.orgs__story {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dust);
+}
+
+.orgs__from {
+  color: var(--dust);
+  font-size: 12px;
+}
+
+.orgs__payout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.orgs__field {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 10rem;
+  min-width: 8rem;
+}
+
+.orgs__label {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--dust);
+}
+
+.orgs__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.orgs__error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ff9b7a;
+}
