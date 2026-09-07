@@ -63,6 +63,27 @@ export type VendorCardRow = {
   adminNotes: string | null;
   /** When a payment link was last emailed from here, formatted. Empty if never. */
   paymentRequestedAt: string;
+  /**
+   * Which number this application is in that vendor's run, oldest first.
+   *
+   * 1 for a first timer, 3 for a vendor's third event. Zero when the row has no
+   * profile at all, which is every anonymous application. Derived from a count
+   * at read time and stored nowhere: a counter column would be a second copy of
+   * a fact the applications already hold, and the two would disagree the first
+   * time a row was deleted.
+   */
+  visitNumber: number;
+  /** Whether somebody has actually signed in and claimed the profile. */
+  profileClaimed: boolean;
+  /** That vendor's other applications, most recent first. */
+  history: {
+    id: string;
+    bookingLabel: string;
+    spotTypeLabel: string;
+    paymentStatus: string;
+    approvalStatus: string;
+    appliedAt: string;
+  }[];
   appliedAt: string;
   lastPhotoSend: { to: string; at: string } | null;
   lastEmail: { to: string; at: string; subject: string } | null;
@@ -77,6 +98,7 @@ export type FilterKey =
   | 'kind:day'
   | 'kind:monthly'
   | 'cash'
+  | 'returning'
   | 'truck'
   | 'booth'
   | 'free';
@@ -94,6 +116,7 @@ export const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'paid', label: 'Paid' },
   { key: 'unpaid', label: 'Unpaid' },
   { key: 'cash', label: 'Cash owed' },
+  { key: 'returning', label: 'Returning' },
   { key: 'truck', label: 'Trucks' },
   { key: 'booth', label: 'Booths' },
   { key: 'free', label: 'Orgs' },
@@ -152,12 +175,27 @@ export function needsReview(row: VendorCardRow): boolean {
   return ready && row.approvalStatus === 'pending';
 }
 
+/**
+ * Somebody who has set up here before.
+ *
+ * Their second application or later. A vendor's first application is not a
+ * returning one even once they have applied again, because the badge is about
+ * where this row sat in their run at the time rather than about the vendor.
+ *
+ * Denied applications do not count towards it, which is decided on the server:
+ * a refused application is not an event they worked.
+ */
+export function isReturning(row: VendorCardRow): boolean {
+  return row.visitNumber >= 2;
+}
+
 export function matchesFilter(row: VendorCardRow, filter: FilterKey): boolean {
   if (filter === 'all') return true;
   if (filter === 'review') return needsReview(row);
   if (filter === 'paid') return isSettled(row);
   if (filter === 'unpaid') return owesPayment(row);
   if (filter === 'cash') return needsCash(row);
+  if (filter === 'returning') return isReturning(row);
   if (filter.startsWith('kind:')) return row.bookingKind === filter.slice(5);
   return row.spotType === filter;
 }

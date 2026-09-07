@@ -9,6 +9,7 @@ import RequestPayment from './RequestPayment';
 import ReviewControls from './ReviewControls';
 import SubscriptionControls from './SubscriptionControls';
 import { isSettled, owesPayment, type VendorCardRow } from './types';
+import { ordinalLabel } from './ordinal';
 
 /**
  * The detail sheet: everything about one vendor, slid up over the list.
@@ -211,6 +212,37 @@ export default function VendorSheet({
               lastSend={row.lastPhotoSend}
             />
           </div>
+
+          {/* Their whole run, in the row, so seeing a vendor's history does not
+              mean leaving the vendor. Excludes denied applications and the row
+              already on screen, both decided on the server. */}
+          {row.visitNumber >= 2 ? (
+            <div className="sheet__block">
+              <p className="hist__head">
+                {ordinalLabel(row.visitNumber)} event
+                <span className="hist__profile">
+                  {row.profileClaimed ? 'Profile claimed' : 'Profile not claimed'}
+                </span>
+              </p>
+
+              {row.history.length ? (
+                <ul className="hist">
+                  {row.history.map((h) => (
+                    <li className="hist__row" key={h.id}>
+                      <span className="hist__when">{h.bookingLabel}</span>
+                      <span className="hist__what">
+                        {h.spotTypeLabel} · {h.paymentStatus === 'not_required' ? 'free' : h.paymentStatus} ·{' '}
+                        {h.approvalStatus}
+                      </span>
+                      <span className="hist__applied">Applied {h.appliedAt}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="hist__empty">No other applications on this profile.</p>
+              )}
+            </div>
+          ) : null}
 
           <dl className="sheet__facts">
             <div>

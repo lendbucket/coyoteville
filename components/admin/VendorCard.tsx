@@ -1,7 +1,8 @@
 'use client';
 
 import { AgreementRowButton } from './AgreementDownload';
-import { isSettled, needsCash, needsReview, type VendorCardRow } from './types';
+import { isSettled, isReturning, needsCash, needsReview, type VendorCardRow } from './types';
+import { ordinalLabel } from './ordinal';
 
 /**
  * One vendor, as a card.
@@ -30,6 +31,7 @@ export default function VendorCard({
   const settled = isSettled(row);
   const waiting = needsReview(row);
   const cashOwed = needsCash(row);
+  const returning = isReturning(row);
   const tel = row.phone.replace(/[^\d+]/g, '');
 
   return (
@@ -64,6 +66,12 @@ export default function VendorCard({
           <span className={`badge badge--${row.spotType}`}>{row.spotTypeLabel}</span>
           {row.spotNumber ? <span className="badge badge--spot">Spot {row.spotNumber}</span> : null}
           {cashOwed ? <span className="badge badge--cash">No cash recorded</span> : null}
+          {/* Neutral on purpose. Orange means something needs doing, and a
+              returning vendor needs nothing doing: it is a fact about them, not
+              a job for Robert. */}
+          {returning ? (
+            <span className="badge">{ordinalLabel(row.visitNumber)} event</span>
+          ) : null}
           {waiting ? (
             <span className="badge badge--review">Needs review</span>
           ) : row.approvalStatus === 'approved' ? (

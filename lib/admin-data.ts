@@ -1,5 +1,6 @@
 import 'server-only';
 import { HEALTHCHECK_BUSINESS_NAME } from './healthcheck';
+import { loadVendorHistory, type VendorHistoryMap } from './vendor-history';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { EVENTS, nextEventByDate } from './seo';
 import { getSpotsFresh } from './spots';
@@ -53,6 +54,8 @@ export type AdminApplication = {
   refund_error: string | null;
   spot_number: string | null;
   admin_notes: string | null;
+  /** The profile this application belongs to. Null for an anonymous one. */
+  vendor_id: string | null;
   square_payment_link_id: string | null;
   created_at: string;
 };
@@ -104,6 +107,15 @@ export type AdminView = {
      */
     unreconciled: number;
   };
+  /**
+   * How many times each vendor on this page has applied, and what for.
+   *
+   * Keyed by vendor_id, loaded in one query for the whole page rather than one
+   * per row: the tracker polls every thirty seconds and a per row lookup across
+   * forty six applications would be a lot of round trips to answer a question
+   * that is one group by. Empty when nothing on the page has a profile.
+   */
+  history: VendorHistoryMap;
   /** Event wide, never the filtered slice. Null when the read failed. */
   revenue: RevenueSummary | null;
   /**
@@ -184,6 +196,7 @@ const COLUMNS = [
   'refund_error',
   'spot_number',
   'admin_notes',
+  'vendor_id',
   'square_payment_link_id',
   'created_at',
 ].join(', ');
@@ -258,6 +271,7 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
       available: false,
       rows: [],
       counts: { ...EMPTY_COUNTS },
+      history: {},
       revenue: null,
       reviewSlots: null,
     };
@@ -362,9 +376,17 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
       if (readyForReview && row.approval_status === 'pending') pending += 1;
     }
 
+    /* One query for every vendor on this page, whatever the scope or the
+       search. Rows without a vendor_id are anonymous applications and have no
+       history to load. */
+    const history = await loadVendorHistory(
+      rows.map((r) => r.vendor_id).filter((id): id is string => Boolean(id))
+    );
+
     return {
       available: true,
       rows,
+      history,
       counts: { total: allRows.length, paid, unpaid, pending, signed, unreconciled },
       revenue: summariseRevenue(allRows, {
         truck: spots.truck.capacity,
@@ -394,6 +416,7 @@ export async function getAdminView(filters: AdminFilters): Promise<AdminView> {
       available: false,
       rows: [],
       counts: { ...EMPTY_COUNTS },
+      history: {},
       revenue: null,
       reviewSlots: null,
     };

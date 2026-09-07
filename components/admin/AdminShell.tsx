@@ -12,7 +12,14 @@ import { useLiveRefresh } from './useLiveRefresh';
 import VendorCard from './VendorCard';
 import VendorSheet from './VendorSheet';
 import Composer from './Composer';
-import { FILTERS, matchesFilter, matchesQuery, type FilterKey, type VendorCardRow } from './types';
+import {
+  FILTERS,
+  isReturning,
+  matchesFilter,
+  matchesQuery,
+  type FilterKey,
+  type VendorCardRow,
+} from './types';
 import type { RevenueSummary } from '@/lib/revenue';
 import type { ReviewSlots } from '@/lib/admin-data';
 import type { WaitlistEntry } from '@/lib/waitlist';
@@ -134,6 +141,12 @@ export default function AdminShell({
   );
 
   const openRow = useMemo(() => rows.find((r) => r.id === openId) ?? null, [rows, openId]);
+
+  /* Counted off the rows this scope loaded rather than off a server total,
+     because the ordinal is derived per row from the history query and there is
+     no separate number to read. Every other chip count comes off the unfiltered
+     read for the same scope, so this matches them. */
+  const returningCount = useMemo(() => rows.filter(isReturning).length, [rows]);
 
   const toggle = useCallback((id: string) => {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -374,7 +387,9 @@ export default function AdminShell({
                   ? counts.unreconciled
                   : f.key === 'unpaid'
                     ? counts.unpaid
-                    : 0;
+                    : f.key === 'returning'
+                      ? returningCount
+                      : 0;
 
             return (
               <button

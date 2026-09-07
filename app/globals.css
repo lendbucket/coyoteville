@@ -6953,3 +6953,61 @@ p {
 .savedetails__lead {
   margin: 0 0 0.5rem;
 }
+
+/* ------------------------------------------------ vendor history, in the sheet */
+
+/* Same 12/14 scale and 4px grid as the rest of the tracker, and no colour: a
+   vendor's history is something to read, not something to do. */
+
+.hist__head {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cream-deep);
+  line-height: 1.4;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hist__profile {
+  color: var(--dust);
+  letter-spacing: 0.03em;
+}
+
+.hist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.hist__row {
+  display: grid;
+  gap: 2px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(243, 238, 229, 0.1);
+}
+
+.hist__when {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cream-deep);
+  font-weight: 600;
+}
+
+.hist__what,
+.hist__applied {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--dust);
+}
+
+.hist__empty {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--dust);
+}

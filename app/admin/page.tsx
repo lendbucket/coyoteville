@@ -17,6 +17,7 @@ import { lastComposeSendFrom } from '@/lib/compose-log';
 import { getWaitlist } from '@/lib/waitlist';
 import { EVENTS, PRICING, nextEventByDate } from '@/lib/seo';
 import { dayKeyFromTimestamp, formatDayLong } from '@/lib/booking';
+import { ordinalFor } from '@/lib/vendor-history';
 import { DAY_SCOPE, SCOPE_LABELS, isEventScope } from '@/lib/admin-scope';
 import { bookingWindow, getDayStatuses } from '@/lib/days';
 
@@ -242,6 +243,32 @@ export default async function AdminPage({
     appliedAt: when(r.created_at),
     lastPhotoSend: lastMediaSendFrom(r.admin_notes),
     lastEmail: lastComposeSendFrom(r.admin_notes),
+
+    /* Returning, derived from the one history query rather than looked up per
+       row. Zero for an anonymous application, which has no profile to count. */
+    visitNumber: r.vendor_id ? ordinalFor(view.history[r.vendor_id], r.id) : 0,
+    profileClaimed: r.vendor_id ? (view.history[r.vendor_id]?.claimed ?? false) : false,
+    history: (r.vendor_id ? (view.history[r.vendor_id]?.entries ?? []) : [])
+      // Their other applications. This row is already on screen.
+      .filter((e) => e.id !== r.id)
+      .map((e) => ({
+        id: e.id,
+        bookingLabel:
+          e.bookingKind === 'day' && e.bookingDate
+            ? formatDayLong(e.bookingDate)
+            : e.bookingKind === 'monthly'
+              ? 'Permanent monthly spot'
+              : (EVENTS.find((ev) => ev.slug === e.eventSlug)?.name ?? 'Event'),
+        spotTypeLabel:
+          e.spotType === 'truck'
+            ? PRICING.truck.label
+            : e.spotType === 'booth'
+              ? PRICING.booth.label
+              : PRICING.free.label,
+        paymentStatus: e.paymentStatus,
+        approvalStatus: e.approvalStatus,
+        appliedAt: when(e.createdAt),
+      })),
   }));
 
   return (
