@@ -344,6 +344,10 @@ export default async function AdminPage({
           ),
           status: a.status ?? 'pending',
           appliedAt: when(a.created_at),
+          /* All three, not just the flag: a PDF needs a version to resolve and
+             a name to print, and a row missing either produces a 409 rather
+             than a document. */
+          signed: Boolean(a.terms_accepted && a.signature_name && a.terms_version),
         }))}
         orgGames={orgSlots.map((s) => {
           const award = orgAwards.find((x) => x.event_slug === s.event.slug);
@@ -366,9 +370,13 @@ export default async function AdminPage({
             orgId: award?.org_application_id ?? null,
             waivers: (() => {
               const w = waivers[s.event.slug] ?? emptyWaivers(s.event.slug);
+              const named = (x: { id: string; full_name: string }) => ({
+                id: x.id,
+                name: x.full_name,
+              });
               return {
-                adults: w.adults.map((x) => x.full_name),
-                minors: w.minors.map((x) => x.full_name),
+                adults: w.adults.map(named),
+                minors: w.minors.map(named),
                 minimum: w.minimum,
                 short: w.short,
                 met: w.met,

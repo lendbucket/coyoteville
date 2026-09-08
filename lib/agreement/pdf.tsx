@@ -1,19 +1,18 @@
 import 'server-only';
-import path from 'node:path';
-import fs from 'node:fs';
 import React from 'react';
-import {
-  Document,
-  Font,
-  Image,
-  Page,
-  StyleSheet,
-  Text,
-  View,
-  renderToBuffer,
-} from '@react-pdf/renderer';
+import { Document, Page, Text, View, renderToBuffer } from '@react-pdf/renderer';
 import type { AgreementBlock, AgreementRun } from './types';
 import type { AgreementVersionRecord } from './registry';
+import {
+  BRAND,
+  Fact,
+  Footer,
+  Masthead,
+  generatedLabel,
+  readLogo,
+  registerFonts,
+  styles,
+} from '../pdf/chrome';
 import {
   amountLabel,
   bookingLabel,
@@ -40,294 +39,12 @@ import {
  *    the thing.
  * 3. The counterparty is the one that was contracting when that version was
  *    live, which is not always the one contracting today.
+ *
+ * The paper it is printed on lives in lib/pdf/chrome: palette, fonts, styles,
+ * masthead and footer, shared with the organization terms and the volunteer
+ * waiver. What stays here is the part that is only true of this document, which
+ * is the rich run and block structure the vendor agreement is authored in.
  */
-
-/* --------------------------------------------------------------- assets */
-
-const BRAND = {
-  ink: '#0B0B0C',
-  body: '#1C1C1F',
-  muted: '#5C574F',
-  rule: '#D8D0C2',
-  ember: '#C97C15',
-  emberField: '#FDF4E4',
-  rust: '#C4552B',
-  paper: '#FFFFFF',
-};
-
-/**
- * US Letter at 72dpi, and the page margin. Both are needed as numbers rather
- * than as style shorthand: the running footer is positioned absolutely, and an
- * absolutely positioned box in this renderer does not get a width from left and
- * right alone. Sized from these, it cannot collapse.
- */
-const PAGE = { width: 612, margin: 52 };
-const CONTENT_WIDTH = PAGE.width - PAGE.margin * 2;
-
-const ASSET_ROOT = path.join(process.cwd(), 'lib', 'agreement', 'fonts');
-const LOGO = path.join(process.cwd(), 'public', 'logo.png');
-
-/**
- * Fonts are read off disk rather than fetched, so a PDF produced during a
- * network blip is the same document as one produced on a good day. next.config
- * traces this directory and the logo into the function bundle; if that trace is
- * ever dropped these throw at render time rather than silently substituting
- * Helvetica for the signature.
- */
-let registered = false;
-function registerFonts(): void {
-  if (registered) return;
-
-  Font.register({
-    family: 'Karla',
-    fonts: [
-      { src: path.join(ASSET_ROOT, 'Karla-Regular.ttf'), fontWeight: 400 },
-      { src: path.join(ASSET_ROOT, 'Karla-Bold.ttf'), fontWeight: 700 },
-    ],
-  });
-  Font.register({ family: 'Anton', src: path.join(ASSET_ROOT, 'Anton-Regular.ttf') });
-  Font.register({ family: 'Yellowtail', src: path.join(ASSET_ROOT, 'Yellowtail-Regular.ttf') });
-
-  /* Long unbroken strings in the record, a user agent above all, otherwise run
-     off the edge of the page instead of wrapping. */
-  Font.registerHyphenationCallback((word) => [word]);
-
-  registered = true;
-}
-
-/* ---------------------------------------------------------------- styles */
-
-const styles = StyleSheet.create({
-  /**
-   * Leading is set here and only here.
-   *
-   * A paragraph in this document is a Text wrapping one more Text per bold run.
-   * Set the line height on either of those and the two contributions add up:
-   * the lines come out at nearly double. Inherited from the Page it is applied
-   * once, to the line, which is the layout this document is set in.
-   *
-   * The cost of that is in the running footer, and is handled there.
-   */
-  page: {
-    paddingTop: 46,
-    paddingBottom: 58,
-    paddingHorizontal: PAGE.margin,
-    fontFamily: 'Karla',
-    fontSize: 9.2,
-    lineHeight: 1.5,
-    color: BRAND.body,
-    backgroundColor: BRAND.paper,
-  },
-
-  /* masthead */
-  masthead: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
-  logo: { width: 108, marginRight: 16 },
-  mastheadText: { flex: 1, paddingTop: 4 },
-  title: { fontFamily: 'Anton', fontSize: 19, color: BRAND.ink, letterSpacing: 0.4, lineHeight: 1.15 },
-  subtitle: {
-    fontSize: 7.6,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    color: BRAND.ember,
-    fontWeight: 700,
-    marginTop: 4,
-  },
-  rule: { height: 2.5, backgroundColor: BRAND.ember, marginBottom: 16 },
-
-  /* parties and details */
-  panel: {
-    borderWidth: 1,
-    borderColor: BRAND.rule,
-    padding: 12,
-    marginBottom: 14,
-  },
-  panelHead: {
-    fontSize: 7.4,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    fontWeight: 700,
-    color: BRAND.ember,
-    marginBottom: 8,
-  },
-  columns: { flexDirection: 'row' },
-  column: { flex: 1, paddingRight: 14 },
-  partyRole: {
-    fontSize: 7,
-    letterSpacing: 1.3,
-    textTransform: 'uppercase',
-    color: BRAND.muted,
-    fontWeight: 700,
-    marginBottom: 3,
-  },
-  partyName: { fontSize: 11.5, fontWeight: 700, color: BRAND.ink, marginBottom: 3, lineHeight: 1.3 },
-  partyMeta: { fontSize: 8.4, color: BRAND.muted, lineHeight: 1.45 },
-
-  factRow: { flexDirection: 'row', marginBottom: 3.5 },
-  factKey: {
-    width: 108,
-    fontSize: 7.6,
-    letterSpacing: 0.9,
-    textTransform: 'uppercase',
-    color: BRAND.muted,
-    fontWeight: 700,
-    paddingTop: 1.2,
-  },
-  factValue: { flex: 1, fontSize: 9.2, color: BRAND.body, lineHeight: 1.4 },
-
-  note: {
-    marginBottom: 14,
-    paddingLeft: 9,
-    borderLeftWidth: 2.5,
-    borderLeftColor: BRAND.rust,
-    fontSize: 8.4,
-    color: BRAND.muted,
-    lineHeight: 1.45,
-  },
-
-  /* agreement body */
-  docTitle: {
-    fontFamily: 'Anton',
-    fontSize: 12,
-    color: BRAND.ink,
-    marginBottom: 8,
-  },
-  heading: {
-    fontSize: 8.4,
-    fontWeight: 700,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: BRAND.rust,
-    lineHeight: 1.3,
-    marginTop: 13,
-    marginBottom: 4,
-  },
-  runBold: { fontWeight: 700 },
-  paragraph: { marginBottom: 7 },
-  lead: { marginBottom: 10, color: BRAND.body },
-  emphasis: { marginBottom: 7, fontWeight: 700 },
-  listItem: { flexDirection: 'row', marginBottom: 4.5, paddingLeft: 4 },
-  listMarker: { width: 16, fontWeight: 700, color: BRAND.muted },
-  listBody: { flex: 1 },
-
-  /* The conspicuous provisions. Bold, capitals, larger than the body copy
-     around it, on a contrasting field inside a heavy border, which is the same
-     set of signals the screen version uses and the same set Tex. Bus. & Com.
-     Code 1.201(b)(10) recognises. Do not soften. */
-  box: {
-    borderWidth: 3,
-    borderColor: BRAND.ember,
-    backgroundColor: BRAND.emberField,
-    padding: 11,
-    marginTop: 9,
-    marginBottom: 12,
-  },
-  boxHead: {
-    fontSize: 8.6,
-    fontWeight: 700,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    color: BRAND.ember,
-    borderBottomWidth: 1.5,
-    borderBottomColor: BRAND.ember,
-    paddingBottom: 5,
-    marginBottom: 7,
-  },
-  boxText: {
-    fontSize: 10.2,
-    fontWeight: 700,
-    color: BRAND.ink,
-    textTransform: 'uppercase',
-    letterSpacing: 0.15,
-    marginBottom: 6,
-  },
-
-  /* execution */
-  execution: {
-    marginTop: 20,
-    borderWidth: 2,
-    borderColor: BRAND.ink,
-    padding: 14,
-  },
-  executionHead: {
-    fontFamily: 'Anton',
-    fontSize: 11,
-    color: BRAND.ink,
-    marginBottom: 2,
-  },
-  signature: {
-    fontFamily: 'Yellowtail',
-    fontSize: 27,
-    color: BRAND.ink,
-    marginTop: 12,
-    marginBottom: 2,
-  },
-  signatureRule: {
-    borderBottomWidth: 1,
-    borderBottomColor: BRAND.ink,
-    marginBottom: 4,
-  },
-  ueta: {
-    marginTop: 12,
-    paddingTop: 9,
-    borderTopWidth: 1,
-    borderTopColor: BRAND.rule,
-    fontSize: 8.2,
-    color: BRAND.muted,
-    lineHeight: 1.45,
-  },
-
-  /* The running footer.
-
-     Separate absolutely positioned boxes rather than one flex row, each given
-     an explicit width: a positioned box in this renderer takes no width from
-     its content, and a row of them collapses to nothing at all.
-
-     The page number goes through a View with a render callback rather than a
-     Text with one. A Text produced per page has no content when the page is
-     measured, and the page's line height multiplies that to a line box of
-     zero, so it is never painted. A View is sized in its own right and the
-     Text it returns is laid out inside that. */
-  footerRule: {
-    position: 'absolute',
-    bottom: 33,
-    left: PAGE.margin,
-    width: CONTENT_WIDTH,
-    height: 1,
-    backgroundColor: BRAND.rule,
-  },
-  footerText: {
-    fontSize: 7,
-    letterSpacing: 0.5,
-    lineHeight: 1.4,
-    color: BRAND.muted,
-  },
-  footerLeft: {
-    position: 'absolute',
-    bottom: 21,
-    left: PAGE.margin,
-    width: CONTENT_WIDTH * 0.42,
-    // A long business name shortens rather than wrapping up over the rule.
-    maxLines: 1,
-    textOverflow: 'ellipsis',
-  },
-  footerPage: {
-    position: 'absolute',
-    bottom: 21,
-    left: PAGE.margin + CONTENT_WIDTH * 0.42,
-    width: CONTENT_WIDTH * 0.22,
-    height: 10,
-  },
-  footerCentre: { textAlign: 'center' },
-  footerRight: {
-    position: 'absolute',
-    bottom: 21,
-    left: PAGE.margin + CONTENT_WIDTH * 0.64,
-    width: CONTENT_WIDTH * 0.36,
-    textAlign: 'right',
-    maxLines: 1,
-    textOverflow: 'ellipsis',
-  },
-});
 
 /* ------------------------------------------------------------ components */
 
@@ -413,15 +130,6 @@ function Blocks({ blocks, inBox }: { blocks: AgreementBlock[]; inBox?: boolean }
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.factRow}>
-      <Text style={styles.factKey}>{label}</Text>
-      <Text style={styles.factValue}>{value}</Text>
-    </View>
-  );
-}
-
 function AgreementPdf({
   row,
   record,
@@ -433,11 +141,7 @@ function AgreementPdf({
   generatedAt: Date;
   logo: Buffer | null;
 }) {
-  const generated = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Chicago',
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(generatedAt);
+  const generated = generatedLabel(generatedAt);
 
   return (
     <Document
@@ -448,16 +152,15 @@ function AgreementPdf({
       producer="Coyoteville vendor tracker"
     >
       <Page size="LETTER" style={styles.page}>
-        <View style={styles.masthead} fixed={false}>
-          {logo ? <Image style={styles.logo} src={logo} /> : null}
-          <View style={styles.mastheadText}>
-            <Text style={styles.title}>VENDOR PARTICIPATION AGREEMENT</Text>
-            <Text style={styles.subtitle}>
+        <Masthead
+          logo={logo}
+          title="VENDOR PARTICIPATION AGREEMENT"
+          subtitle={
+            <>
               Signed record · {record.version} · {row.business_name}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.rule} />
+            </>
+          }
+        />
 
         <View style={styles.panel}>
           <Text style={styles.panelHead}>This agreement is between</Text>
@@ -538,54 +241,20 @@ function AgreementPdf({
           </Text>
         </View>
 
-        {/* Every page says whose agreement it is, which version, and where it
-            sits in the whole, so a page separated from the rest is still
-            identifiable and a missing one is obvious. */}
-        <View style={styles.footerRule} fixed />
-        <Text style={[styles.footerText, styles.footerLeft]} fixed>
-          {row.business_name} · {record.version}
-        </Text>
-        <View
-          style={styles.footerPage}
-          fixed
-          render={(args) => {
-            /* A View's render callback is handed the same page counters a
-               Text's is; only the Text one is described in the typings. */
-            const { pageNumber, totalPages } = args as unknown as {
-              pageNumber: number;
-              totalPages: number;
-            };
-            return (
-              <Text style={[styles.footerText, styles.footerCentre]}>
-                {`Page ${pageNumber} of ${totalPages}`}
-              </Text>
-            );
-          }}
+        <Footer
+          left={
+            <>
+              {row.business_name} · {record.version}
+            </>
+          }
+          right={<>Generated {generated}</>}
         />
-        <Text style={[styles.footerText, styles.footerRight]} fixed>
-          Generated {generated}
-        </Text>
       </Page>
     </Document>
   );
 }
 
 /* ------------------------------------------------------------------- api */
-
-let logoCache: Buffer | null | undefined;
-
-function readLogo(): Buffer | null {
-  if (logoCache !== undefined) return logoCache;
-  try {
-    logoCache = fs.readFileSync(LOGO);
-  } catch {
-    // A missing mark costs the branding, not the document. Everything that
-    // makes this a record still renders.
-    console.error('agreement pdf: logo.png not readable, rendering without it');
-    logoCache = null;
-  }
-  return logoCache;
-}
 
 /** Render one signed agreement. */
 export async function renderAgreementPdf(

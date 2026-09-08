@@ -136,6 +136,36 @@ const nextConfig = {
         './node_modules/pdfkit/js/standard-fonts/**',
         './node_modules/pdfkit/js/data/sRGB_IEC61966_2_1.icc',
       ],
+      /* The organization terms and the volunteer waiver print on the same
+         paper as the vendor agreement, from lib/pdf/chrome, so they need the
+         same runtime assets traced in. check-pdf-bundle discovers these routes
+         from this list and renders a real PDF from each traced bundle: a route
+         added here without its assets fails the build rather than the first
+         request in production, which is how the fonts went missing once. */
+      '/api/admin/org-terms': [
+        './lib/agreement/fonts/**',
+        './public/logo.png',
+        './node_modules/pdfkit/js/standard-fonts/**',
+        './node_modules/pdfkit/js/data/sRGB_IEC61966_2_1.icc',
+      ],
+      '/api/admin/org-terms-all': [
+        './lib/agreement/fonts/**',
+        './public/logo.png',
+        './node_modules/pdfkit/js/standard-fonts/**',
+        './node_modules/pdfkit/js/data/sRGB_IEC61966_2_1.icc',
+      ],
+      '/api/admin/volunteer-waiver': [
+        './lib/agreement/fonts/**',
+        './public/logo.png',
+        './node_modules/pdfkit/js/standard-fonts/**',
+        './node_modules/pdfkit/js/data/sRGB_IEC61966_2_1.icc',
+      ],
+      '/api/admin/volunteer-waivers': [
+        './lib/agreement/fonts/**',
+        './public/logo.png',
+        './node_modules/pdfkit/js/standard-fonts/**',
+        './node_modules/pdfkit/js/data/sRGB_IEC61966_2_1.icc',
+      ],
     },
   },
 

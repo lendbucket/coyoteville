@@ -16,6 +16,8 @@ export type OrgRow = {
   games: string[];
   status: string;
   appliedAt: string;
+  /** True once they have signed, which is what makes a PDF producible. */
+  signed: boolean;
 };
 
 export type GameRow = {
@@ -31,8 +33,11 @@ export type GameRow = {
   /** The drawn organization's id, for the QR sheet. Null until a draw. */
   orgId: string | null;
   waivers: {
-    adults: string[];
-    minors: string[];
+    /* Named and identified. The id is what makes each name a link to that
+       volunteer's own signed waiver, which is the document somebody asks for
+       by name rather than by position in a list. */
+    adults: { id: string; name: string }[];
+    minors: { id: string; name: string }[];
     minimum: number;
     short: number;
     met: boolean;
@@ -59,6 +64,28 @@ const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US')}`;
  * real volunteer with a real waiver and is explicitly not one of the six, so a
  * single total would answer the wrong question at the one moment it matters.
  */
+/**
+ * The signed names, each one a link to that person's waiver.
+ *
+ * A list of names is what you read on the night; a link under the name is what
+ * you need in March when somebody asks for one specific waiver. Both, from one
+ * line, rather than a separate table nobody would scroll to.
+ */
+function WaiverNames({ people }: { people: { id: string; name: string }[] }) {
+  return (
+    <>
+      {people.map((p, i) => (
+        <span key={p.id}>
+          {i ? ', ' : ' '}
+          <a className="wv__name" href={`/api/admin/volunteer-waiver?id=${encodeURIComponent(p.id)}`}>
+            {p.name}
+          </a>
+        </span>
+      ))}
+    </>
+  );
+}
+
 function Waivers({ game }: { game: GameRow }) {
   const { adults, minors, minimum, short, met } = game.waivers;
   const qr = `/api/admin/volunteer-qr?event=${encodeURIComponent(game.slug)}${
@@ -86,7 +113,8 @@ function Waivers({ game }: { game: GameRow }) {
 
       {adults.length ? (
         <p className="wv__names">
-          <span className="wv__names-head">Adults</span> {adults.join(', ')}
+          <span className="wv__names-head">Adults</span>
+          <WaiverNames people={adults} />
         </p>
       ) : (
         <p className="wv__names wv__names--none">Nobody has signed for this game yet.</p>
@@ -94,7 +122,23 @@ function Waivers({ game }: { game: GameRow }) {
 
       {minors.length ? (
         <p className="wv__names">
-          <span className="wv__names-head">Under 18</span> {minors.join(', ')}
+          <span className="wv__names-head">Under 18</span>
+          <WaiverNames people={minors} />
+        </p>
+      ) : null}
+
+      {/* Every waiver from this night in one file, which is the unit anybody
+          asks for: an insurer, a lawyer, or Robert checking who worked. The
+          manifest inside counts adults against the minimum. */}
+      {adults.length + minors.length ? (
+        <p className="wv__docs">
+          <a
+            className="btn btn--sm btn--ghost"
+            href={`/api/admin/volunteer-waivers?event=${encodeURIComponent(game.slug)}`}
+          >
+            Download {adults.length + minors.length} waiver
+            {adults.length + minors.length === 1 ? '' : 's'}
+          </a>
         </p>
       ) : null}
     </div>
@@ -142,6 +186,7 @@ export default function Organizations({
   const locked = Boolean(busy) || pending;
 
   const pendingApps = applications.filter((a) => a.status === 'pending');
+  const signedCount = applications.filter((a) => a.signed).length;
 
   return (
     <div className="orgs">
@@ -295,6 +340,17 @@ export default function Organizations({
         {pendingApps.length ? <span className="fchip__count">{pendingApps.length}</span> : null}
       </p>
 
+      {/* Every signed set of terms in one file. Not scoped to an event: an
+          organization applies once for a season and names the games it can
+          work, so there is no per event slice of this to take. */}
+      {signedCount ? (
+        <p className="orgs__doc">
+          <a className="btn btn--sm btn--ghost" href="/api/admin/org-terms-all">
+            Download all {signedCount} signed terms
+          </a>
+        </p>
+      ) : null}
+
       {applications.length === 0 ? (
         <p className="orgs__from">Nobody has applied yet.</p>
       ) : (
@@ -314,6 +370,21 @@ export default function Organizations({
               </p>
               <p className="orgs__games-for">{a.games.join(', ') || 'No games picked'}</p>
               <p className="orgs__story">{a.story}</p>
+
+              {/* The document they signed, in the version they signed it in.
+                  Only offered where there is one: a row with no signature has
+                  no terms to produce, and a button that 409s is worse than no
+                  button. */}
+              {a.signed ? (
+                <p className="orgs__doc">
+                  <a
+                    className="btn btn--sm btn--ghost"
+                    href={`/api/admin/org-terms?id=${encodeURIComponent(a.id)}`}
+                  >
+                    Signed terms PDF
+                  </a>
+                </p>
+              ) : null}
 
               {a.status === 'pending' ? (
                 <div className="orgs__actions">

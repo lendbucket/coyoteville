@@ -7732,3 +7732,24 @@ p {
   margin: 0.6rem 0 0;
   font-size: 0.95rem;
 }
+
+/* A downloadable document, offered under the row it belongs to. */
+.orgs__doc,
+.wv__docs {
+  margin: 10px 0 0;
+}
+
+/* A signed name that is also a link to that person's waiver. Underlined
+   rather than coloured: the tracker keeps colour for things that need doing,
+   and a document that exists does not. */
+.wv__name {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--cream-50);
+}
+
+.wv__name:hover,
+.wv__name:focus-visible {
+  text-decoration-color: var(--ember);
+}

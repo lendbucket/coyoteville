@@ -13,6 +13,8 @@ import { TERMS_VERSION } from '@/lib/fundraiser-terms/current';
 import { renderOrgConfirmation, renderOrgNotification } from '@/lib/email/org-application';
 import { sendReminderEmail } from '@/lib/notify';
 import { supportEmail } from '@/lib/support';
+import { SITE_URL } from '@/lib/seo';
+import { ORG_TERMS_PURPOSE, documentToken } from '@/lib/doc-token';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,6 +23,13 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 function bad(error: string, status = 400) {
   return NextResponse.json({ ok: false, error }, { status });
+}
+
+/** The organization's own download link, or null if it cannot be signed. */
+function termsUrlFor(id: string): string | null {
+  const token = documentToken(ORG_TERMS_PURPOSE, id);
+  if (!token) return null;
+  return `${SITE_URL}/api/admin/org-terms?id=${id}&t=${token}`;
 }
 
 /**
@@ -171,6 +180,11 @@ export async function POST(request: Request) {
       payoutWindowDays: PAYOUT_WINDOW_DAYS,
       games: gameNames,
       supportEmail: support,
+      /* Their own copy, signed and stamped with the version they saw. Minted
+         against this row's id alone, so the link opens one document and no
+         other, and null on a deployment with no secret to sign with rather
+         than a link that would 401 the moment they tapped it. */
+      termsUrl: termsUrlFor(inserted.id),
     })
   ).catch((e) => console.error('[org-application] confirmation failed', e));
 

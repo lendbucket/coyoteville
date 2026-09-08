@@ -240,12 +240,17 @@ export type OrgApplicationRow = {
   logo_path: string | null;
   event_slugs: string[] | null;
   status: string | null;
+  /* Read so the tracker knows whether there is a document to offer. A row
+     without both of these has nothing to produce a PDF from. */
+  terms_accepted: boolean | null;
+  signature_name: string | null;
+  terms_version: string | null;
   created_at: string;
 };
 
 const ORG_COLUMNS =
   'id, org_name, org_type, contact_name, email, phone, ein, is_501c3, volunteer_count, ' +
-  'story, logo_path, event_slugs, status, created_at';
+  'story, logo_path, event_slugs, status, terms_accepted, signature_name, terms_version, created_at';
 
 /** Every application, newest first. Withdrawn ones included: it is a record. */
 export async function getOrgApplications(): Promise<OrgApplicationRow[]> {

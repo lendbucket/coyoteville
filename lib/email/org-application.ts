@@ -42,8 +42,26 @@ export function renderOrgConfirmation(opts: {
   payoutWindowDays: number;
   games: string[];
   supportEmail: string;
+  /**
+   * A link to the organization's own signed terms, as a PDF.
+   *
+   * Null when the deployment cannot mint a token, in which case the email says
+   * nothing about a copy rather than offering a link that will not work. The
+   * organization signed something; being able to read back what they signed
+   * without asking anybody is the difference between a record and a promise.
+   */
+  termsUrl: string | null;
 }): { subject: string; html: string; text: string } {
-  const { programName, orgName, contactName, volunteerMinimum, payoutWindowDays, games, supportEmail } = opts;
+  const {
+    programName,
+    orgName,
+    contactName,
+    volunteerMinimum,
+    payoutWindowDays,
+    games,
+    supportEmail,
+    termsUrl,
+  } = opts;
   const first = contactName.trim().split(/\s+/)[0] || contactName.trim();
 
   const lines = [
@@ -64,6 +82,9 @@ export function renderOrgConfirmation(opts: {
     '',
     'Gross means every vehicle counted at the gate at $10, before any expense.',
     '',
+    ...(termsUrl
+      ? ['Your copy of the terms you signed, as a PDF:', `  ${termsUrl}`, '']
+      : []),
     `Questions, call or text ${PHONE} or email ${supportEmail}.`,
     '',
     'Robert',
@@ -84,6 +105,11 @@ export function renderOrgConfirmation(opts: {
       <li>Every volunteer signs a waiver on the night, before they start.</li>
       <li>You receive 50 percent of the gross parking for that game, paid within ${payoutWindowDays} days.</li>
     </ul>
+    ${
+      termsUrl
+        ? `<p style="margin:0 0 16px;"><a href="${esc(termsUrl)}" style="color:#C4552B;font-weight:bold;">Download the terms you signed</a><br /><span style="color:#666666;font-size:13px;">A PDF of the exact version you agreed to, with your signature record on it. Keep the link, it does not expire.</span></p>`
+        : ''
+    }
     <p style="margin:0 0 18px;color:#555555;font-size:14px;">Gross means every vehicle counted at the gate at $10, before any expense. Questions, call or text ${esc(PHONE)} or email <a href="mailto:${esc(supportEmail)}" style="color:#C4552B;">${esc(supportEmail)}</a>.</p>
     <p style="margin:0;color:#555555;font-size:14px;">Robert<br />Coyoteville<br />${esc(PHONE)}</p>`;
 
