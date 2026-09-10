@@ -55,7 +55,20 @@ export function feeSentence(basis: ShareBasis): string {
 
 export type LiveSnapshot = {
   org: { id: string; name: string; logoPath: string | null };
-  event: { slug: string; name: string; displayDate: string; endsAtISO: string };
+  event: {
+    slug: string;
+    name: string;
+    displayDate: string;
+    /**
+     * Both boundaries, because the countdown has two phases and neither is a
+     * date this code knows. starts_at moved to 5:30 PM Central and will move
+     * again; the page reads the row and says whatever it finds.
+     */
+    startsAtISO: string;
+    endsAtISO: string;
+    /** "5:30 PM", for the line a parent reads before anything has happened. */
+    openTime: string;
+  };
   totals: ParkingTotals;
   ledger: LiveLedgerLine[];
   /** The date the payout is due: the night, plus the window in the terms. */
@@ -121,7 +134,9 @@ export async function getLiveSnapshot(orgId: string): Promise<LiveSnapshot | nul
         slug: event.slug,
         name: event.name,
         displayDate: event.displayDate,
+        startsAtISO: event.startISO,
         endsAtISO: event.endISO,
+        openTime: event.displayTime,
       },
       totals,
       ledger: ledger.map((row) => ({

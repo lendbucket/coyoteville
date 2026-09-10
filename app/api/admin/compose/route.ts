@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { NextResponse } from 'next/server';
 import { createHash } from 'node:crypto';
 import { isAdminRequest } from '@/lib/admin-auth';
@@ -37,6 +39,17 @@ export const dynamic = 'force-dynamic';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 const MAX_RECIPIENTS = 60;
+
+/** Where a server side attachment may come from. One directory, no arguments. */
+const LIBRARY_DIR = 'public/photos';
+
+/** A bare filename in that directory. No slashes, no dots leading anywhere. */
+const LIBRARY_NAME = /^[a-z0-9][a-z0-9._-]{0,80}.(png|jpg|jpeg)$/i;
+
+/** Between sends. Enough to stay under a provider's burst limit. */
+const SEND_GAP_MS = 220;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function bad(error: string, status = 400) {
   return NextResponse.json({ ok: false, error }, { status });
@@ -108,6 +121,10 @@ export async function POST(request: Request) {
     .map((s) => s.trim())
     .filter((s) => /^[0-9a-f-]{36}$/i.test(s));
 
+  /* A rehearsal. Builds every message and reports what each Resend call would
+     carry, without calling Resend and without stamping a single row. */
+  const dryRun = String(form.get('dry_run') ?? '') === 'true';
+
   const manual = String(form.get('manual') ?? '')
     .split(/[,;\s]+/)
     .map((s) => s.trim().toLowerCase())
@@ -128,6 +145,42 @@ export async function POST(request: Request) {
 
   const files = form.getAll('attachments').filter((f): f is File => f instanceof File && f.size > 0);
 
+  /**
+   * Files picked off the server rather than uploaded from a phone.
+   *
+   * The lot map lives in the repo, so making Robert upload a copy of a file
+   * that is already deployed is a round trip over a phone connection for
+   * nothing. The name is matched against what is actually in public/photos and
+   * nothing else is accepted: no path, no traversal, no directory the caller
+   * chooses. An unknown name is refused rather than ignored, because silently
+   * sending thirty emails without the attachment somebody asked for is worse
+   * than not sending them.
+   */
+  const picked = String(form.get('library') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const library: { filename: string; content: Buffer; contentType: string }[] = [];
+
+  for (const name of picked) {
+    if (!LIBRARY_NAME.test(name)) return bad(`"${name}" is not a file we can attach.`);
+
+    const full = path.join(process.cwd(), LIBRARY_DIR, name);
+    if (!fs.existsSync(full)) {
+      return bad(
+        `${name} is not on the server. It has to be committed and deployed, not just added locally.`,
+        404
+      );
+    }
+
+    library.push({
+      filename: name,
+      content: fs.readFileSync(full),
+      contentType: name.endsWith('.png') ? 'image/png' : 'image/jpeg',
+    });
+  }
+
   let attachments: { filename: string; content: Buffer; contentType: string }[] = [];
   let downscaled = false;
 
@@ -147,6 +200,11 @@ export async function POST(request: Request) {
       return bad('We could not read those files.', 400);
     }
   }
+
+  /* Library files go on after the uploads and are not resized. They are ours,
+     committed at a size we chose, and running the lot map through an image
+     fitter would be re-encoding a file that is already right. */
+  attachments = [...attachments, ...library];
 
   /* ---------------------------------------------------------- recipients */
 
@@ -201,10 +259,22 @@ export async function POST(request: Request) {
   ];
 
   const sent: string[] = [];
-  const failed: { to: string; reason: string }[] = [];
+  const failed: { to: string; name: string; reason: string }[] = [];
   const sentAt = new Date();
 
-  for (const target of targets) {
+  /* What a dry run reports: the exact shape each Resend call would carry.
+     Nothing is sent and nothing is logged. */
+  const preview: {
+    to: string;
+    name: string;
+    subject: string;
+    attachments: string[];
+    htmlBytes: number;
+  }[] = [];
+
+  for (let i = 0; i < targets.length; i += 1) {
+    const target = targets[i];
+    const name = target.row?.business_name ?? target.to;
     const event =
       (await getEventBySlug(target.row?.event_slug ?? '')) ?? (await getNextEvent());
 
@@ -222,10 +292,40 @@ export async function POST(request: Request) {
       }),
     });
 
+    if (dryRun) {
+      preview.push({
+        to: target.to,
+        name,
+        subject: message.subject,
+        attachments: attachmentNames,
+        htmlBytes: message.html.length,
+      });
+      continue;
+    }
+
     const ok = await sendReminderEmail(target.to, message, attachments);
 
     if (ok) sent.push(target.to);
-    else failed.push({ to: target.to, reason: 'The email provider rejected it.' });
+    else failed.push({ to: target.to, name, reason: 'The email provider rejected it.' });
+
+    /* A short pause between sends. Thirty messages with an image attached, back
+       to back, is the shape a provider rate limits, and one 429 in the middle
+       of a batch is a vendor who never hears from us. The invite action paces
+       itself for the same reason. Skipped after the last one, which has nothing
+       left to be polite to. */
+    if (i < targets.length - 1) await sleep(SEND_GAP_MS);
+  }
+
+  if (dryRun) {
+    return NextResponse.json({
+      ok: true,
+      dryRun: true,
+      recipients: preview.length,
+      /* One entry per recipient, each with exactly one address. That is the
+         claim this mode exists to make checkable: there is no combined
+         payload anywhere, so no address can appear in anybody else's copy. */
+      preview,
+    });
   }
 
   /* ---------------------------------------------------------- the trail */
@@ -250,6 +350,7 @@ export async function POST(request: Request) {
   }
 
   const missing = vendorIds.length - vendors.length;
+
 
   return NextResponse.json({
     ok: sent.length > 0,

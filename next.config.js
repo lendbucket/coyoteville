@@ -167,6 +167,11 @@ const nextConfig = {
          the file in is not enough on its own: it has to be deployed, because
          a serverless function reads the bundle it was built with. */
       '/api/admin/spots': ['./public/photos/lot-map-*.png'],
+      /* The composer can attach a file straight off the server, so the whole
+         photo directory has to be in its bundle. Same rule as the spot email's
+         lot map, and the same caveat: a file added locally is not on the server
+         until it is deployed. The route says so rather than sending without it. */
+      '/api/admin/compose': ['./public/photos/**'],
       '/api/admin/volunteer-waivers': [
         './lib/agreement/fonts/**',
         './public/logo.png',

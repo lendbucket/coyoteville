@@ -7940,276 +7940,6 @@ p {
   color: var(--ink);
 }
 
-/* ============================================================
-   /fundraiser/live, the organization's page
-   ============================================================
-
-   Full brand, unlike /park. This is opened by the people who worked for the
-   money and shown to the parents standing next to them, so it looks like the
-   thing they signed up for. The three figures are the largest things on it and
-   set in tabular numerals: a total that ticks up while somebody is reading it
-   must not make the line jump. */
-
-.live {
-  position: relative;
-  min-height: 100dvh;
-  padding: clamp(1.5rem, 6vw, 3rem) var(--gutter) 4rem;
-  background: var(--char);
-}
-
-.live__shell {
-  max-width: 34rem;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.live__marks {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.9rem;
-  flex-wrap: wrap;
-  margin-bottom: 1.25rem;
-}
-
-.live__orglogo {
-  max-width: 7rem;
-  max-height: 4rem;
-  width: auto;
-  height: auto;
-}
-
-.live__with {
-  font-size: 0.8rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--cream-50);
-}
-
-.live__eyebrow {
-  margin: 0 0 0.35rem;
-  font-family: var(--font-condensed);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--ember);
-}
-
-.live__title {
-  margin: 0 0 0.35rem;
-  font-family: var(--font-display);
-  font-size: clamp(1.9rem, 8vw, 2.9rem);
-  line-height: 1.05;
-  text-transform: uppercase;
-  color: var(--cream);
-}
-
-.live__event {
-  margin: 0 0 2rem;
-  font-size: 1rem;
-  color: var(--cream-70);
-}
-
-/* The countdown. Its own block with a reserved height, so the page does not
-   jump when the clock arrives on hydration or when it runs out. */
-.live__clock {
-  min-height: 5.5rem;
-  margin-bottom: 2rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.live__clock-label {
-  margin: 0 0 0.2rem;
-  font-size: 0.8rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--cream-50);
-}
-
-.live__clock-num {
-  margin: 0;
-  font-family: var(--font-condensed);
-  font-size: clamp(2.6rem, 13vw, 4rem);
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  color: var(--cream);
-}
-
-.live__clock-num--idle {
-  visibility: hidden;
-}
-
-.live__closed {
-  margin: 0;
-  font-family: var(--font-condensed);
-  font-size: clamp(1.1rem, 4.6vw, 1.5rem);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--ember);
-}
-
-/* The three numbers. */
-.live__figures {
-  display: grid;
-  gap: 1rem;
-  margin: 0 0 1.25rem;
-  text-align: left;
-}
-
-.live__figure {
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--hairline-dark);
-  border-radius: var(--radius-sm);
-  background: rgba(0, 0, 0, 0.22);
-}
-
-.live__figure--share {
-  border-color: var(--ember);
-  background: rgba(240, 169, 75, 0.08);
-}
-
-.live__figure dt {
-  margin: 0 0 0.3rem;
-  font-size: 0.78rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--cream-50);
-}
-
-.live__figure dd {
-  margin: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  flex-wrap: wrap;
-}
-
-.live__figure dd b {
-  font-family: var(--font-condensed);
-  font-size: clamp(2rem, 9vw, 2.9rem);
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  color: var(--cream);
-}
-
-.live__figure--share dd b {
-  color: var(--ember);
-}
-
-/* A date is not a figure and does not want figure sizing. */
-.live__figure dd b.live__date {
-  font-size: clamp(1.15rem, 5vw, 1.5rem);
-}
-
-.live__sub {
-  font-size: 0.95rem;
-  color: var(--cream-50);
-}
-
-.live__gross {
-  margin: 0 0 2.5rem;
-  font-size: 0.86rem;
-  line-height: 1.5;
-  color: var(--cream-50);
-  text-align: left;
-}
-
-/* The ledger. */
-.live__ledger {
-  text-align: left;
-}
-
-.live__h2 {
-  margin: 0 0 0.75rem;
-  font-family: var(--font-condensed);
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--cream);
-}
-
-.live__empty {
-  margin: 0;
-  padding: 1rem;
-  border: 1px dashed var(--hairline-dark);
-  border-radius: var(--radius-sm);
-  font-size: 0.95rem;
-  color: var(--cream-50);
-}
-
-.live__rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  border-top: 1px solid var(--hairline-dark);
-}
-
-.live__row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  padding: 0.6rem 0;
-  border-bottom: 1px solid var(--hairline-dark);
-  font-size: 0.95rem;
-}
-
-.live__row-time {
-  width: 4.5rem;
-  flex: none;
-  font-variant-numeric: tabular-nums;
-  color: var(--cream-50);
-}
-
-.live__row-label {
-  flex: 1;
-  color: var(--cream-70);
-}
-
-.live__row-amount {
-  flex: none;
-  font-family: var(--font-condensed);
-  font-size: 1.05rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--cream);
-}
-
-.live__foot {
-  margin: 2.5rem 0 0;
-  font-size: 0.86rem;
-  color: var(--cream-50);
-}
-
-.orgs__sent {
-  margin-top: 6px;
-}
-
-/* The muted deduction line, and the total. Seven figures is a lot for a phone,
-   so weight does the sorting: the fee is quiet, the three that are money coming
-   to the organization carry the accent, and the total is the largest. */
-.live__figure--muted dt,
-.live__figure--muted dd b {
-  color: var(--cream-50);
-}
-
-.live__figure--muted dd b {
-  font-size: clamp(1.3rem, 6vw, 1.8rem);
-}
-
-.live__figure--total {
-  border-width: 2px;
-}
-
-.live__figure--total dd b {
-  font-size: clamp(2.4rem, 11vw, 3.4rem);
-}
 
 /* ------------------------------------------- parking money, in the tracker */
 
@@ -8351,257 +8081,6 @@ p {
   margin-bottom: clamp(0.6rem, 3vw, 1rem);
 }
 
-/* ------------------------------------------------- the live page's shell */
-
-/* Exactly 100dvh and it does not scroll. The head is an ordinary flex child
-   and the ledger is the only element with a scrollbar, which is the whole
-   mechanism rather than sticky positioning on top of a scrolling document. */
-.live {
-  min-height: 0;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  padding-top: max(clamp(0.9rem, 4vw, 2rem), env(safe-area-inset-top));
-  padding-bottom: 0;
-  overflow: hidden;
-}
-
-.live__shell {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-}
-
-.live__head {
-  flex: none;
-}
-
-.live__ledger {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  /* Momentum scrolling keeps its own inertia rather than handing it to the
-     page, which cannot scroll anyway. */
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
-}
-
-/* The head, tightened so the seven figures and the countdown clear a 844px
-   screen with room for the ledger underneath. */
-.live__marks {
-  gap: 0.6rem;
-  margin-bottom: clamp(0.5rem, 3vw, 1rem);
-}
-
-.live__orglogo {
-  max-height: clamp(2rem, 9vw, 3.2rem);
-}
-
-.live__title {
-  font-size: clamp(1.4rem, 6.5vw, 2.2rem);
-}
-
-.live__event {
-  margin-bottom: clamp(0.6rem, 3vw, 1.25rem);
-}
-
-.live__clock {
-  min-height: 0;
-  margin-bottom: clamp(0.6rem, 3vw, 1.25rem);
-}
-
-.live__clock-num {
-  font-size: clamp(2rem, 10vw, 3rem);
-}
-
-/* The figures, as rows. Cards were 742px for the set, which left no room for
-   anything underneath them. */
-.live__figures {
-  gap: 0;
-  margin-bottom: 0.75rem;
-  border-top: 1px solid var(--hairline-dark);
-}
-
-.live__figure {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.5rem 0;
-  border: 0;
-  border-bottom: 1px solid var(--hairline-dark);
-  border-radius: 0;
-  background: none;
-  min-height: 44px;
-}
-
-.live__figure dt {
-  margin: 0;
-  font-size: 0.82rem;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  color: var(--cream-70);
-  text-align: left;
-}
-
-.live__figure dd {
-  margin: 0;
-  display: block;
-  font-family: var(--font-condensed);
-  font-size: 1.35rem;
-  font-weight: 700;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  color: var(--cream);
-  white-space: nowrap;
-}
-
-.live__figure--share dd {
-  color: var(--ember);
-}
-
-.live__figure--muted dt,
-.live__figure--muted dd {
-  color: var(--cream-50);
-  font-size: 0.82rem;
-}
-
-.live__figure--muted dd {
-  font-size: 1.15rem;
-}
-
-.live__figure--total {
-  border-bottom-width: 2px;
-  border-bottom-color: var(--ember);
-}
-
-.live__figure--total dt {
-  font-weight: 700;
-  color: var(--cream);
-}
-
-.live__figure--total dd {
-  font-size: 1.9rem;
-  color: var(--ember);
-}
-
-.live__figure--date dd {
-  font-family: var(--font-body);
-  font-size: 0.95rem;
-  font-weight: 700;
-  white-space: normal;
-  text-align: right;
-}
-
-.live__sub {
-  display: block;
-  font-size: 0.75rem;
-  color: var(--cream-50);
-}
-
-.live__gross {
-  margin-bottom: 0.75rem;
-  font-size: 0.78rem;
-  line-height: 1.45;
-}
-
-.live__foot {
-  margin: 1.25rem 0 0;
-  font-size: 0.86rem;
-  color: var(--cream-50);
-}
-
-/* A real target rather than an inline link inside a sentence. */
-.live__mail {
-  display: block;
-  min-height: 44px;
-  line-height: 44px;
-  color: var(--ember);
-}
-
-/* A short screen. An iPhone SE is 320 by 568, and the seven figures plus the
-   countdown do not clear it at the sizes above: the last two rows fell off and
-   the ledger was squeezed to sixteen pixels.
-
-   Keyed on height as well as width, because this is a vertical fit problem and
-   a wide short screen has it too. The figure rows lose their 44px floor here,
-   which they can: they are dt and dd in a list, not tap targets, and the 44px
-   rule is about things you press. Nothing pressable shrinks. */
-@media (max-width: 360px), (max-height: 720px) {
-  .live__marks {
-    margin-bottom: 0.35rem;
-  }
-
-  .live__orglogo {
-    max-height: 1.9rem;
-  }
-
-  .live__eyebrow {
-    display: none;
-  }
-
-  .live__title {
-    font-size: 1.25rem;
-  }
-
-  .live__event {
-    font-size: 0.85rem;
-    margin-bottom: 0.4rem;
-  }
-
-  .live__clock {
-    margin-bottom: 0.4rem;
-  }
-
-  .live__clock-label {
-    font-size: 0.7rem;
-  }
-
-  .live__clock-num {
-    font-size: 1.9rem;
-  }
-
-  .live__figure {
-    min-height: 0;
-    padding: 0.3rem 0;
-  }
-
-  .live__figure dt {
-    font-size: 0.75rem;
-  }
-
-  .live__figure dd {
-    font-size: 1.05rem;
-  }
-
-  .live__figure--muted dd {
-    font-size: 0.95rem;
-  }
-
-  .live__figure--total dd {
-    font-size: 1.45rem;
-  }
-
-  .live__figure--date dd {
-    font-size: 0.82rem;
-  }
-
-  .live__sub {
-    font-size: 0.68rem;
-  }
-
-  .live__gross {
-    font-size: 0.7rem;
-    margin-bottom: 0.5rem;
-  }
-
-  .live__h2 {
-    font-size: 0.85rem;
-  }
-}
 
 /* --------------------------------------------- spot assignments, tracker */
 
@@ -8667,4 +8146,569 @@ p {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--ember);
+}
+
+/* ============================================================
+   /fundraiser/live, the scoreboard
+   ============================================================
+
+   Held up in a stand and shown to parents. One number is the page and
+   everything that produces it is a receipt one tap down, so the boldness is
+   spent entirely on the hero and everything else is deliberately quiet.
+
+   The app shell from 606de11 is unchanged: 100dvh, one scroll container, safe
+   areas, overscroll contained. The scroller is now the whole lower half rather
+   than only the ledger, so the receipt scrolls with the feed and the numbers
+   above stay put. */
+
+.live {
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding-top: max(clamp(0.6rem, 3vw, 1.5rem), env(safe-area-inset-top));
+  padding-bottom: 0;
+  overflow: hidden;
+  background: var(--char);
+}
+
+.live__shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 34rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Everything above the scroller. Fixed, because the number a team is watching
+   must not scroll away from them. */
+.live__head {
+  flex: none;
+}
+
+/* -------------------------------------------------------------- header */
+
+.live__marks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.4rem;
+}
+
+.live__orglogo {
+  max-width: 5rem;
+  max-height: clamp(1.75rem, 8vw, 2.6rem);
+  width: auto;
+  height: auto;
+}
+
+.live__with {
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+.live__title {
+  margin: 0 0 0.15rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 5.5vw, 1.7rem);
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.live__event {
+  margin: 0 0 clamp(0.5rem, 2.5vw, 0.9rem);
+  font-size: 0.8rem;
+  color: var(--cream-50);
+}
+
+/* ---------------------------------------------------------- the hero */
+
+.live__heroLabel {
+  margin: 0 0 0.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  font-family: var(--font-condensed);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+/* Readable from a row back. This is the whole reason the page exists, so it
+   takes the size and nothing else competes for it. */
+.live__hero {
+  margin: 0;
+  font-family: var(--font-condensed);
+  font-size: clamp(3.25rem, 20vw, 5.5rem);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ember);
+}
+
+.live__heroSub {
+  margin: 0.3rem 0 clamp(0.6rem, 3vw, 1.1rem);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--cream-70);
+}
+
+/* Alive, not decorative. It stops when the night does. */
+.live__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--ember);
+  animation: live-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.78);
+  }
+}
+
+/* ------------------------------------------------------- the countdown */
+
+.live__clock {
+  margin-bottom: clamp(0.6rem, 3vw, 1rem);
+}
+
+.live__clockLabel {
+  margin: 0 0 0.1rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+/* Each unit in its own box, all three the same size. Under ten minutes the
+   seconds are the number being watched, and setting them smaller than the hours
+   would shrink exactly the digit that starts to matter. */
+.live__clockNum {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.1em;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 7.5vw, 2.1rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+}
+
+.live__clockNum i {
+  font-style: normal;
+  color: var(--cream-50);
+}
+
+.live__clockNum--idle {
+  visibility: hidden;
+}
+
+.live__closed {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.3rem, 6.5vw, 1.9rem);
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--rust-bright);
+}
+
+/* The night, as a bar. Thin on purpose: it is context, not a figure. */
+.live__bar {
+  margin: 0.45rem auto 0;
+  width: min(100%, 20rem);
+  height: 3px;
+  border-radius: 999px;
+  background: var(--hairline-dark);
+  overflow: hidden;
+}
+
+.live__bar span {
+  display: block;
+  height: 100%;
+  background: var(--ember);
+  transition: width 1s linear;
+}
+
+/* ------------------------------------------------------- the two inputs */
+
+.live__tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.live__tile {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.22);
+  text-align: left;
+}
+
+.live__tileLabel {
+  margin: 0 0 0.1rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+.live__tileValue {
+  margin: 0;
+  font-family: var(--font-condensed);
+  font-size: clamp(1.1rem, 5.2vw, 1.45rem);
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+}
+
+.live__tileSub {
+  margin: 0.05rem 0 0;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream-50);
+}
+
+/* ------------------------------------------------------- the scroller */
+
+/* The one scroll container. A flick past either end does not rubber band the
+   page behind it, which cannot scroll anyway. */
+.live__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  text-align: left;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* ------------------------------------------------------- the receipt */
+
+.live__calc {
+  border-top: 1px solid var(--hairline-dark);
+  border-bottom: 1px solid var(--hairline-dark);
+  margin-bottom: 0.9rem;
+}
+
+.live__calcHead {
+  padding: 0.7rem 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  font-family: var(--font-condensed);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cream-70);
+  list-style: none;
+}
+
+.live__calcHead::-webkit-details-marker {
+  display: none;
+}
+
+.live__calcHead::after {
+  content: "+";
+  margin-left: auto;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--cream-50);
+}
+
+.live__calc[open] .live__calcHead::after {
+  content: "-";
+}
+
+.live__calcRows {
+  margin: 0 0 0.75rem;
+}
+
+.live__calcRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0;
+  border-top: 1px solid var(--hairline-dark);
+}
+
+.live__calcRow dt {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--cream-70);
+}
+
+.live__calcRow dd {
+  margin: 0;
+  font-family: var(--font-condensed);
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--cream);
+}
+
+.live__calcRow--muted dt,
+.live__calcRow--muted dd {
+  color: var(--cream-50);
+}
+
+.live__calcRow--total dt {
+  font-weight: 700;
+  color: var(--cream);
+}
+
+.live__calcRow--total dd {
+  font-size: 1.25rem;
+  color: var(--ember);
+}
+
+.live__calcRow--date dd {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  white-space: normal;
+  text-align: right;
+}
+
+.live__note {
+  margin: 0 0 1rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--cream-50);
+}
+
+/* ---------------------------------------------------------- the feed */
+
+.live__feedHead {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-condensed);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.live__empty {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 1px dashed var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  color: var(--cream-50);
+}
+
+.live__feed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.live__row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.5rem 0.5rem 0.5rem 0;
+  border-bottom: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+}
+
+.live__rowTime {
+  width: 4.75rem;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream-50);
+}
+
+.live__rowWhat {
+  font-family: var(--font-condensed);
+  font-size: 1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+}
+
+/* A payment that just landed: it slides down into place and holds an amber
+   field for a moment. Long enough to notice from a rail, short enough not to
+   leave a stripe across a list somebody is reading. */
+.live__row.is-new {
+  animation: live-arrive 2.2s ease-out both;
+}
+
+@keyframes live-arrive {
+  0% {
+    transform: translateY(-8px);
+    opacity: 0;
+    background: rgba(240, 169, 75, 0.28);
+  }
+  12% {
+    transform: translateY(0);
+    opacity: 1;
+    background: rgba(240, 169, 75, 0.28);
+  }
+  70% {
+    background: rgba(240, 169, 75, 0.28);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+.live__foot {
+  margin: 1.25rem 0 0;
+  font-size: 0.82rem;
+  color: var(--cream-50);
+}
+
+.live__mail {
+  display: block;
+  min-height: 44px;
+  line-height: 44px;
+  color: var(--ember);
+}
+
+/* ----------------------------------------------------- reduced motion */
+
+/* No slide, no pulse, no bar transition. The row still appears and the dot is
+   still there; they simply stop moving. */
+@media (prefers-reduced-motion: reduce) {
+  .live__dot {
+    animation: none;
+  }
+
+  .live__row.is-new {
+    animation: none;
+  }
+
+  .live__bar span {
+    transition: none;
+  }
+}
+
+/* --------------------------------------------------------- wide screens */
+
+@media (min-width: 900px) {
+  .live__shell {
+    max-width: 40rem;
+  }
+
+  .live__tiles {
+    gap: 0.75rem;
+  }
+}
+
+/* A short screen. The hero and the countdown are the two things that must both
+   clear the fold, so everything around them gives first. */
+@media (max-height: 700px) {
+  .live__marks {
+    margin-bottom: 0.25rem;
+  }
+
+  .live__orglogo {
+    max-height: 1.6rem;
+  }
+
+  .live__event {
+    margin-bottom: 0.4rem;
+  }
+
+  .live__hero {
+    font-size: clamp(2.6rem, 17vw, 3.4rem);
+  }
+
+  .live__heroSub {
+    font-size: 0.75rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .live__clockNum {
+    font-size: 1.45rem;
+  }
+
+  .live__tile {
+    padding: 0.4rem 0.5rem;
+  }
+}
+
+/* The rehearsal, and the send row. */
+.cmp__sendRow {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.cmp__rehearsal {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid var(--ember);
+  border-radius: var(--radius-sm);
+  background: rgba(240, 169, 75, 0.06);
+}
+
+.cmp__rehearsalHead {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ember);
+}
+
+.cmp__rehearsalList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  max-height: 40vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.cmp__rehearsalList li {
+  display: grid;
+  gap: 1px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--hairline-dark);
+}
+
+.cmp__rehearsalList b {
+  color: var(--cream);
+}
+
+.cmp__rehearsalList span {
+  color: var(--cream-50);
+  word-break: break-all;
+}
+
+.cmp__rehearsalFiles {
+  font-size: 12px;
 }

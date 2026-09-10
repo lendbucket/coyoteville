@@ -27,6 +27,16 @@ import type { VendorCardRow } from './types';
 
 type Status = 'idle' | 'sending' | 'done' | 'error';
 
+/**
+ * What the server will let the composer attach off its own disk.
+ *
+ * Named here rather than listed from the server, because the server is the
+ * thing that decides: it refuses anything not actually in public/photos, so
+ * this list is a convenience and not the check. A name added here that is not
+ * deployed gets a plain refusal rather than a send with no attachment.
+ */
+const LIBRARY_FILES = ['lot-map-2026-09-11.png'];
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 
 export default function Composer({
@@ -35,6 +45,7 @@ export default function Composer({
   onToggle,
   onClearSelection,
   onSelectAll,
+  onSelectIds,
   eventDate,
   onSent,
 }: {
@@ -44,6 +55,8 @@ export default function Composer({
   onToggle: (id: string) => void;
   onClearSelection: () => void;
   onSelectAll: () => void;
+  /** Select an exact set, for the approved only shortcut. */
+  onSelectIds: (ids: string[]) => void;
   eventDate: string;
   onSent: () => void;
 }) {
@@ -59,7 +72,15 @@ export default function Composer({
   const [previewWide, setPreviewWide] = useState(true);
   const [showMerge, setShowMerge] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
-  const [result, setResult] = useState<{ sent: number; failed: { to: string; reason: string }[]; skipped: number } | null>(null);
+  const [result, setResult] = useState<{
+    sent: number;
+    failed: { to: string; name?: string; reason: string }[];
+    skipped: number;
+  } | null>(null);
+  const [rehearsal, setRehearsal] = useState<
+    { to: string; name: string; subject: string; attachments: string[] }[] | null
+  >(null);
+  const [library, setLibrary] = useState<string[]>([]);
   const [message, setMessage] = useState('');
 
   const selectedRows = useMemo(
@@ -70,6 +91,19 @@ export default function Composer({
   const manualList = useMemo(
     () => manual.split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean),
     [manual]
+  );
+
+  /**
+   * Everyone the event owes an email, which is not everyone on screen.
+   *
+   * The event scope loads denied and cancelled rows too, so Select all would
+   * put a vendor we turned down on a list telling people where to park. This is
+   * the approved set across every spot type, which is what "everyone on this
+   * event" has always meant out loud.
+   */
+  const approvedRows = useMemo(
+    () => rows.filter((r) => r.approvalStatus === 'approved'),
+    [rows]
   );
 
   const badManual = manualList.filter((m) => !EMAIL_RE.test(m));
@@ -179,6 +213,59 @@ export default function Composer({
       status !== 'sending'
   );
 
+  function buildForm(dryRun: boolean): FormData {
+    const form = new FormData();
+    form.set('subject', subject);
+    form.set('preheader', preheaderText);
+    form.set('body', bodyHtml);
+    form.set('vendor_ids', selectedRows.map((r) => r.id).join(','));
+    form.set('manual', manualList.join(','));
+    form.set('library', library.join(','));
+    if (dryRun) form.set('dry_run', 'true');
+    for (const file of files) form.append('attachments', file);
+    return form;
+  }
+
+  /**
+   * A rehearsal. Builds every message and reports what each send would carry,
+   * without sending and without stamping a row.
+   *
+   * Worth having in front of a mass send for the reason it is worth having at
+   * all: one line per recipient, each with one address on it, is the claim, and
+   * this is where somebody can look at it rather than take it on trust.
+   */
+  async function rehearse() {
+    if (!canSend) return;
+    setStatus('sending');
+    setMessage('');
+    setResult(null);
+    setRehearsal(null);
+
+    try {
+      const response = await fetch('/api/admin/compose', {
+        method: 'POST',
+        body: buildForm(true),
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        preview?: { to: string; name: string; subject: string; attachments: string[] }[];
+      };
+
+      if (!response.ok || !data.ok) {
+        setStatus('error');
+        setMessage(data.error ?? 'The rehearsal failed.');
+        return;
+      }
+
+      setStatus('idle');
+      setRehearsal(data.preview ?? []);
+    } catch {
+      setStatus('error');
+      setMessage('The rehearsal failed. Check your connection.');
+    }
+  }
+
   async function send() {
     if (!canSend) return;
 
@@ -190,14 +277,9 @@ export default function Composer({
     setStatus('sending');
     setMessage('');
     setResult(null);
+    setRehearsal(null);
 
-    const form = new FormData();
-    form.set('subject', subject);
-    form.set('preheader', preheaderText);
-    form.set('body', bodyHtml);
-    form.set('vendor_ids', selectedRows.map((r) => r.id).join(','));
-    form.set('manual', manualList.join(','));
-    for (const file of files) form.append('attachments', file);
+    const form = buildForm(false);
 
     try {
       const response = await fetch('/api/admin/compose', { method: 'POST', body: form });
@@ -205,7 +287,7 @@ export default function Composer({
         ok?: boolean;
         error?: string;
         sent?: number;
-        failed?: { to: string; reason: string }[];
+        failed?: { to: string; name?: string; reason: string }[];
         skipped?: number;
       };
 
@@ -258,7 +340,8 @@ export default function Composer({
               <ul>
                 {result.failed.map((f) => (
                   <li key={f.to}>
-                    {f.to} — {f.reason}
+                    <b>{f.name || f.to}</b>
+                    {f.name ? `, ${f.to}` : ''}. {f.reason}
                   </li>
                 ))}
               </ul>
@@ -289,6 +372,16 @@ export default function Composer({
         <h2 className="cmp__h">To</h2>
 
         <div className="cmp__chips">
+          {/* The one to use for a mass send. Select all takes what is on
+              screen, and an event scope has denied and cancelled rows in it: a
+              vendor we turned down does not get told where to park. */}
+          <button
+            className="fchip fchip--action"
+            type="button"
+            onClick={() => onSelectIds(approvedRows.map((r) => r.id))}
+          >
+            Everyone approved, {approvedRows.length}
+          </button>
           <button className="fchip fchip--action" type="button" onClick={onSelectAll}>
             Select all {rows.length}
           </button>
@@ -498,22 +591,84 @@ export default function Composer({
         </div>
       </section>
 
+      {/* --------------------------------------------------- from the server */}
+      <section className="cmp__section">
+        <h2 className="cmp__h">Attach from the site</h2>
+        <p className="cmp__hint">
+          Files already deployed with the site. Faster than uploading a copy from a phone, and it
+          is the same picture every recipient gets.
+        </p>
+        <div className="cmp__chips">
+          {LIBRARY_FILES.map((name) => (
+            <button
+              key={name}
+              className={`fchip ${library.includes(name) ? 'is-on' : ''}`}
+              type="button"
+              aria-pressed={library.includes(name)}
+              onClick={() =>
+                setLibrary((cur) =>
+                  cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name]
+                )
+              }
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      </section>
+
       {/* ------------------------------------------------------------ send */}
       <div className="cmp__send">
         {status === 'error' ? <p className="cmp__error">{message}</p> : null}
         {result && result.failed.length && status === 'error' ? (
           <ul className="cmp__errorList">
             {result.failed.map((f) => (
-              <li key={f.to}>{f.to}</li>
+              <li key={f.to}>{f.name ? `${f.name}, ${f.to}` : f.to}</li>
             ))}
           </ul>
         ) : null}
 
-        <button className="btn btn--amber btn--lg" type="button" onClick={send} disabled={!canSend}>
-          {status === 'sending'
-            ? 'Sending…'
-            : `Send to ${recipientCount} ${recipientCount === 1 ? 'person' : 'people'}`}
-        </button>
+        {/* The rehearsal. One line per recipient, each with one address on it,
+            so the claim that nobody sees anybody else can be looked at rather
+            than taken on trust. */}
+        {rehearsal ? (
+          <div className="cmp__rehearsal">
+            <p className="cmp__rehearsalHead">
+              {rehearsal.length} separate {rehearsal.length === 1 ? 'message' : 'messages'}, one
+              address each. Nothing was sent.
+            </p>
+            <ul className="cmp__rehearsalList">
+              {rehearsal.map((line) => (
+                <li key={line.to}>
+                  <b>{line.name}</b>
+                  <span>{line.to}</span>
+                  {line.attachments.length ? (
+                    <span className="cmp__rehearsalFiles">{line.attachments.join(', ')}</span>
+                  ) : (
+                    <span className="cmp__rehearsalFiles">no attachment</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="cmp__sendRow">
+          <button
+            className="btn btn--ghost"
+            type="button"
+            onClick={rehearse}
+            disabled={!canSend || status === 'sending'}
+          >
+            Rehearse, send nothing
+          </button>
+
+          <button className="btn btn--amber btn--lg" type="button" onClick={send} disabled={!canSend}>
+            {status === 'sending'
+              ? 'Sending...'
+              : `Send to ${recipientCount} ${recipientCount === 1 ? 'person' : 'people'}`}
+          </button>
+        </div>
       </div>
     </div>
   );

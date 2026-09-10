@@ -610,6 +610,7 @@ export default function AdminShell({
           onToggle={toggle}
           onClearSelection={() => setSelectedIds([])}
           onSelectAll={() => setSelectedIds(visible.map((r) => r.id))}
+          onSelectIds={(ids) => setSelectedIds(ids)}
           eventDate={eventDate}
           onSent={refresh}
         />

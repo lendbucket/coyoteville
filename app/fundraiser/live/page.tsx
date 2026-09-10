@@ -86,7 +86,6 @@ export default async function FundraiserLivePage({
           <Brand size={112} />
         </div>
 
-        <p className="live__eyebrow">{PROGRAM_NAME}</p>
         <h1 className="live__title">{snapshot.org.name}</h1>
         <p className="live__event">
           {snapshot.event.name}, {snapshot.event.displayDate}
@@ -95,7 +94,10 @@ export default async function FundraiserLivePage({
         <FundraiserLive
           id={id}
           token={token}
+          orgName={snapshot.org.name}
+          startsAtISO={snapshot.event.startsAtISO}
           endsAtISO={snapshot.event.endsAtISO}
+          openTime={snapshot.event.openTime}
           initial={{
             cents: snapshot.totals.cents,
             vehicles: snapshot.totals.vehicles,
