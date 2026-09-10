@@ -52,6 +52,13 @@ const PARKING_EVENT = 'home-game-2026-09-11';
 const PARKING_ORDER_ID = 'ORDER_PARKING';
 const PARKING_PAYMENT_ID = 'PAYMENT_PARKING';
 const PARKING_CENTS = 1000;
+/* What Square actually charged on that ten dollars. Not a percentage of it:
+   the point of the column is that it is Square's own number. */
+const PARKING_FEE_CENTS = 59;
+
+const GIFT_ORDER_ID = 'ORDER_GIFT';
+const GIFT_PAYMENT_ID = 'PAYMENT_GIFT';
+const GIFT_CENTS = 2000;
 
 /** The row as production has it: prepaid signup, corrected back to unpaid. */
 const ROW = {
@@ -111,6 +118,18 @@ function supabaseFake() {
           state.filters[column] = value;
           return chain;
         },
+        /* supabase-js returns a thenable builder: awaiting it without calling
+           maybeSingle or single runs the statement. The fee backfill does
+           exactly that, so the fake has to be awaitable too. */
+        then(resolve) {
+          if (table === 'parking_payments' && state.payload) {
+            const row = parkingRows.find((x) => x.id === state.filters.id);
+            if (row) Object.assign(row, state.payload);
+            resolve({ data: null, error: null });
+            return;
+          }
+          resolve({ data: null, error: null });
+        },
         async single() {
           if (table === 'parking_payments' && state.inserted) {
             const row = { id: 'parking-row-' + (parkingRows.length + 1), ...state.inserted };
@@ -126,7 +145,12 @@ function supabaseFake() {
             const seen = parkingRows.find(
               (x) => x.square_payment_id === state.filters.square_payment_id
             );
-            return { data: seen ? { id: seen.id } : null, error: null };
+            /* Both columns the handler selects. Returning only the id made the
+               handler see an undefined fee and rewrite one it already had. */
+            return {
+              data: seen ? { id: seen.id, square_fee_cents: seen.square_fee_cents } : null,
+              error: null,
+            };
           }
 
           if (state.payload) {
@@ -185,6 +209,16 @@ const FAKES = {
                 id: PARKING_ORDER_ID,
                 referenceId: 'parking:' + PARKING_EVENT,
                 totalMoney: { amount: PARKING_CENTS },
+                netAmountDueMoney: { amount: 0 },
+              },
+            };
+          }
+          if (orderId === GIFT_ORDER_ID) {
+            return {
+              order: {
+                id: GIFT_ORDER_ID,
+                referenceId: 'donation:' + PARKING_EVENT + ':' + GIFT_CENTS,
+                totalMoney: { amount: GIFT_CENTS },
                 netAmountDueMoney: { amount: 0 },
               },
             };
@@ -417,6 +451,15 @@ async function parkingCase() {
   );
   check('parking: no vendor email went out', emails.length === 0, `${emails.length} emails`);
 
+  /* The first delivery carries no fee, which is the normal case: Square
+     calculates it after settlement. Null, not zero. */
+  check(
+    'parking: the fee is null before Square has calculated it',
+    row.square_fee_cents === null,
+    String(row.square_fee_cents)
+  );
+  check('parking: kind is parking', row.kind === 'parking', String(row.kind));
+
   /* Square redelivers until it gets a 2xx. The same ten dollars must not be
      booked twice, which is the whole reason square_payment_id is unique. */
   const again = await deliver(payment);
@@ -428,11 +471,82 @@ async function parkingCase() {
     parkingRows.length === 1,
     `${parkingRows.length} rows`
   );
+
+  /* The later delivery that brings the fee. Not a duplicate: it is the only
+     time Square ever tells us what it charged, and a handler that treated it as
+     one would leave every fee null forever. */
+  const withFee = await deliver({
+    ...payment,
+    processing_fee: [{ amount_money: { amount: PARKING_FEE_CENTS } }],
+  });
+  const feeBody = withFee.__json || {};
+
+  check('parking: the fee delivery returns 200', withFee.status === 200, `got ${withFee.status}`);
+  check('parking: the fee delivery inserts nothing', feeBody.inserted === false, String(feeBody.inserted));
+  check('parking: the fee delivery says it recorded one', feeBody.feeRecorded === true, String(feeBody.feeRecorded));
+  check(
+    'parking: still exactly one row after the fee arrives',
+    parkingRows.length === 1,
+    `${parkingRows.length} rows`
+  );
+  check(
+    "parking: the fee is Square's own number",
+    parkingRows[0].square_fee_cents === PARKING_FEE_CENTS,
+    String(parkingRows[0].square_fee_cents)
+  );
+  check(
+    'parking: the amount did not move when the fee landed',
+    parkingRows[0].amount_cents === PARKING_CENTS,
+    String(parkingRows[0].amount_cents)
+  );
+
+  /* A third delivery of the same thing must not touch the fee again. */
+  await deliver({
+    ...payment,
+    processing_fee: [{ amount_money: { amount: 999 } }],
+  });
+  check(
+    'parking: a fee already recorded is not overwritten',
+    parkingRows[0].square_fee_cents === PARKING_FEE_CENTS,
+    String(parkingRows[0].square_fee_cents)
+  );
+}
+
+async function donationCase() {
+  reset();
+  parkingRows = [];
+
+  const response = await deliver({
+    id: GIFT_PAYMENT_ID,
+    status: 'COMPLETED',
+    order_id: GIFT_ORDER_ID,
+    amount_money: { amount: GIFT_CENTS, currency: 'USD' },
+    processing_fee: [{ amount_money: { amount: 88 } }],
+  });
+  const body = response.__json || {};
+
+  check('gift: handler returned 200', response.status === 200, `got ${response.status}`);
+  check('gift: took the parking branch', body.parking === true, JSON.stringify(body));
+  check('gift: kind is donation', body.kind === 'donation', String(body.kind));
+  check('gift: named the event', body.eventSlug === PARKING_EVENT, String(body.eventSlug));
+  check('gift: exactly one row', parkingRows.length === 1, `${parkingRows.length} rows`);
+
+  const row = parkingRows[0] || {};
+  check('gift: the row is a donation', row.kind === 'donation', String(row.kind));
+  check('gift: the amount came off the payment', row.amount_cents === GIFT_CENTS, String(row.amount_cents));
+  check('gift: source is still qr', row.source === 'qr', String(row.source));
+  /* A gift is money, not a car. Counting it as a vehicle would inflate the
+     count on the organization's own page. */
+  check('gift: no vehicle counted', row.vehicle_count === 0, String(row.vehicle_count));
+  check('gift: the fee was taken when present', row.square_fee_cents === 88, String(row.square_fee_cents));
+
+  check('gift: vendor_applications was never written', writes.length === 0, `${writes.length} writes`);
 }
 
 (async () => {
   await vendorCase();
   await parkingCase();
+  await donationCase();
 
   fs.rmSync(outDir, { recursive: true, force: true });
 
@@ -445,8 +559,10 @@ async function parkingCase() {
   console.log(
     'check-webhook-settles: an admin-requested link settles identically to a signup ' +
       '(paid, paid_at, square_payment_id, payment_method online, approval untouched), ' +
-      'and a parking referenceId books one parking_payments row as source qr, ' +
-      'touches no vendor row, and is a no-op on redelivery.'
+      'a parking referenceId books one row as source qr and kind parking, ' +
+      'a donation referenceId books one as kind donation with no vehicle, ' +
+      "neither touches a vendor row, both are no-ops on redelivery, and Square's " +
+      'own fee is written when the later delivery brings it and never overwritten.'
   );
 })().catch((err) => {
   console.error('check-webhook-settles: threw');

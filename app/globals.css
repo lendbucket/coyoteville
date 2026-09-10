@@ -7758,16 +7758,47 @@ p {
    /park, the QR target
    ============================================================
 
-   A driver, a phone, one bar of signal, a car behind them. Everything here
-   follows from that: no lights, no hero, no image above the button, and type
-   big enough to read at arm's length in a moving queue. The two brand faces
-   are already preloaded site wide and nothing else is asked for. */
+   A driver, a phone, one bar of signal, a car behind them. Branded, because
+   half the people who ever see this page will see nothing else of ours, and
+   the brand is nearly free here: the stylesheet is one file the browser is
+   already fetching, so the mark and one strip of lights are the only extra
+   bytes. No hero, no photo, nothing below the gift block, and no JavaScript
+   of its own. Type big enough to read at arm's length in a moving queue. */
 
 .park {
+  position: relative;
   min-height: 100dvh;
   padding: clamp(1.5rem, 7vw, 3rem) var(--gutter) 3rem;
   background: var(--char);
   text-align: center;
+}
+
+/* The mark, centred above the price.
+
+   The emblem and the name rather than /logo.svg, which is 42 kB brotli. On a
+   page opened from a QR code by somebody with nothing cached, that is the
+   single most expensive thing we would be asking for, and the type here is
+   already paid for: Anton is preloaded site wide. */
+.parkbrand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.parkbrand__mark {
+  width: 56px;
+  height: 56px;
+}
+
+.parkbrand__name {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--cream);
+  line-height: 1;
 }
 
 .park__shell {
@@ -7775,15 +7806,6 @@ p {
   margin: 0 auto;
 }
 
-.park__eyebrow {
-  margin: 0 0 0.5rem;
-  font-family: var(--font-condensed);
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--cream-50);
-}
 
 .park__price,
 .park__thanks {
@@ -7865,18 +7887,326 @@ p {
   color: var(--cream);
 }
 
-.park__raised {
-  margin: 0;
-  font-size: 1.05rem;
+/* The gift block. Below parking, because parking is what they stopped for and
+   the gift is the thing they might also do. Three buttons, one row, each a
+   thumb wide: picking an amount should be one tap and no thought. */
+.park__gift {
+  margin-top: 2rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--hairline-dark);
+}
+
+.park__gift-head {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-condensed);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.park__gift-note {
+  margin: 0 0 1rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--cream-50);
+}
+
+.park__gift-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.park__gift-btn {
+  flex: 1;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--ember);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ember);
+  font-family: var(--font-condensed);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-decoration: none;
+}
+
+.park__gift-btn:active {
+  background: var(--ember);
+  color: var(--ink);
+}
+
+/* ============================================================
+   /fundraiser/live, the organization's page
+   ============================================================
+
+   Full brand, unlike /park. This is opened by the people who worked for the
+   money and shown to the parents standing next to them, so it looks like the
+   thing they signed up for. The three figures are the largest things on it and
+   set in tabular numerals: a total that ticks up while somebody is reading it
+   must not make the line jump. */
+
+.live {
+  position: relative;
+  min-height: 100dvh;
+  padding: clamp(1.5rem, 6vw, 3rem) var(--gutter) 4rem;
+  background: var(--char);
+}
+
+.live__shell {
+  max-width: 34rem;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.live__marks {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.live__orglogo {
+  max-width: 7rem;
+  max-height: 4rem;
+  width: auto;
+  height: auto;
+}
+
+.live__with {
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+.live__eyebrow {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-condensed);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ember);
+}
+
+.live__title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 8vw, 2.9rem);
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.live__event {
+  margin: 0 0 2rem;
+  font-size: 1rem;
   color: var(--cream-70);
 }
 
-.park__raised b {
+/* The countdown. Its own block with a reserved height, so the page does not
+   jump when the clock arrives on hydration or when it runs out. */
+.live__clock {
+  min-height: 5.5rem;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.live__clock-label {
+  margin: 0 0 0.2rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+.live__clock-num {
+  margin: 0;
   font-family: var(--font-condensed);
-  font-size: 1.9rem;
+  font-size: clamp(2.6rem, 13vw, 4rem);
   font-weight: 700;
-  /* Tabular, so a number that ticks up while somebody is reading it does not
-     make the line jump around. */
+  line-height: 1;
   font-variant-numeric: tabular-nums;
+  color: var(--cream);
+}
+
+.live__clock-num--idle {
+  visibility: hidden;
+}
+
+.live__closed {
+  margin: 0;
+  font-family: var(--font-condensed);
+  font-size: clamp(1.1rem, 4.6vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: var(--ember);
+}
+
+/* The three numbers. */
+.live__figures {
+  display: grid;
+  gap: 1rem;
+  margin: 0 0 1.25rem;
+  text-align: left;
+}
+
+.live__figure {
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.live__figure--share {
+  border-color: var(--ember);
+  background: rgba(240, 169, 75, 0.08);
+}
+
+.live__figure dt {
+  margin: 0 0 0.3rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+.live__figure dd {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.live__figure dd b {
+  font-family: var(--font-condensed);
+  font-size: clamp(2rem, 9vw, 2.9rem);
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+}
+
+.live__figure--share dd b {
+  color: var(--ember);
+}
+
+/* A date is not a figure and does not want figure sizing. */
+.live__figure dd b.live__date {
+  font-size: clamp(1.15rem, 5vw, 1.5rem);
+}
+
+.live__sub {
+  font-size: 0.95rem;
+  color: var(--cream-50);
+}
+
+.live__gross {
+  margin: 0 0 2.5rem;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--cream-50);
+  text-align: left;
+}
+
+/* The ledger. */
+.live__ledger {
+  text-align: left;
+}
+
+.live__h2 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-condensed);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.live__empty {
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  color: var(--cream-50);
+}
+
+.live__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--hairline-dark);
+}
+
+.live__row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--hairline-dark);
+  font-size: 0.95rem;
+}
+
+.live__row-time {
+  width: 4.5rem;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream-50);
+}
+
+.live__row-label {
+  flex: 1;
+  color: var(--cream-70);
+}
+
+.live__row-amount {
+  flex: none;
+  font-family: var(--font-condensed);
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+}
+
+.live__foot {
+  margin: 2.5rem 0 0;
+  font-size: 0.86rem;
+  color: var(--cream-50);
+}
+
+.orgs__sent {
+  margin-top: 6px;
+}
+
+/* The muted deduction line, and the total. Seven figures is a lot for a phone,
+   so weight does the sorting: the fee is quiet, the three that are money coming
+   to the organization carry the accent, and the total is the largest. */
+.live__figure--muted dt,
+.live__figure--muted dd b {
+  color: var(--cream-50);
+}
+
+.live__figure--muted dd b {
+  font-size: clamp(1.3rem, 6vw, 1.8rem);
+}
+
+.live__figure--total {
+  border-width: 2px;
+}
+
+.live__figure--total dd b {
+  font-size: clamp(2.4rem, 11vw, 3.4rem);
 }

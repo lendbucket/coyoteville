@@ -70,5 +70,15 @@ export function verifyDocumentToken(
   return safeEqual(token, sign(purpose, id, key));
 }
 
-/** The one purpose string in use. Named so a typo cannot silently mint a dud. */
+/**
+ * The purpose strings in use. Named so a typo cannot silently mint a dud.
+ *
+ * The purpose is mixed into the signature, so a token for one of these can
+ * never be replayed against another. That is the whole reason they are separate
+ * rather than one "org" token: the live page shows an organization its running
+ * money on a link they can forward to a parent, and the terms link opens a
+ * document with their contact details and signing IP on it. One should not
+ * become the other by editing a URL.
+ */
 export const ORG_TERMS_PURPOSE = 'org-terms';
+export const LIVE_PURPOSE = 'live';

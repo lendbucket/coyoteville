@@ -26,16 +26,97 @@ import type { EventConfig } from './seo';
 /** What one vehicle pays at the gate. */
 export { PARKING_PRICE_CENTS, PAYOUT_RATE };
 
-/** Where a parking payment came from. Mirrors the source check constraint. */
+/**
+ * Where a parking payment came from.
+ *
+ * Parking is QR only: every payment goes through /park and the Square hosted
+ * link, so every row is 'qr'. The constraint still permits 'pos' and 'cash' and
+ * nothing writes them, which is why they are in the type and have no label.
+ * Leaving them permitted costs nothing and keeps the door open; giving them a
+ * label on a public page would advertise a way to pay that does not exist.
+ */
 export const PARKING_SOURCES = ['qr', 'pos', 'cash'] as const;
 export type ParkingSource = (typeof PARKING_SOURCES)[number];
 
-/** What each source is called on a page somebody outside Coyoteville reads. */
-export const SOURCE_LABELS: Record<string, string> = {
-  qr: 'paid by phone',
-  pos: 'card at the gate',
-  cash: 'cash',
+/**
+ * What a payment is called on a page somebody outside Coyoteville reads.
+ *
+ * One answer, because there is one way to pay. A row that somehow carried
+ * another source would read as a payment rather than as a blank, which is the
+ * right failure: the organization's ledger should never show a line it cannot
+ * name.
+ */
+export function sourceLabel(_source: string): string {
+  return 'paid by phone';
+}
+
+/**
+ * What a payment is for.
+ *
+ * 'parking' is somebody buying a space and half of it goes to the organization.
+ * 'donation' is a gift to that organization and all of it does, never split.
+ * One table because it is one night's money and the organization is shown both;
+ * one column apart because they are paid out under two different rules.
+ */
+export const PARKING_KINDS = ['parking', 'donation'] as const;
+export type ParkingKind = (typeof PARKING_KINDS)[number];
+
+/** What a line is called on the organization's ledger. */
+export function kindLabel(kind: string): string {
+  return kind === 'donation' ? 'gift' : 'parking';
+}
+
+/** What a driver can add for the team. Nothing larger: it is a car window. */
+export const DONATION_AMOUNTS = [500, 1000, 2000] as const;
+
+export const DONATION_REFERENCE_PREFIX = 'donation:';
+
+export function donationReferenceId(eventSlug: string, amountCents: number): string {
+  return `${DONATION_REFERENCE_PREFIX}${eventSlug}:${amountCents}`;
+}
+
+/** The event and amount a donation referenceId names, or null. */
+export function donationFromReference(
+  reference: string | null | undefined
+): { eventSlug: string; amountCents: number } | null {
+  if (!reference || !reference.startsWith(DONATION_REFERENCE_PREFIX)) return null;
+
+  const rest = reference.slice(DONATION_REFERENCE_PREFIX.length);
+  const at = rest.lastIndexOf(':');
+  if (at < 1) return null;
+
+  const eventSlug = rest.slice(0, at).trim();
+  const amountCents = Number(rest.slice(at + 1));
+
+  if (!eventSlug || !Number.isFinite(amountCents) || amountCents <= 0) return null;
+  return { eventSlug, amountCents };
+}
+
+/* --------------------------------------------------------- the share basis */
+
+/**
+ * What the organization's 50 percent is calculated on, per event.
+ *
+ * Per event and not global, because it is a term of an agreement rather than a
+ * setting. The organizations working today signed terms that say 50 percent of
+ * gross, before any expense of any kind, and Square's fee is an expense: their
+ * share is computed on gross and the page says so. Changing that for a future
+ * night means changing the terms first and then adding the slug here, in that
+ * order.
+ *
+ * Anything not listed uses the default, which is what the current terms say.
+ */
+export type ShareBasis = 'gross' | 'net';
+
+export const DEFAULT_SHARE_BASIS: ShareBasis = 'gross';
+
+const SHARE_BASIS_BY_EVENT: Record<string, ShareBasis> = {
+  'home-game-2026-09-11': 'gross',
 };
+
+export function shareBasisFor(eventSlug: string): ShareBasis {
+  return SHARE_BASIS_BY_EVENT[eventSlug] ?? DEFAULT_SHARE_BASIS;
+}
 
 /* ------------------------------------------------------- the reference id */
 
@@ -78,18 +159,45 @@ export async function currentParkingEvent(now: number = Date.now()): Promise<Eve
 /* ------------------------------------------------------------ the money */
 
 export type ParkingTotals = {
-  /** Every cent recorded for the event, from every source. */
+  /** Parking only. What was taken for spaces, before anything is deducted. */
   cents: number;
-  /** Vehicles, which is not the row count: a cash tap can record several. */
+  /** Vehicles. Not the row count, and not counting gifts. */
   vehicles: number;
-  /** Rows, which is what the ledger shows. */
+  /** Parking rows. */
   payments: number;
-  /** The organization's half, rounded the one way it is rounded anywhere. */
+  /**
+   * What Square actually charged, summed off the payments themselves.
+   *
+   * Both kinds, because it is what Square took from the night. Null fees are
+   * simply not added: a fee Square has not calculated yet is unknown, not zero,
+   * and feesPending says how many rows are in that state so a page can say so
+   * rather than quietly understating the total.
+   */
+  feeCents: number;
+  feesPending: number;
+  /** Gifts. Every cent of these goes to the organization, never split. */
+  donationCents: number;
+  donations: number;
+  /** The organization's half of parking, on the basis this event's terms set. */
   shareCents: number;
+  /** Share plus gifts. What the organization is actually owed. */
+  owedCents: number;
+  basis: ShareBasis;
 };
 
-export function emptyTotals(): ParkingTotals {
-  return { cents: 0, vehicles: 0, payments: 0, shareCents: 0 };
+export function emptyTotals(basis: ShareBasis = DEFAULT_SHARE_BASIS): ParkingTotals {
+  return {
+    cents: 0,
+    vehicles: 0,
+    payments: 0,
+    feeCents: 0,
+    feesPending: 0,
+    donationCents: 0,
+    donations: 0,
+    shareCents: 0,
+    owedCents: 0,
+    basis,
+  };
 }
 
 /** The organization's cut. One function, so the page and the payout agree. */
@@ -103,6 +211,8 @@ export type ParkingRow = {
   amount_cents: number;
   vehicle_count: number;
   source: string;
+  kind: string;
+  square_fee_cents: number | null;
   square_payment_id: string | null;
   square_order_id: string | null;
   recorded_by: string | null;
@@ -111,8 +221,8 @@ export type ParkingRow = {
 };
 
 const LEDGER_COLUMNS =
-  'id, event_slug, amount_cents, vehicle_count, source, square_payment_id, ' +
-  'square_order_id, recorded_by, note, created_at';
+  'id, event_slug, amount_cents, vehicle_count, source, kind, square_fee_cents, ' +
+  'square_payment_id, square_order_id, recorded_by, note, created_at';
 
 /**
  * The night's rows, newest first.
@@ -151,73 +261,138 @@ export async function getParkingLedger(eventSlug: string, limit = 500): Promise<
  * came from.
  */
 export async function getParkingTotals(eventSlug: string): Promise<ParkingTotals> {
-  if (!isSupabaseConfigured()) return emptyTotals();
+  const basis = shareBasisFor(eventSlug);
+  if (!isSupabaseConfigured()) return emptyTotals(basis);
 
   try {
     const { data, error } = await getSupabaseAdmin()
       .from('parking_payments')
-      .select('amount_cents, vehicle_count')
+      .select('amount_cents, vehicle_count, kind, square_fee_cents')
       .eq('event_slug', eventSlug);
 
     if (error) throw error;
 
-    const totals = emptyTotals();
-    for (const row of (data ?? []) as { amount_cents: number; vehicle_count: number }[]) {
-      totals.cents += Math.max(0, row.amount_cents ?? 0);
-      totals.vehicles += Math.max(0, row.vehicle_count ?? 1);
-      totals.payments += 1;
+    const totals = emptyTotals(basis);
+
+    for (const row of (data ?? []) as {
+      amount_cents: number;
+      vehicle_count: number;
+      kind: string | null;
+      square_fee_cents: number | null;
+    }[]) {
+      const amount = Math.max(0, row.amount_cents ?? 0);
+
+      if ((row.kind ?? 'parking') === 'donation') {
+        totals.donationCents += amount;
+        totals.donations += 1;
+      } else {
+        totals.cents += amount;
+        totals.vehicles += Math.max(0, row.vehicle_count ?? 1);
+        totals.payments += 1;
+      }
+
+      /* Null is unknown, not zero. Square calculates the fee after the payment
+         completes, so a row taken five minutes ago legitimately has none yet. */
+      if (row.square_fee_cents === null || row.square_fee_cents === undefined) {
+        totals.feesPending += 1;
+      } else {
+        totals.feeCents += Math.max(0, row.square_fee_cents);
+      }
     }
-    totals.shareCents = shareOf(totals.cents);
+
+    /* On 'gross' the fee is not deducted before the split, which is what the
+       terms these organizations signed say. On 'net' it is. One place decides,
+       so the page, the ledger and the payout cannot disagree. */
+    const shareBase =
+      basis === 'net' ? Math.max(0, totals.cents - totals.feeCents) : totals.cents;
+
+    totals.shareCents = shareOf(shareBase);
+    totals.owedCents = totals.shareCents + totals.donationCents;
+
     return totals;
   } catch (err) {
     /* Zero rather than a guess. A total that is quietly wrong on a page an
        organization is watching is worse than one that is obviously stuck. */
     console.error('could not total parking payments', err);
-    return emptyTotals();
+    return emptyTotals(basis);
   }
 }
 
 /**
  * Record a parking payment.
  *
- * Idempotent on square_payment_id, which is the column the database makes
- * unique. Square redelivers a webhook until it gets a 2xx and will happily send
- * the same payment twice, so the second insert has to be a no-op rather than a
- * second row: a duplicate here is money the organization is told it earned and
- * did not.
+ * Idempotent on square_payment_id for the money, and deliberately not a plain
+ * "insert if new".
  *
- * Returns whether a row was actually written, so the caller can say which
- * happened rather than guessing.
+ * Square redelivers a webhook until it gets a 2xx and will happily send the same
+ * payment twice, so a second insert has to be a no-op: a duplicate here is money
+ * the organization is told it earned and did not.
+ *
+ * But a later delivery is not always a duplicate. Square does not have the
+ * processing fee when a payment completes; it calculates it after settlement and
+ * sends another payment.updated for the same payment once it knows, normally
+ * within minutes. So a redelivery that arrives carrying a fee for a row that has
+ * none fills it in. The money is written once; the fee is written when it turns
+ * up.
+ *
+ * Returns what happened, so the caller can say which rather than guessing.
  */
 export async function recordParkingPayment(input: {
   eventSlug: string;
   amountCents: number;
   vehicleCount?: number;
   source: ParkingSource;
+  kind?: ParkingKind;
+  /** What Square charged. Null when Square has not calculated it yet. */
+  feeCents?: number | null;
   squarePaymentId?: string | null;
   squareOrderId?: string | null;
   recordedBy?: string | null;
   note?: string | null;
-}): Promise<{ ok: boolean; inserted: boolean; id: string | null }> {
-  if (!isSupabaseConfigured()) return { ok: false, inserted: false, id: null };
+}): Promise<{ ok: boolean; inserted: boolean; feeRecorded: boolean; id: string | null }> {
+  if (!isSupabaseConfigured()) return { ok: false, inserted: false, feeRecorded: false, id: null };
 
   if (!Number.isFinite(input.amountCents) || input.amountCents <= 0) {
     /* The column is checked > 0. Refusing here says why, rather than letting
        Postgres reject it with a constraint name nobody reads. */
     console.error('refusing a parking payment with no amount', input);
-    return { ok: false, inserted: false, id: null };
+    return { ok: false, inserted: false, feeRecorded: false, id: null };
   }
 
   const supabase = getSupabaseAdmin();
+  const fee =
+    input.feeCents === null || input.feeCents === undefined
+      ? null
+      : Math.max(0, Math.round(input.feeCents));
 
   if (input.squarePaymentId) {
     const { data: seen } = await supabase
       .from('parking_payments')
-      .select('id')
+      .select('id, square_fee_cents')
       .eq('square_payment_id', input.squarePaymentId)
       .maybeSingle();
 
-    if (seen) return { ok: true, inserted: false, id: (seen as { id: string }).id };
+    if (seen) {
+      const row = seen as { id: string; square_fee_cents: number | null };
+
+      /* The redelivery that carries the fee. Only written when the row has
+         none: a fee already recorded is Square's own number and is not
+         overwritten by a later delivery of the same thing. */
+      if (fee !== null && (row.square_fee_cents === null || row.square_fee_cents === undefined)) {
+        const { error: feeError } = await supabase
+          .from('parking_payments')
+          .update({ square_fee_cents: fee })
+          .eq('id', row.id);
+
+        if (feeError) {
+          console.error('could not record the Square fee', row.id, feeError);
+          return { ok: true, inserted: false, feeRecorded: false, id: row.id };
+        }
+        return { ok: true, inserted: false, feeRecorded: true, id: row.id };
+      }
+
+      return { ok: true, inserted: false, feeRecorded: false, id: row.id };
+    }
   }
 
   const { data, error } = await supabase
@@ -225,8 +400,13 @@ export async function recordParkingPayment(input: {
     .insert({
       event_slug: input.eventSlug,
       amount_cents: Math.round(input.amountCents),
-      vehicle_count: Math.max(1, Math.round(input.vehicleCount ?? 1)),
+      /* Floored at zero, not at one. A gift is money and not a car, and the
+         floor of one silently turned every donation into a vehicle on the
+         organization's own count. Caught by check-webhook-settles. */
+      vehicle_count: Math.max(0, Math.round(input.vehicleCount ?? 1)),
       source: input.source,
+      kind: input.kind ?? 'parking',
+      square_fee_cents: fee,
       square_payment_id: input.squarePaymentId ?? null,
       square_order_id: input.squareOrderId ?? null,
       recorded_by: input.recordedBy ?? null,
@@ -240,13 +420,18 @@ export async function recordParkingPayment(input: {
        race: two webhook deliveries arriving at once both got past the read
        above. The row exists, which is the outcome that matters. */
     if ((error as { code?: string })?.code === '23505') {
-      return { ok: true, inserted: false, id: null };
+      return { ok: true, inserted: false, feeRecorded: false, id: null };
     }
     console.error('parking payment insert failed', error);
-    return { ok: false, inserted: false, id: null };
+    return { ok: false, inserted: false, feeRecorded: false, id: null };
   }
 
-  return { ok: true, inserted: true, id: (data as { id: string }).id };
+  return {
+    ok: true,
+    inserted: true,
+    feeRecorded: fee !== null,
+    id: (data as { id: string }).id,
+  };
 }
 
 /* ----------------------------------------------------------- the payment link */
@@ -267,11 +452,114 @@ export async function recordParkingPayment(input: {
  * A column on events would be simpler and is worth adding the next time the
  * schema is touched. This works without one, and the schema is frozen tonight.
  */
-function linkDescription(eventSlug: string): string {
-  return `Coyoteville parking, ${eventSlug}`;
+function linkDescription(eventSlug: string, amountCents?: number): string {
+  return amountCents === undefined
+    ? `Coyoteville parking, ${eventSlug}`
+    : `Coyoteville gift ${amountCents}, ${eventSlug}`;
 }
 
 const linkCache = new Map<string, string>();
+
+/**
+ * One stored Square link, found or created.
+ *
+ * Four links per night now rather than one: parking, and a gift at each of the
+ * three amounts. Still created once each, found back out of Square by a
+ * description this code sets and nothing else does, and cached in module memory
+ * on top of that. A driver's page load never creates anything.
+ */
+async function storedLink(args: {
+  cacheKey: string;
+  description: string;
+  referenceId: string;
+  amountCents: number;
+  lineName: string;
+  paymentNote: string;
+  redirectPath: string;
+}): Promise<string | null> {
+  if (!isSquareConfigured()) return null;
+
+  const cached = linkCache.get(args.cacheKey);
+  if (cached) return cached;
+
+  try {
+    const square = getSquare();
+
+    let scanned = 0;
+    for await (const link of await square.checkout.paymentLinks.list({ limit: 50 })) {
+      scanned += 1;
+      if (link.description === args.description && (link.url || link.longUrl)) {
+        const url = (link.url || link.longUrl) as string;
+        linkCache.set(args.cacheKey, url);
+        return url;
+      }
+      if (scanned >= 200) break;
+    }
+
+    const created = await square.checkout.paymentLinks.create({
+      idempotencyKey: randomUUID(),
+      description: args.description,
+      order: {
+        locationId: getSquareLocationId(),
+        referenceId: args.referenceId,
+        lineItems: [
+          {
+            name: args.lineName,
+            quantity: '1',
+            basePriceMoney: { amount: BigInt(args.amountCents), currency: 'USD' },
+            note: 'Coyoteville, 150 N. Stadium Road, Alice TX.',
+          },
+        ],
+      },
+      checkoutOptions: {
+        /* Apple Pay and Google Pay are on by default on a Square hosted
+           checkout and are the whole point here: a driver with a phone in one
+           hand does not type a card number. */
+        askForShippingAddress: false,
+        allowTipping: false,
+        redirectUrl: `${SITE_URL}${args.redirectPath}`,
+      },
+      paymentNote: args.paymentNote,
+    });
+
+    const link = created.paymentLink;
+    const url = link?.url || link?.longUrl || null;
+    if (url) linkCache.set(args.cacheKey, url);
+    return url;
+  } catch (err) {
+    console.error('could not get a Square link', args.description, err);
+    return null;
+  }
+}
+
+/**
+ * Gifts to the organization, one stored link per amount.
+ *
+ * A separate link per amount rather than one link with a quantity, because a
+ * Square hosted checkout does not ask a driver to pick a number and should not:
+ * three buttons is one tap, and one tap is what this page gets.
+ */
+export async function getDonationCheckoutUrls(
+  eventSlug: string
+): Promise<Record<number, string>> {
+  const out: Record<number, string> = {};
+  if (!isSquareConfigured()) return out;
+
+  for (const amount of DONATION_AMOUNTS) {
+    const url = await storedLink({
+      cacheKey: `donation:${eventSlug}:${amount}`,
+      description: linkDescription(eventSlug, amount),
+      referenceId: donationReferenceId(eventSlug, amount),
+      amountCents: amount,
+      lineName: 'Gift to the team',
+      paymentNote: `Coyoteville gift, ${eventSlug}`,
+      redirectPath: '/park/thanks/gift',
+    });
+    if (url) out[amount] = url;
+  }
+
+  return out;
+}
 
 export async function getParkingCheckoutUrl(eventSlug: string): Promise<string | null> {
   if (!isSquareConfigured()) return null;

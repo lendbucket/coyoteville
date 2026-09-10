@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { getEvents } from '@/lib/events-source';
-import { DRAWABLE_STATUSES, drawOne, payoutFor } from '@/lib/parking-fundraiser';
+import { DRAWABLE_STATUSES, PROGRAM_NAME, drawOne, payoutFor } from '@/lib/parking-fundraiser';
+import { LIVE_PURPOSE, documentToken } from '@/lib/doc-token';
+import { renderLiveLink } from '@/lib/email/live-link';
+import { sendReminderEmail } from '@/lib/notify';
+import { sendSms } from '@/lib/sms';
+import { SITE_URL } from '@/lib/seo';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -201,6 +206,86 @@ export async function POST(request: Request) {
 
     if (error) return bad('Could not publish that.', 500);
     return NextResponse.json({ ok: true });
+  }
+
+  /* ------------------------------------------------------- live-link */
+
+  /**
+   * Send the organization the link to their own live page.
+   *
+   * Email and text, because the contact is a volunteer who will be standing in
+   * a stand on a Friday night and email is not where they are looking. The text
+   * is the one that gets opened; the email is the one that is still findable on
+   * Sunday.
+   *
+   * Fired by hand from the tracker and never automatically. Robert decides when
+   * an organization gets the link, and neither send happens until he taps it.
+   *
+   * Reports both outcomes separately. A text that failed while the email went
+   * is a different situation from neither going, and telling him "sent" when
+   * half of it did would be the kind of small lie that costs a night.
+   */
+  if (action === 'live-link') {
+    const id = String(body?.id ?? '');
+    if (!UUID.test(id)) return bad('Bad application id.');
+
+    const { data: org } = await supabase
+      .from('org_applications')
+      .select('id, org_name, contact_name, email, phone')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (!org) return bad('No such organization.', 404);
+    const row = org as {
+      org_name: string;
+      contact_name: string;
+      email: string;
+      phone: string | null;
+    };
+
+    const token = documentToken(LIVE_PURPOSE, id);
+    if (!token) {
+      return bad('This deployment cannot sign a link, so nothing was sent.', 503);
+    }
+
+    const url = `${SITE_URL}/fundraiser/live?id=${id}&t=${token}`;
+    const first = row.contact_name.trim().split(/s+/)[0] || row.contact_name.trim();
+
+    const message = renderLiveLink({
+      programName: PROGRAM_NAME,
+      orgName: row.org_name,
+      contactName: row.contact_name,
+      url,
+    });
+
+    const emailed = await sendReminderEmail(row.email, message)
+      .then(() => true)
+      .catch((err) => {
+        console.error('[organizations] live link email failed', err);
+        return false;
+      });
+
+    /* Short, because it is read on a lock screen. The link is the message. */
+    const texted = row.phone
+      ? await sendSms(
+          row.phone,
+          `${first}, here is your ${PROGRAM_NAME} page for tonight. It updates as cars pay: ${url}`
+        )
+      : { ok: false, error: 'No phone number on this organization.' };
+
+    if (!emailed && !texted.ok) {
+      return bad(`Nothing was sent. ${texted.error ?? 'The email failed too.'}`, 502);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      emailed,
+      texted: texted.ok,
+      /* Returned so the tracker can show it and Robert can copy it into a
+         message himself if both sends failed. */
+      url,
+      note: texted.ok ? null : texted.error,
+    });
   }
 
   return bad('Unknown action.');

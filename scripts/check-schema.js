@@ -395,8 +395,20 @@ function readAllowedValues() {
  * source of qr, pos and cash. subscribers.source is a free text column holding
  * things like 'homepage', and reading one table's constraint against another
  * table's column is how a gate starts crying wolf and gets switched off.
+ *
+ * 'kind' joined them when parking_payments gained a kind of parking or
+ * donation. It is the most generic word in this codebase: upload kinds, terms
+ * block kinds, agreement block kinds and booking kinds all use it, and the
+ * unqualified rule produced 180 false reports on its first run.
+ *
+ * The cost of listing a column here is real and worth naming: the "column:
+ * 'value'" and "column === 'value'" forms stop being checked for it, so an
+ * insert writing a bad kind would not be caught. What stays checked is the
+ * .eq() form, which is at least attached to a query somebody can trace to a
+ * table. A gate that reports 180 things nobody will read catches nothing at
+ * all, which is the worse trade.
  */
-const GENERIC_COLUMNS = new Set(['status', 'source']);
+const GENERIC_COLUMNS = new Set(['status', 'source', 'kind']);
 
 function checkAllowedValues(files, allowed) {
   const problems = [];

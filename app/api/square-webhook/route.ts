@@ -5,7 +5,11 @@ import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { SITE_URL } from '@/lib/seo';
 import { eventNameFor } from '@/lib/events-source';
 import { invalidateSpots } from '@/lib/spots';
-import { eventSlugFromReference, recordParkingPayment } from '@/lib/parking';
+import {
+  donationFromReference,
+  eventSlugFromReference,
+  recordParkingPayment,
+} from '@/lib/parking';
 import { notifyPaymentReceived } from '@/lib/notify';
 import {
   handleInvoiceFailed,
@@ -162,10 +166,42 @@ type SquarePaymentEvent = {
         status?: string;
         order_id?: string;
         amount_money?: { amount?: number; currency?: string };
+        /**
+         * What Square charged, once Square knows.
+         *
+         * Absent on the first payment.updated for a payment: the fee is
+         * calculated after settlement, and Square sends a further
+         * payment.updated for the same payment when it has one. An array
+         * because a payment can carry more than one fee line.
+         */
+        processing_fee?: { amount_money?: { amount?: number } }[];
       };
     };
   };
 };
+
+/**
+ * Sum Square's processing fee lines into cents, or null if there are none.
+ *
+ * Null and zero are different answers. Null is "Square has not told us yet",
+ * which is the normal state for the first minutes after a payment; zero would
+ * be "Square charged nothing", which is not true of a card payment and would
+ * quietly understate what the night cost on a page an organization reads.
+ */
+function feeFrom(fees: { amount_money?: { amount?: number } }[] | undefined): number | null {
+  if (!Array.isArray(fees) || fees.length === 0) return null;
+
+  let total = 0;
+  let seen = 0;
+  for (const fee of fees) {
+    const amount = Number(fee?.amount_money?.amount);
+    if (!Number.isFinite(amount)) continue;
+    total += amount;
+    seen += 1;
+  }
+
+  return seen ? total : null;
+}
 
 export async function POST(request: Request) {
   const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
@@ -257,7 +293,9 @@ export async function POST(request: Request) {
        up as an application UUID, and so nothing about the vendor path changes
        shape to accommodate it. */
     const parkingEventSlug = eventSlugFromReference(reference);
-    if (parkingEventSlug) {
+    const donation = donationFromReference(reference);
+
+    if (parkingEventSlug || donation) {
       const amount = Number(payment.amount_money?.amount ?? 0);
 
       if (!Number.isFinite(amount) || amount <= 0) {
@@ -265,15 +303,32 @@ export async function POST(request: Request) {
         return NextResponse.json({ received: true, ignored: 'parking payment with no amount' });
       }
 
-      /* The amount is taken from the payment rather than from our price
+      const eventSlug = parkingEventSlug ?? (donation as { eventSlug: string }).eventSlug;
+      const kind = donation ? 'donation' : 'parking';
+
+      /* The fee Square actually charged, off the payment, never a percentage.
+         A rate constant would be a guess that drifts the day Square changes a
+         rate, and this number is shown to an organization as the reason their
+         net is lower than their gross.
+
+         Usually absent here: Square calculates it after settlement and sends
+         another payment.updated when it knows. Null means unknown rather than
+         zero, and the later delivery fills it in. */
+      const feeCents = feeFrom(payment.processing_fee);
+
+      /* The amount is taken from the payment rather than from our own price
          constant. A driver paid what Square charged them, and recording a
          different number would be recording a fiction into the one table the
          organization's cut is computed from. */
       const recorded = await recordParkingPayment({
-        eventSlug: parkingEventSlug,
+        eventSlug,
         amountCents: amount,
-        vehicleCount: 1,
+        /* A gift is money, not a car. Counting it as a vehicle would inflate
+           the count on the organization's own page. */
+        vehicleCount: kind === 'donation' ? 0 : 1,
         source: 'qr',
+        kind,
+        feeCents,
         squarePaymentId: payment.id ?? null,
         squareOrderId: orderId,
       });
@@ -287,10 +342,13 @@ export async function POST(request: Request) {
       return NextResponse.json({
         received: true,
         parking: true,
-        eventSlug: parkingEventSlug,
+        kind,
+        eventSlug,
         /* False on a redelivery of a payment already recorded, which is the
            normal case Square produces and not an error. */
         inserted: recorded.inserted,
+        /* True when this delivery is the one that brought the fee. */
+        feeRecorded: recorded.feeRecorded,
       });
     }
 

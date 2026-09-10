@@ -158,6 +158,13 @@ export default function Organizations({
   const [error, setError] = useState<string | null>(null);
   const [draw, setDraw] = useState<{ slug: string; count: number; names: string[]; reopened: boolean } | null>(null);
   const [gross, setGross] = useState<Record<string, string>>({});
+  const [sent, setSent] = useState<{
+    slug: string;
+    emailed: boolean;
+    texted: boolean;
+    url: string;
+    note: string | null;
+  } | null>(null);
 
   async function call(payload: Record<string, unknown>, key: string) {
     setBusy(key);
@@ -219,6 +226,46 @@ export default function Organizations({
                 draw is made, and a count that only appears after one would hide
                 exactly the signatures nobody expected. */}
             <Waivers game={g} />
+
+            {/* Their live page. Sent by hand, never automatically: Robert
+                decides when an organization gets the link. Both sends are
+                reported separately, because a text that failed while the email
+                went is a different situation from neither going. */}
+            {g.orgId ? (
+              <p className="orgs__doc">
+                <button
+                  className="btn btn--sm btn--ghost"
+                  type="button"
+                  disabled={locked}
+                  onClick={async () => {
+                    const res = await call({ action: 'live-link', id: g.orgId }, 'live:' + g.slug);
+                    if (!res) return;
+                    setSent({
+                      slug: g.slug,
+                      emailed: Boolean(res.emailed),
+                      texted: Boolean(res.texted),
+                      url: String(res.url ?? ''),
+                      note: res.note ? String(res.note) : null,
+                    });
+                  }}
+                >
+                  Send the live page link
+                </button>
+              </p>
+            ) : null}
+
+            {sent && sent.slug === g.slug ? (
+              <p className="orgs__from orgs__sent">
+                {sent.emailed && sent.texted
+                  ? 'Emailed and texted.'
+                  : sent.emailed
+                    ? 'Emailed. Not texted' + (sent.note ? ': ' + sent.note : '.')
+                    : 'Texted, but the email failed.'}{' '}
+                <a href={sent.url} target="_blank" rel="noreferrer">
+                  Open it
+                </a>
+              </p>
+            ) : null}
 
             {g.orgName ? (
               <>

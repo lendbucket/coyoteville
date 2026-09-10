@@ -61,8 +61,9 @@ org_applications
   admin_notes, created_at, updated_at
 
 parking_payments
-  id, event_slug, amount_cents, vehicle_count, source, square_payment_id,
-  square_order_id, recorded_by, note, created_at
+  id, event_slug, amount_cents, vehicle_count, source, kind,
+  square_fee_cents, square_payment_id, square_order_id, recorded_by, note,
+  created_at
 
 org_event_awards
   id, event_slug, org_application_id, picked_at, picked_from_count,
@@ -161,6 +162,9 @@ org_applications.status
 
 parking_payments.source
   qr, pos, cash
+
+parking_payments.kind
+  parking, donation
 ```
 
 `denied` and `cancelled` are both on `approval_status` and are not
@@ -176,55 +180,51 @@ read from that table, and nothing computes parking revenue anywhere else. Half
 of this money belongs to the organization working the night, and a number shown
 to them has to be one they can see the rows behind.
 
-`amount_cents` is checked `> 0` and `vehicle_count` defaults to 1. They are two
-different quantities: one cash tap can record several vehicles at once, so the
-row count, the vehicle count and the money are three separate numbers and the
-code does not mix them up.
+`amount_cents` is checked `> 0`. `vehicle_count` defaults to 1 and is 1 on every
+row today, because one scan of the QR is one vehicle; it stays a column rather
+than an assumption so the money, the vehicles and the row count are three
+separate numbers if that ever stops being true.
 
-`square_payment_id` is unique and nullable. Unique because Square redelivers a
-webhook until it gets a 2xx and would otherwise book the same ten dollars twice.
-Nullable because a cash row never had a Square payment behind it.
+`square_payment_id` is unique, which is what stops Square booking the same ten
+dollars twice: it redelivers a webhook until it gets a 2xx. It is nullable
+because the column permits a row with no Square payment behind it, though
+nothing writes one today.
 
-`source` says how the money arrived, and the three values are not
-interchangeable:
+Parking is QR only. Every payment comes through /park and the Square hosted
+link, so every row is `source = 'qr'`. The constraint still permits `pos` and
+`cash` and nothing writes them.
 
-| source | what it is | who writes it |
-| --- | --- | --- |
-| `qr` | a driver paid on their phone from the QR code | the Square webhook |
-| `pos` | a card taken at the gate on a reader or Tap to Pay | recorded by hand |
-| `cash` | notes into the box | recorded by hand at the gate |
+`kind` separates the two things that arrive through the same table. `parking`
+is somebody buying a space, and half of it goes to the organization working the
+night. `donation` is a gift to that organization, and **all** of it goes to
+them, never split. They live in one table because they are one night's money and
+the organization is shown both, and they are one column apart because they are
+paid out under two different rules.
 
-`pos` is recorded by hand and not by the webhook, and that is a limitation of
-Square rather than a choice. See below.
+### The Square fee
+
+`square_fee_cents` is what Square actually charged on that payment, taken off
+the payment object, never computed from a percentage. A rate constant would be
+a guess that drifts the day Square changes a card present rate or a payment
+comes in on a different funding source, and this number is shown to an
+organization as the reason their net is lower than their gross.
+
+**Square does not have the fee when the payment completes.** `processing_fee`
+is calculated after settlement and is usually absent on the first
+`payment.updated` delivery. Square then sends a further `payment.updated` for
+the same payment once the fee is known, normally within minutes and sometimes
+the next day. So:
+
+- the first delivery inserts the row with `square_fee_cents` null
+- a later delivery for a row that already exists fills the fee in
+- a row whose fee never arrives keeps null, and the pages say fees are still
+  settling rather than showing a zero
+
+That is why `recordParkingPayment` is not a plain "insert if new". It is
+idempotent on `square_payment_id` for the money and still writes the fee when a
+later delivery brings one.
 
 RLS is enabled with no policies, so only the service role reaches it.
-
-### Payments taken at the gate
-
-A card tapped on a reader or on Tap to Pay at the gate fires the same
-`payment.updated` webhook every other payment on the account fires. It arrives
-with an `order_id`, and the order it names has **no `reference_id`**.
-
-`reference_id` is set by whoever creates the order. This site sets it on every
-order it creates: a vendor's is the application UUID, and parking's is
-`parking:<event slug>`. The Square Point of Sale app does not set one, and
-there is no setting that makes it. So a sale rung up at the gate is
-indistinguishable, in the webhook, from any other sale taken on this Square
-account anywhere, for anything.
-
-The webhook therefore ignores a payment with no reference id, which it already
-did before parking existed, and card sales at the gate are recorded by hand as
-`source = 'pos'`. That is a real gap and it is stated here rather than papered
-over: if nobody types them in, that money is missing from the organization's
-half.
-
-There is one way to close it automatically, and it is a decision rather than a
-code change: give the gate **its own Square location**, and have the webhook
-treat any payment on that location with no reference id as parking. Square
-stamps `location_id` on every payment and the POS app is assigned a location
-when it is set up. Nothing else about the account has to change. It is not built
-because it needs a second location created and the reader assigned to it, which
-is Robert's call and not something to guess at two days before a game.
 
 ## The volunteer waiver
 

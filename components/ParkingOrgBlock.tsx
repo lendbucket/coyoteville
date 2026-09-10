@@ -1,17 +1,20 @@
 import 'server-only';
-import ParkingTotal from './ParkingTotal';
 import { MEDIA_BUCKET, signedUrl } from '@/lib/uploads';
 
 /**
- * Who tonight's parking money goes to, and how much there is.
+ * Who tonight's parking money goes to.
  *
  * Shared by /park and /park/thanks so the two screens cannot drift: a driver
- * who pays sees the same organization named the same way, with the same total,
- * as the screen that persuaded them to.
+ * who pays sees the same organization named the same way as the screen that
+ * persuaded them to.
  *
- * Below the button on /park, on purpose. The driver's job is to pay and move.
- * The reason it is worth paying is what they read while the page behind them is
- * still loading.
+ * No numbers. There was a live running total here and it is gone: a driver is
+ * being asked for ten dollars, not shown a scoreboard, and the counter cost a
+ * request every fifteen seconds from every phone in a queue. The organization
+ * watches the money on their own page. This says who it helps, and stops.
+ *
+ * Server rendered with no client component underneath it, which is what makes
+ * /park static and free of JavaScript of its own.
  */
 
 /**
@@ -30,29 +33,24 @@ export async function parkingLogoUrl(logoPath: string | null): Promise<string | 
 export default function ParkingOrgBlock({
   org,
   logo,
-  cents,
 }: {
   org: { name: string; logoPath: string | null } | null;
   logo: string | null;
-  cents: number;
 }) {
+  if (!org) return null;
+
   return (
     <div className="park__org">
       {logo ? (
-        /* Lazy, and below the fold of a phone. It is the one image on the page
-           and it must not sit in front of the button on a slow connection.
-           eslint-disable-next-line @next/next/no-img-element */
+        /* Lazy, and below the button. It is the one image on the page and it
+           must not sit in front of the thing a driver came here to tap. */
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="park__logo" src={logo} alt={org ? org.name : ''} loading="lazy" />
+        <img className="park__logo" src={logo} alt={org.name} loading="lazy" />
       ) : null}
 
-      {org ? (
-        <p className="park__share">
-          50% of tonight&apos;s parking goes to <b>{org.name}</b>
-        </p>
-      ) : null}
-
-      <ParkingTotal initialCents={cents} orgName={org?.name ?? null} />
+      <p className="park__share">
+        50% of tonight&apos;s parking goes to <b>{org.name}</b>
+      </p>
     </div>
   );
 }
