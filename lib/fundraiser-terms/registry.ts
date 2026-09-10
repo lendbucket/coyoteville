@@ -2,6 +2,7 @@ import 'server-only';
 import type { TermsDocument } from './types';
 import v1_0 from './versions/fnf-v1-0-2026';
 import v1_1 from './versions/fundraiser-v1-1-2026';
+import v1_2 from './versions/fundraiser-v1-2-2026';
 
 /**
  * Every version of the program terms anybody has ever signed.
@@ -16,7 +17,7 @@ import v1_1 from './versions/fundraiser-v1-1-2026';
  * a version whose text was only in git history. The vendor agreement has worked
  * this way since v1 and the terms now do too.
  */
-const RECORDS: TermsDocument[] = [v1_0, v1_1];
+const RECORDS: TermsDocument[] = [v1_0, v1_1, v1_2];
 
 const BY_VERSION = new Map(RECORDS.map((doc) => [doc.version, doc]));
 

@@ -108,11 +108,50 @@ export function donationFromReference(
  */
 export type ShareBasis = 'gross' | 'net';
 
-export const DEFAULT_SHARE_BASIS: ShareBasis = 'gross';
+/**
+ * What card processing costs, as a flat rate.
+ *
+ * A single named rate rather than the fee Square actually charged, and that is
+ * Robert's decision rather than an approximation nobody noticed. Two reasons it
+ * is the right one for the organization's page: Square does not know the real
+ * fee for minutes after a payment, so a page computing from it would show a
+ * number that climbs as fees settle rather than one that is stable; and an
+ * organization can check 3.25 percent against a total with a calculator, which
+ * they cannot do with a sum of per payment fees they never see.
+ *
+ * The real Square fee is still recorded on every row and still shown, in the
+ * tracker only, next to this figure. The difference between the two is
+ * Coyoteville's to carry and Robert's to watch, and it is not the
+ * organization's business either way.
+ */
+export const PROCESSING_FEE_RATE = 0.0325;
 
-const SHARE_BASIS_BY_EVENT: Record<string, ShareBasis> = {
-  'home-game-2026-09-11': 'gross',
-};
+/** What the flat rate takes off a figure. Rounded once, in one place. */
+export function processingFeeOn(cents: number): number {
+  return Math.round(Math.max(0, cents) * PROCESSING_FEE_RATE);
+}
+
+/**
+ * The default is 'net': half of what is left after card processing, which is
+ * what fundraiser-v1.2-2026 says. It was 'gross' under v1.1.
+ */
+export const DEFAULT_SHARE_BASIS: ShareBasis = 'net';
+
+/**
+ * Per event overrides.
+ *
+ * Empty, and that is deliberate rather than an oversight. Every event now uses
+ * the default. The map stays because the basis is a term of an agreement and a
+ * night can need to keep the basis it was sold under: an organization that
+ * signed v1.1 and is held to gross would be listed here.
+ *
+ * home-game-2026-09-11 is NOT listed. Velocity Vipers Softball signed v1.1,
+ * which promised gross, and Robert moved that night to net on 2026-09-09. That
+ * decision is recorded in admin_notes on their award row, because a payout
+ * smaller than the terms somebody signed needs a record that is not a code
+ * comment.
+ */
+const SHARE_BASIS_BY_EVENT: Record<string, ShareBasis> = {};
 
 export function shareBasisFor(eventSlug: string): ShareBasis {
   return SHARE_BASIS_BY_EVENT[eventSlug] ?? DEFAULT_SHARE_BASIS;
@@ -166,15 +205,20 @@ export type ParkingTotals = {
   /** Parking rows. */
   payments: number;
   /**
-   * What Square actually charged, summed off the payments themselves.
-   *
-   * Both kinds, because it is what Square took from the night. Null fees are
-   * simply not added: a fee Square has not calculated yet is unknown, not zero,
-   * and feesPending says how many rows are in that state so a page can say so
-   * rather than quietly understating the total.
+   * The flat 3.25 percent on parking. What the organization's page shows and
+   * what their share is computed against.
    */
   feeCents: number;
-  feesPending: number;
+  /**
+   * What Square actually charged, summed off the payments themselves, and how
+   * many rows are still waiting for Square to say.
+   *
+   * The tracker only. It is Robert's reconciliation against the flat rate and
+   * it is not the organization's business: they are paid on the rate in their
+   * terms, and the difference either way is Coyoteville's to carry.
+   */
+  actualFeeCents: number;
+  actualFeesPending: number;
   /** Gifts. Every cent of these goes to the organization, never split. */
   donationCents: number;
   donations: number;
@@ -191,7 +235,8 @@ export function emptyTotals(basis: ShareBasis = DEFAULT_SHARE_BASIS): ParkingTot
     vehicles: 0,
     payments: 0,
     feeCents: 0,
-    feesPending: 0,
+    actualFeeCents: 0,
+    actualFeesPending: 0,
     donationCents: 0,
     donations: 0,
     shareCents: 0,
@@ -291,20 +336,28 @@ export async function getParkingTotals(eventSlug: string): Promise<ParkingTotals
         totals.payments += 1;
       }
 
-      /* Null is unknown, not zero. Square calculates the fee after the payment
-         completes, so a row taken five minutes ago legitimately has none yet. */
+      /* Square's own number, for the tracker. Null is unknown rather than
+         zero: Square calculates the fee after the payment completes, so a row
+         taken five minutes ago legitimately has none yet. */
       if (row.square_fee_cents === null || row.square_fee_cents === undefined) {
-        totals.feesPending += 1;
+        totals.actualFeesPending += 1;
       } else {
-        totals.feeCents += Math.max(0, row.square_fee_cents);
+        totals.actualFeeCents += Math.max(0, row.square_fee_cents);
       }
     }
 
-    /* On 'gross' the fee is not deducted before the split, which is what the
-       terms these organizations signed say. On 'net' it is. One place decides,
-       so the page, the ledger and the payout cannot disagree. */
-    const shareBase =
-      basis === 'net' ? Math.max(0, totals.cents - totals.feeCents) : totals.cents;
+    /* The flat rate, on parking only.
+     *
+     * Not on gifts: a gift is 100 percent to the organization, which is what
+     * /park promises a driver and what the terms say. Taking a processing cost
+     * off it would make that promise false. */
+    totals.feeCents = processingFeeOn(totals.cents);
+
+    /* On 'net' the fee comes off before the split, which is what
+       fundraiser-v1.2-2026 says. On 'gross' it does not, which is what v1.1
+       said and what a night still held to those terms would use. One place
+       decides, so the page, the ledger and the payout cannot disagree. */
+    const shareBase = basis === 'net' ? Math.max(0, totals.cents - totals.feeCents) : totals.cents;
 
     totals.shareCents = shareOf(shareBase);
     totals.owedCents = totals.shareCents + totals.donationCents;

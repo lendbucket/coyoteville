@@ -19,6 +19,7 @@ import { PRICING } from '@/lib/seo';
 import { getEvents, getNextEvent } from '@/lib/events-source';
 import { getAwards, getGameSlots, getOrgApplications } from '@/lib/parking-fundraiser';
 import { emptyWaivers, getWaiversForEvents } from '@/lib/volunteer-waivers';
+import { getParkingTotals } from '@/lib/parking';
 import { dayKeyFromTimestamp, formatDayLong } from '@/lib/booking';
 import { ordinalFor } from '@/lib/vendor-history';
 
@@ -144,6 +145,15 @@ export default async function AdminPage({
      one per game. This is the number Robert reads on the night, before parking
      opens, to decide whether the forfeit applies. */
   const waivers = await getWaiversForEvents(orgSlots.map((s) => s.event.slug));
+
+  /* Parking money per game, for the tracker's own reconciliation. The flat
+     3.25 percent the organization is paid on, next to what Square actually
+     charged. The difference is Coyoteville's to carry and Robert's to watch. */
+  const parking = Object.fromEntries(
+    await Promise.all(
+      orgSlots.map(async (s) => [s.event.slug, await getParkingTotals(s.event.slug)] as const)
+    )
+  );
   const allEvents = await getEvents();
   const filters = normaliseFilters(searchParams, knownSlugs, fallback);
 
@@ -368,6 +378,21 @@ export default async function AdminPage({
             /* The organization's id, not just its name, because the QR sheet
                is per game and per organization and has to name both. */
             orgId: award?.org_application_id ?? null,
+            parking: (() => {
+              const t = parking[s.event.slug];
+              return {
+                cents: t.cents,
+                vehicles: t.vehicles,
+                flatFeeCents: t.feeCents,
+                actualFeeCents: t.actualFeeCents,
+                actualFeesPending: t.actualFeesPending,
+                donationCents: t.donationCents,
+                donations: t.donations,
+                shareCents: t.shareCents,
+                owedCents: t.owedCents,
+                basis: t.basis,
+              };
+            })(),
             waivers: (() => {
               const w = waivers[s.event.slug] ?? emptyWaivers(s.event.slug);
               const named = (x: { id: string; full_name: string }) => ({

@@ -32,6 +32,20 @@ export type GameRow = {
   published: boolean;
   /** The drawn organization's id, for the QR sheet. Null until a draw. */
   orgId: string | null;
+  parking: {
+    cents: number;
+    vehicles: number;
+    /** The flat 3.25 percent the organization is paid on. */
+    flatFeeCents: number;
+    /** What Square actually charged, and how many rows have not settled. */
+    actualFeeCents: number;
+    actualFeesPending: number;
+    donationCents: number;
+    donations: number;
+    shareCents: number;
+    owedCents: number;
+    basis: string;
+  };
   waivers: {
     /* Named and identified. The id is what makes each name a link to that
        volunteer's own signed waiver, which is the document somebody asks for
@@ -52,6 +66,66 @@ const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US')}`;
  * Reads the same density, type scale and chip discipline as the rest of the
  * tracker: neutral by default, orange only where something needs doing.
  */
+/**
+ * Parking money for one game, and the one number the organization never sees.
+ *
+ * They are paid on a flat 3.25 percent, which is stable while the night is on
+ * and which they can check against a total with a calculator. What Square
+ * actually charged sits here beside it, because the difference is Coyoteville's
+ * to carry and Robert is the only person who should be watching it.
+ *
+ * The direction is stated in words rather than shown as an unsigned number.
+ * "The flat rate kept nine dollars more than Square charged" and "the flat rate
+ * is nine dollars short" are opposite facts, and a reader should not have to
+ * work out which one a bare figure means.
+ */
+function Parking({ game }: { game: GameRow }) {
+  const p = game.parking;
+  if (!p.cents && !p.donationCents) return null;
+
+  const difference = p.flatFeeCents - p.actualFeeCents;
+
+  return (
+    <div className="pk">
+      <div className="pk__top">
+        <span className="pk__amount">{money(p.cents)}</span>
+        <span className="pk__label">
+          parking, {p.vehicles} {p.vehicles === 1 ? 'vehicle' : 'vehicles'}
+        </span>
+      </div>
+
+      <p className="pk__line">
+        Flat 3.25% <b>{money(p.flatFeeCents)}</b>
+        <span className="pk__sep">against</span>
+        Square actual <b>{money(p.actualFeeCents)}</b>
+        {p.actualFeesPending ? (
+          <span className="pk__pending"> {p.actualFeesPending} not settled yet</span>
+        ) : null}
+      </p>
+
+      <p className="pk__line pk__line--diff">
+        {difference === 0
+          ? 'The flat rate matched Square exactly.'
+          : difference > 0
+            ? 'The flat rate kept ' + money(difference) + ' more than Square charged.'
+            : 'The flat rate is ' + money(Math.abs(difference)) + ' short of what Square charged.'}
+      </p>
+
+      <p className="pk__line">
+        Their share on {p.basis} <b>{money(p.shareCents)}</b>
+        {p.donationCents ? (
+          <>
+            <span className="pk__sep">plus gifts</span>
+            <b>{money(p.donationCents)}</b>
+          </>
+        ) : null}
+        <span className="pk__sep">owed</span>
+        <b className="pk__owed">{money(p.owedCents)}</b>
+      </p>
+    </div>
+  );
+}
+
 /**
  * Signed waivers for one game, read at a glance in the dark.
  *
@@ -225,6 +299,8 @@ export default function Organizations({
             {/* Outside the drawn branch on purpose. Somebody can sign before a
                 draw is made, and a count that only appears after one would hide
                 exactly the signatures nobody expected. */}
+            <Parking game={g} />
+
             <Waivers game={g} />
 
             {/* Their live page. Sent by hand, never automatically: Robert

@@ -10,7 +10,7 @@
  * Changing the terms means: add a file under versions/, point this at it, add
  * it to the registry. Never edit a version file in place.
  */
-import currentDocument from './versions/fundraiser-v1-1-2026';
+import currentDocument from './versions/fundraiser-v1-2-2026';
 import { sectionCount } from './types';
 
 export { currentDocument };

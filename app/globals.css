@@ -8210,3 +8210,395 @@ p {
 .live__figure--total dd b {
   font-size: clamp(2.4rem, 11vw, 3.4rem);
 }
+
+/* ------------------------------------------- parking money, in the tracker */
+
+/* The flat rate the organization is paid on, next to what Square actually
+   charged. The difference is Coyoteville's to carry and this is the only place
+   it is ever shown. */
+
+.pk {
+  margin: 8px 0 12px;
+  padding: 12px;
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.pk__top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pk__amount {
+  font-family: var(--font-condensed);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+}
+
+.pk__label {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+.pk__line {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--cream-50);
+}
+
+.pk__line b {
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+}
+
+.pk__sep {
+  margin: 0 6px;
+  opacity: 0.6;
+}
+
+.pk__pending {
+  color: var(--ember);
+}
+
+.pk__line--diff {
+  color: var(--cream-70);
+}
+
+.pk__owed {
+  color: var(--ember);
+}
+
+/* ============================================================
+   /park and /fundraiser/live behave like an app
+   ============================================================
+
+   The same treatment the tracker got in 5d03970, for the same reason: these
+   are opened on a phone, held in one hand, at an event. Nothing swipes
+   sideways, there is exactly one thing that scrolls, and a flick past the end
+   of it does not drag the page behind it.
+
+   Nothing here overflowed horizontally when it was measured, at 320, 390 or
+   430, on either page. The overflow-x: clip below is therefore a guard rather
+   than a fix: clip and not hidden, because hidden would quietly make these
+   elements scroll containers and there is meant to be one. */
+
+.park,
+.live {
+  overflow-x: clip;
+  overscroll-behavior: contain;
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
+}
+
+/* /park is one screen and does not scroll at 390 and up. dvh rather than vh:
+   under mobile Safari's collapsing URL bar 100vh is the tall state, which puts
+   the gift buttons below the fold until you scroll. */
+.park {
+  min-height: 100dvh;
+  padding-top: max(clamp(0.9rem, 4vw, 2rem), env(safe-area-inset-top));
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Tightened rather than shrunk. The page was 652px at 320 against a 568px
+   screen, and the button is the one thing that does not give: 64px stays. */
+.parkbrand {
+  margin-bottom: clamp(0.6rem, 3vw, 1.5rem);
+}
+
+.parkbrand__mark {
+  width: clamp(40px, 12vw, 56px);
+  height: clamp(40px, 12vw, 56px);
+}
+
+.parkbrand__name {
+  font-size: clamp(1.25rem, 6vw, 1.75rem);
+}
+
+.park__price,
+.park__thanks {
+  margin-bottom: clamp(0.75rem, 4vw, 1.5rem);
+  font-size: clamp(2rem, 12vw, 4rem);
+}
+
+.park__org {
+  margin-top: clamp(1rem, 5vw, 2.5rem);
+  padding-top: clamp(0.9rem, 4vw, 1.75rem);
+}
+
+.park__logo {
+  max-height: clamp(2.5rem, 12vw, 5rem);
+  margin-bottom: clamp(0.5rem, 3vw, 1rem);
+}
+
+.park__gift {
+  margin-top: clamp(1rem, 5vw, 2rem);
+  padding-top: clamp(0.9rem, 4vw, 1.75rem);
+}
+
+.park__gift-note {
+  margin-bottom: clamp(0.6rem, 3vw, 1rem);
+}
+
+/* ------------------------------------------------- the live page's shell */
+
+/* Exactly 100dvh and it does not scroll. The head is an ordinary flex child
+   and the ledger is the only element with a scrollbar, which is the whole
+   mechanism rather than sticky positioning on top of a scrolling document. */
+.live {
+  min-height: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding-top: max(clamp(0.9rem, 4vw, 2rem), env(safe-area-inset-top));
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+.live__shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.live__head {
+  flex: none;
+}
+
+.live__ledger {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Momentum scrolling keeps its own inertia rather than handing it to the
+     page, which cannot scroll anyway. */
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* The head, tightened so the seven figures and the countdown clear a 844px
+   screen with room for the ledger underneath. */
+.live__marks {
+  gap: 0.6rem;
+  margin-bottom: clamp(0.5rem, 3vw, 1rem);
+}
+
+.live__orglogo {
+  max-height: clamp(2rem, 9vw, 3.2rem);
+}
+
+.live__title {
+  font-size: clamp(1.4rem, 6.5vw, 2.2rem);
+}
+
+.live__event {
+  margin-bottom: clamp(0.6rem, 3vw, 1.25rem);
+}
+
+.live__clock {
+  min-height: 0;
+  margin-bottom: clamp(0.6rem, 3vw, 1.25rem);
+}
+
+.live__clock-num {
+  font-size: clamp(2rem, 10vw, 3rem);
+}
+
+/* The figures, as rows. Cards were 742px for the set, which left no room for
+   anything underneath them. */
+.live__figures {
+  gap: 0;
+  margin-bottom: 0.75rem;
+  border-top: 1px solid var(--hairline-dark);
+}
+
+.live__figure {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--hairline-dark);
+  border-radius: 0;
+  background: none;
+  min-height: 44px;
+}
+
+.live__figure dt {
+  margin: 0;
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--cream-70);
+  text-align: left;
+}
+
+.live__figure dd {
+  margin: 0;
+  display: block;
+  font-family: var(--font-condensed);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+  white-space: nowrap;
+}
+
+.live__figure--share dd {
+  color: var(--ember);
+}
+
+.live__figure--muted dt,
+.live__figure--muted dd {
+  color: var(--cream-50);
+  font-size: 0.82rem;
+}
+
+.live__figure--muted dd {
+  font-size: 1.15rem;
+}
+
+.live__figure--total {
+  border-bottom-width: 2px;
+  border-bottom-color: var(--ember);
+}
+
+.live__figure--total dt {
+  font-weight: 700;
+  color: var(--cream);
+}
+
+.live__figure--total dd {
+  font-size: 1.9rem;
+  color: var(--ember);
+}
+
+.live__figure--date dd {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: normal;
+  text-align: right;
+}
+
+.live__sub {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--cream-50);
+}
+
+.live__gross {
+  margin-bottom: 0.75rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.live__foot {
+  margin: 1.25rem 0 0;
+  font-size: 0.86rem;
+  color: var(--cream-50);
+}
+
+/* A real target rather than an inline link inside a sentence. */
+.live__mail {
+  display: block;
+  min-height: 44px;
+  line-height: 44px;
+  color: var(--ember);
+}
+
+/* A short screen. An iPhone SE is 320 by 568, and the seven figures plus the
+   countdown do not clear it at the sizes above: the last two rows fell off and
+   the ledger was squeezed to sixteen pixels.
+
+   Keyed on height as well as width, because this is a vertical fit problem and
+   a wide short screen has it too. The figure rows lose their 44px floor here,
+   which they can: they are dt and dd in a list, not tap targets, and the 44px
+   rule is about things you press. Nothing pressable shrinks. */
+@media (max-width: 360px), (max-height: 720px) {
+  .live__marks {
+    margin-bottom: 0.35rem;
+  }
+
+  .live__orglogo {
+    max-height: 1.9rem;
+  }
+
+  .live__eyebrow {
+    display: none;
+  }
+
+  .live__title {
+    font-size: 1.25rem;
+  }
+
+  .live__event {
+    font-size: 0.85rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .live__clock {
+    margin-bottom: 0.4rem;
+  }
+
+  .live__clock-label {
+    font-size: 0.7rem;
+  }
+
+  .live__clock-num {
+    font-size: 1.9rem;
+  }
+
+  .live__figure {
+    min-height: 0;
+    padding: 0.3rem 0;
+  }
+
+  .live__figure dt {
+    font-size: 0.75rem;
+  }
+
+  .live__figure dd {
+    font-size: 1.05rem;
+  }
+
+  .live__figure--muted dd {
+    font-size: 0.95rem;
+  }
+
+  .live__figure--total dd {
+    font-size: 1.45rem;
+  }
+
+  .live__figure--date dd {
+    font-size: 0.82rem;
+  }
+
+  .live__sub {
+    font-size: 0.68rem;
+  }
+
+  .live__gross {
+    font-size: 0.7rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .live__h2 {
+    font-size: 0.85rem;
+  }
+}

@@ -100,7 +100,6 @@ export default async function FundraiserLivePage({
             cents: snapshot.totals.cents,
             vehicles: snapshot.totals.vehicles,
             feeCents: snapshot.totals.feeCents,
-            feesPending: snapshot.totals.feesPending,
             donationCents: snapshot.totals.donationCents,
             donations: snapshot.totals.donations,
             shareCents: snapshot.totals.shareCents,
@@ -116,11 +115,8 @@ export default async function FundraiserLivePage({
           initialPaidAtISO={snapshot.paidAtISO}
           payByLabel={dateLabel(snapshot.payByISO)}
           feeNote={feeSentence(snapshot.totals.basis)}
+          supportEmail={supportEmail()}
         />
-
-        <p className="live__foot">
-          Questions about tonight, email <a href={`mailto:${supportEmail()}`}>{supportEmail()}</a>.
-        </p>
       </div>
     </main>
   );

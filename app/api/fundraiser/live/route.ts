@@ -47,7 +47,6 @@ export async function GET(request: Request) {
         cents: snapshot.totals.cents,
         vehicles: snapshot.totals.vehicles,
         feeCents: snapshot.totals.feeCents,
-        feesPending: snapshot.totals.feesPending,
         donationCents: snapshot.totals.donationCents,
         donations: snapshot.totals.donations,
         shareCents: snapshot.totals.shareCents,

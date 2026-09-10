@@ -32,7 +32,10 @@ export type LedgerLine = {
   label: string;
 };
 
-const money = (cents: number) => `$${Math.round(cents / 100).toLocaleString('en-US')}`;
+const money = (cents: number) => `${Math.round(cents / 100).toLocaleString('en-US')}`;
+
+/** The rate, as the page says it. Handed in would be a prop nobody varies. */
+const FEE_LABEL = '3.25%';
 
 /**
  * The countdown, as whole units down to the minute and seconds in the last
@@ -60,8 +63,14 @@ function remaining(ms: number): { label: string; done: boolean } {
 export type LiveNumbers = {
   cents: number;
   vehicles: number;
+  /**
+   * The flat rate on parking. Never the sum of what Square charged.
+   *
+   * The organization is paid on the rate in their terms, which they can check
+   * against a total with a calculator. What Square actually took is in the
+   * tracker, for Robert, and the difference either way is Coyoteville's.
+   */
   feeCents: number;
-  feesPending: number;
   donationCents: number;
   donations: number;
   shareCents: number;
@@ -78,6 +87,7 @@ export default function FundraiserLive({
   initialPaidAtISO,
   payByLabel,
   feeNote,
+  supportEmail,
 }: {
   id: string;
   token: string;
@@ -87,6 +97,7 @@ export default function FundraiserLive({
   initialPaidAtISO: string | null;
   payByLabel: string;
   feeNote: string;
+  supportEmail: string;
 }) {
   const [n, setNumbers] = useState<LiveNumbers>(initial);
   const [ledger, setLedger] = useState<LedgerLine[]>(initialLedger);
@@ -158,6 +169,8 @@ export default function FundraiserLive({
 
   return (
     <>
+      {/* --------------------------------------------------- the fixed head */}
+      <div className="live__head">
       {/* ------------------------------------------------------ countdown */}
       <div className="live__clock">
         {countdown === null ? (
@@ -180,24 +193,16 @@ export default function FundraiserLive({
           sub={`${n.vehicles} ${n.vehicles === 1 ? 'vehicle' : 'vehicles'}`}
         />
 
-        {/* Square's own number, never a percentage of ours. Shown as a
-            deduction so the arithmetic on the page is followable: this is the
-            line that explains why the net is lower than the gross. */}
-        <Figure
-          label="Square processing fees"
-          value={`- ${money(n.feeCents)}`}
-          sub={
-            n.feesPending
-              ? `${n.feesPending} still settling`
-              : undefined
-          }
-          muted
-        />
+        {/* Shown as a deduction so the arithmetic on the page is followable.
+            A flat rate rather than a running sum of settled fees, so the
+            number is stable while the night is on and an organization can
+            check it against the total themselves. */}
+        <Figure label={`Processing fees, ${FEE_LABEL}`} value={`- ${money(n.feeCents)}`} muted />
 
         <Figure label="Net after fees" value={money(Math.max(0, n.cents - n.feeCents))} />
 
         <Figure
-          label={`Your share, 50% of ${n.basis}`}
+          label={n.basis === 'net' ? 'Your share, 50% of net' : 'Your share, 50% of gross'}
           value={money(n.shareCents)}
           accent
         />
@@ -218,10 +223,18 @@ export default function FundraiserLive({
         />
       </dl>
 
-      <p className="live__gross">{feeNote}</p>
+      </div>
 
       {/* ----------------------------------------------------- the ledger */}
+      {/* The one scroll container on the page. Everything above it is fixed,
+          so the numbers a team is watching never scroll away, and a flick past
+          the end of the list does not rubber band the page behind it. */}
       <section className="live__ledger" aria-labelledby="live-ledger-title">
+        {/* Under the numbers, and inside the scroller rather than pinned above
+            it. It is prose explaining the figures, not a figure, and pinning it
+            cost the ledger its whole height on a 320 by 568 screen. */}
+        <p className="live__gross">{feeNote}</p>
+
         <h2 id="live-ledger-title" className="live__h2">
           Every payment, as it lands
         </h2>
@@ -239,11 +252,28 @@ export default function FundraiserLive({
             ))}
           </ol>
         )}
+
+        {/* Inside the scroller, so it does not take height from the numbers,
+            and a real tap target rather than an inline link in a sentence. */}
+        <p className="live__foot">
+          Questions about tonight
+          <a className="live__mail" href={`mailto:${supportEmail}`}>
+            {supportEmail}
+          </a>
+        </p>
       </section>
     </>
   );
 }
 
+/**
+ * One figure, as a row rather than a card.
+ *
+ * Seven of these have to sit above the ledger on a 390 by 844 screen with the
+ * countdown, and cards could not: they were 742px for the set. A row is label
+ * left, value right, one baseline, about 40px. The total keeps its weight by
+ * being larger and accented rather than by being a different shape.
+ */
 function Figure({
   label,
   value,
@@ -266,17 +296,18 @@ function Figure({
     accent ? 'live__figure--share' : '',
     muted ? 'live__figure--muted' : '',
     big ? 'live__figure--total' : '',
+    date ? 'live__figure--date' : '',
   ]
     .filter(Boolean)
     .join(' ');
 
   return (
     <div className={classes}>
-      <dt>{label}</dt>
-      <dd>
-        <b className={date ? 'live__date' : undefined}>{value}</b>
+      <dt>
+        {label}
         {sub ? <span className="live__sub">{sub}</span> : null}
-      </dd>
+      </dt>
+      <dd>{value}</dd>
     </div>
   );
 }

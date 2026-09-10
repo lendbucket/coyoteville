@@ -14,6 +14,7 @@ import {
   getGameSlots,
   getPublishedLedger,
 } from '@/lib/parking-fundraiser';
+import { PROCESSING_FEE_RATE, processingFeeOn } from '@/lib/parking';
 import { ADDRESS, OG_IMAGE, SITE, SITE_URL } from '@/lib/seo';
 import { supportEmail } from '@/lib/support';
 
@@ -38,6 +39,9 @@ export const revalidate = 60;
  * apart, which is the usual way a page ends up optimised for three slightly
  * different things. The H1 leads with the program name because that is the
  * phrase the reader arrived holding. */
+/** The rate, written once, so the page and the terms cannot drift. */
+const FEE_LABEL = `${(PROCESSING_FEE_RATE * 100).toFixed(2).replace(/0$/, '')}%`;
+
 const BRANDED = `Coyoteville ${PROGRAM_NAME}`;
 const TARGET = 'Alice TX Fundraiser';
 const TITLE = `${BRANDED} | ${TARGET} for Local Organizations`;
@@ -51,7 +55,7 @@ const H1 = `${BRANDED}: ${CLAIM}`;
 const SPLIT = PROGRAM_NAME.lastIndexOf(' ');
 const NAME_HEAD = SPLIT === -1 ? PROGRAM_NAME : PROGRAM_NAME.slice(0, SPLIT);
 const NAME_SCRIPT = SPLIT === -1 ? '' : PROGRAM_NAME.slice(SPLIT + 1);
-const DESCRIPTION = `The Coyoteville ${PROGRAM_NAME} is an Alice TX fundraiser for schools, booster clubs, teams, clubs and nonprofits. Work a game day at Coyoteville and your organization keeps 50 percent of the gross parking revenue, paid within ${PAYOUT_WINDOW_DAYS} days and posted publicly.`;
+const DESCRIPTION = `The Coyoteville ${PROGRAM_NAME} is an Alice TX fundraiser for schools, booster clubs, teams, clubs and nonprofits. Work a game day at Coyoteville and your organization keeps 50 percent of the parking revenue after a ${FEE_LABEL} card processing cost, paid within ${PAYOUT_WINDOW_DAYS} days and posted publicly.`;
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -96,7 +100,7 @@ const FAQ: { q: string; a: string; link?: { href: string; text: string } }[] = [
   },
   {
     q: 'How much does an organization actually get?',
-    a: `50 percent of the gross parking revenue for that game. Gross means every vehicle counted at the gate at ${dollars(PARKING_PRICE_CENTS)} per vehicle, before any expense of any kind is taken out. Nothing is deducted before the split.`,
+    a: `50 percent of the parking revenue for that game after card processing. Card processing is ${FEE_LABEL} of every payment, which is what it costs us to take a card. Nothing else comes out: no labor, no supplies, no overhead. Anyone paying for parking can also add a gift for your organization, and every cent of a gift is yours with nothing deducted.`,
   },
   {
     q: 'How are organizations chosen?',
@@ -241,7 +245,8 @@ export default async function FridayNightFundPage() {
                 clean, help keep things in good order.
               </li>
               <li>
-                <b>Get paid.</b> Half the gross parking for that game, within {PAYOUT_WINDOW_DAYS}{' '}
+                <b>Get paid.</b> Half the parking for that game after card processing, within{' '}
+                {PAYOUT_WINDOW_DAYS}{' '}
                 days, with the number posted on this page.
               </li>
             </ol>
@@ -289,21 +294,28 @@ export default async function FridayNightFundPage() {
         <section className="section" aria-labelledby="fnf-pay">
           <div className="shell">
             <p className="eyebrow">The money</p>
-            <h2 id="fnf-pay">Half the gross parking, and we say what gross means</h2>
+            <h2 id="fnf-pay">Half the parking, and we show you the one deduction</h2>
             <p className="lede">
-              Your organization receives <b>50 percent of the gross parking revenue</b> for the game
-              it works.
+              Your organization receives <b>50 percent of the parking revenue</b> for the game it
+              works, after the {FEE_LABEL} it costs us to take a card.
             </p>
             <p className="formnote" role="note">
-              <b>Gross</b> means every vehicle counted at the gate at {dollars(PARKING_PRICE_CENTS)}{' '}
-              per vehicle, before any expense of any kind is taken out. Not after costs, not after
-              staffing, not after anything. If 300 cars park, the gross is{' '}
-              {dollars(300 * PARKING_PRICE_CENTS)} and your organization is paid{' '}
-              {dollars((300 * PARKING_PRICE_CENTS) / 2)}.
+              That {FEE_LABEL} is the only thing that comes out, and it is not ours: it is what the
+              card processor charges. No labor, no supplies, no overhead, no Coyoteville expense of
+              any kind. If 300 cars park at {dollars(PARKING_PRICE_CENTS)} each, the parking is{' '}
+              {dollars(300 * PARKING_PRICE_CENTS)}, card processing is{' '}
+              {dollars(processingFeeOn(300 * PARKING_PRICE_CENTS))}, and your organization is paid{' '}
+              {dollars(Math.round((300 * PARKING_PRICE_CENTS - processingFeeOn(300 * PARKING_PRICE_CENTS)) / 2))}
+              .
+            </p>
+            <p className="formnote" role="note">
+              Anyone paying for parking can also <b>add a gift</b> for your organization. Every cent
+              of a gift is yours. It is not split and the card processing cost is not taken off it.
             </p>
             <p>
-              Payment is made within {PAYOUT_WINDOW_DAYS} days of the game. Both the gross and the
-              payout are published below, so you can check the arithmetic and so can everybody else.
+              Payment is made within {PAYOUT_WINDOW_DAYS} days of the game. Both the parking total
+              and the payout are published below, so you can check the arithmetic and so can
+              everybody else.
             </p>
             <p className="fnf__cta">
               <a className="btn btn--rust" href="#apply-fnf">

@@ -3,6 +3,7 @@ import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { getEvents } from './events-source';
 import { PAYOUT_WINDOW_DAYS } from './parking-fundraiser';
 import {
+  PROCESSING_FEE_RATE,
   emptyTotals,
   getParkingLedger,
   getParkingTotals,
@@ -42,13 +43,14 @@ export type LiveLedgerLine = {
  * rather than left for them to work out from two numbers that do not divide.
  */
 export function feeSentence(basis: ShareBasis): string {
+  const rate = `${(PROCESSING_FEE_RATE * 100).toFixed(2).replace(/0$/, '')}%`;
   const shared =
-    'Square keeps a small processing fee on every card payment. We show it so you can see ' +
-    'exactly where every dollar went.';
+    `Card processing costs ${rate} on every payment. We show it so you can see exactly where ` +
+    'every dollar went.';
 
   return basis === 'net'
-    ? `${shared} Your share is calculated on the net, after that fee, as your terms say.`
-    : `${shared} Your share is calculated on the gross, before that fee, as your terms say.`;
+    ? `${shared} Your share is half of what is left after that fee.`
+    : `${shared} Your share is half of the total before that fee, as your terms say.`;
 }
 
 export type LiveSnapshot = {
