@@ -21,15 +21,23 @@
  * the phone is actually looking for. "Print QR" moving from one panel to
  * another is fine. "Print QR" not being anywhere is not.
  *
- * It needs a real Chrome and it builds nothing, so it runs after the build:
+ * It needs a real Chrome and a built app, so it is NOT part of the build. It
+ * runs by hand, and in GitHub Actions where a browser exists:
  *
- *   npm run check:admin-parity
+ *   npx next build && npm run check:admin-parity
+ *
+ * Not in prebuild or postbuild, deliberately and permanently. Vercel's builder
+ * is Linux with no Chrome, so a puppeteer gate in the build fails the deploy
+ * rather than the tracker: 33132ee passed all nine other gates and never
+ * shipped. check-anchors is out of the build for the same reason. Anything
+ * that launches a browser belongs on a machine or a runner that has one.
  *
  * Sabotage it to prove it works. Hide any control below 900px and this fails
  * naming that control.
  */
 
 const { spawn } = require('node:child_process');
+const fs = require('node:fs');
 const { createHmac } = require('node:crypto');
 const net = require('node:net');
 const path = require('node:path');
@@ -38,8 +46,27 @@ const puppeteer = require('puppeteer-core');
 const { startFixtureDb } = require('./admin-fixture-db');
 
 const ROOT = path.join(__dirname, '..');
-const CHROME =
-  process.env.CHROME_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+
+/**
+ * Where Chrome is, the same way scripts/healthcheck.js asks.
+ *
+ * CHROME_PATH first, because that is what browser-actions/setup-chrome hands
+ * back and what a machine with Chrome somewhere unusual can set. Then the
+ * platform default. A hardcoded Windows path is what took a deploy down: this
+ * script was in postbuild, Vercel's builder is Linux and has no Chrome, so
+ * every other gate passed and this one failed the build.
+ */
+function chromePath() {
+  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
+  if (process.platform === 'win32') return 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+  if (process.platform === 'darwin') {
+    return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  }
+  // What GitHub's ubuntu runners ship, and what setup-chrome installs.
+  return '/usr/bin/google-chrome';
+}
+
+const CHROME = chromePath();
 
 const PASSWORD = 'parity-fixture-password';
 
@@ -241,6 +268,22 @@ async function openSheet(page) {
 }
 
 (async () => {
+  if (!fs.existsSync(CHROME)) {
+    console.error('check-admin-parity: no browser at ' + CHROME);
+    console.error(
+      [
+        '',
+        'This check drives a real Chrome, so it runs on a machine or a CI runner',
+        'that has one, never in the Vercel build. Point CHROME_PATH at a Chrome',
+        'or install one, then:',
+        '',
+        '  npx next build && npm run check:admin-parity',
+        '',
+      ].join('\n')
+    );
+    process.exit(1);
+  }
+
   const db = await startFixtureDb();
   const port = await freePort();
   const base = `http://127.0.0.1:${port}`;

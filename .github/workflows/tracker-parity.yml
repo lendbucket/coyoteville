@@ -1,0 +1,68 @@
+name: Tracker parity
+
+# Does /admin still show a phone everything it shows a desktop?
+#
+# This drives a real Chrome, so it cannot live in the Vercel build: that builder
+# is Linux with no browser, and a puppeteer gate there fails the deploy rather
+# than the code. It runs here instead, where a browser is installed on purpose,
+# and by hand on a laptop.
+#
+# No secrets and nothing live. The check starts its own server against
+# scripts/admin-fixture-db.js, which is invented rows over loopback, so this is
+# safe to run on a pull request from anywhere.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'components/admin/**'
+      - 'app/admin/**'
+      - 'app/globals.css'
+      - 'scripts/check-admin-parity.js'
+      - 'scripts/admin-fixture-db.js'
+      - '.github/workflows/tracker-parity.yml'
+  pull_request:
+    paths:
+      - 'components/admin/**'
+      - 'app/admin/**'
+      - 'app/globals.css'
+      - 'scripts/check-admin-parity.js'
+      - 'scripts/admin-fixture-db.js'
+  workflow_dispatch:
+
+concurrency:
+  group: tracker-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # puppeteer-core brings no browser of its own. The runner supplies it, and
+      # CHROME_PATH is how the check is told where, rather than guessing.
+      - name: Install Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with:
+          chrome-version: stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The same build Vercel runs, including every gate in prebuild and
+      # postbuild. If this step fails the deploy would have failed too.
+      - name: Build
+        run: npm run build
+
+      - name: Check tracker parity
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: npm run check:admin-parity
