@@ -14,10 +14,11 @@
     "check:font-preload": "node scripts/check-font-preload.js",
     "prebuild": "npm run check:schema && npm run check:capacity && npm run check:email-copy && npm run check:recipient-privacy && npm run check:booking-shape",
     "build": "next build",
-    "postbuild": "npm run check:pdf-bundle && npm run check:webhook && npm run check:font-preload",
+    "postbuild": "npm run check:pdf-bundle && npm run check:webhook && npm run check:font-preload && npm run check:admin-parity",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:admin-parity": "node scripts/check-admin-parity.js"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

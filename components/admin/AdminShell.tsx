@@ -42,16 +42,41 @@ import { ALL_SCOPE, DAY_SCOPE, MONTHLY_SCOPE, SCOPE_LABELS } from '@/lib/admin-s
  * phone on the far side of a stadium.
  */
 
-const TABS = [
-  { key: 'vendors', label: 'Vendors' },
-  { key: 'calendar', label: 'Calendar' },
-  { key: 'waitlist', label: 'Waitlist' },
-  { key: 'money', label: 'Money' },
-  { key: 'orgs', label: 'Orgs' },
-  { key: 'compose', label: 'Compose' },
+/**
+ * Every panel, and how a phone gets to it.
+ *
+ * The bar is five columns wide because five is what fits at 320 without a
+ * label wrapping. There were six entries in it, so the sixth was landing on a
+ * second row and making the bar taller than the space reserved for it.
+ *
+ * The five that stay are the ones you use standing in the lot. Orgs is there
+ * because it carries game night: the parking count, the ledger, the QR sheets
+ * and the payout. Calendar is a planning view for a month of day bookings and
+ * Compose is a desk job, so both moved behind More, one tap further and no
+ * more than that.
+ */
+const PANELS = [
+  { key: 'vendors', label: 'Vendors', in: 'bar' },
+  { key: 'waitlist', label: 'Waitlist', in: 'bar' },
+  { key: 'money', label: 'Money', in: 'bar' },
+  { key: 'orgs', label: 'Orgs', in: 'bar' },
+  { key: 'calendar', label: 'Calendar', in: 'more', blurb: 'Every day booking this month' },
+  {
+    key: 'compose',
+    label: 'Compose',
+    in: 'more',
+    blurb: 'Write and send to the vendors you picked',
+  },
 ] as const;
 
-type TabKey = (typeof TABS)[number]['key'];
+const TABS = [
+  ...PANELS.filter((p) => p.in === 'bar'),
+  { key: 'more', label: 'More', in: 'bar' },
+] as const;
+
+const MORE = PANELS.filter((p) => p.in === 'more');
+
+type TabKey = (typeof PANELS)[number]['key'] | 'more';
 
 function TabIcon({ tab }: { tab: TabKey }) {
   const paths: Record<TabKey, string> = {
@@ -62,6 +87,7 @@ function TabIcon({ tab }: { tab: TabKey }) {
     money: 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm.9 15.3v1.4h-1.6v-1.4a4 4 0 0 1-2.9-1.7l1.3-1.1a2.7 2.7 0 0 0 2.3 1.2c1 0 1.7-.4 1.7-1.2s-.6-1-2-1.4c-1.7-.5-3-1.1-3-2.9a2.9 2.9 0 0 1 2.6-2.8V6h1.6v1.4a3.6 3.6 0 0 1 2.5 1.5l-1.3 1.1a2.3 2.3 0 0 0-1.9-1c-1 0-1.5.5-1.5 1.1s.6 1 2 1.4c1.8.5 3 1.2 3 3a3 3 0 0 1-2.8 2.8Z',
     orgs: 'M12 2 3 7v2h18V7Zm-7 9v7H3v2h18v-2h-2v-7h-2v7h-3v-7h-2v7H7v-7Z',
     compose: 'M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25ZM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z',
+    more: 'M6 10a2 2 0 1 0 2 2 2 2 0 0 0-2-2Zm6 0a2 2 0 1 0 2 2 2 2 0 0 0-2-2Zm6 0a2 2 0 1 0 2 2 2 2 0 0 0-2-2Z',
   };
 
   return (
@@ -362,7 +388,7 @@ export default function AdminShell({
       {/* -------------------------------------------------------- vendors */}
       <section
         className="ash__panel"
-        data-panel="vendors"
+        data-panel="vendors" data-active={tab === "vendors"}
         aria-label="Vendors"
         ref={listRef}
         onTouchStart={onTouchStart}
@@ -534,7 +560,7 @@ export default function AdminShell({
       </section>
 
       {/* ------------------------------------------------------- calendar */}
-      <section className="ash__panel" data-panel="calendar" aria-label="Calendar">
+      <section className="ash__panel" data-panel="calendar" data-active={tab === "calendar"} aria-label="Calendar">
         <AdminCalendar
           bookings={rows
             .filter((r) => r.bookingKind === 'day' && r.bookingDay)
@@ -569,7 +595,7 @@ export default function AdminShell({
       </section>
 
       {/* ------------------------------------------------------- waitlist */}
-      <section className="ash__panel" data-panel="waitlist" aria-label="Waitlist">
+      <section className="ash__panel" data-panel="waitlist" data-active={tab === "waitlist"} aria-label="Waitlist">
         <AdminAbandoned rows={abandoned} />
         {waitlist.length ? (
           <AdminWaitlist entries={waitlist} eventName={eventName} />
@@ -579,7 +605,7 @@ export default function AdminShell({
       </section>
 
       {/* ---------------------------------------------------------- money */}
-      <section className="ash__panel" data-panel="money" aria-label="Money">
+      <section className="ash__panel" data-panel="money" data-active={tab === "money"} aria-label="Money">
         <AdminRevenue revenue={revenue} />
         <ul className="admin__counts">
           <li>
@@ -598,12 +624,12 @@ export default function AdminShell({
       </section>
 
       {/* ------------------------------------------------------------ orgs */}
-      <section className="ash__panel" data-panel="orgs" aria-label="Organizations">
+      <section className="ash__panel" data-panel="orgs" data-active={tab === "orgs"} aria-label="Organizations">
         <Organizations applications={orgApplications} games={orgGames} />
       </section>
 
       {/* -------------------------------------------------------- compose */}
-      <section className="ash__panel" data-panel="compose" aria-label="Compose">
+      <section className="ash__panel" data-panel="compose" data-active={tab === "compose"} aria-label="Compose">
         <Composer
           rows={visible}
           selectedIds={selectedIds}
@@ -616,28 +642,68 @@ export default function AdminShell({
         />
       </section>
 
+      {/* ----------------------------------------------------------- more */}
+
+      {/* The rest of the panels, as a list rather than a sixth column that does
+          not fit. Phone only: on a desktop every panel is already on screen, so
+          a menu pointing at them would point at nothing. */}
+      <section className="ash__panel" data-panel="more" data-active={tab === 'more'} aria-label="More">
+        <ul className="more">
+          {MORE.map((p) => (
+            <li key={p.key}>
+              <button
+                className="more__item"
+                type="button"
+                data-more-target={p.key}
+                onClick={() => setTab(p.key)}
+              >
+                <span className="more__icon" aria-hidden="true">
+                  <TabIcon tab={p.key} />
+                </span>
+                <span className="more__text">
+                  <b>{p.label}</b>
+                  <i>{p.blurb}</i>
+                </span>
+                <span className="more__go" aria-hidden="true">
+                  &rsaquo;
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <VendorSheet row={openRow} onClose={() => setOpenId(null)} onEmail={emailVendor} />
 
       {/* --------------------------------------------------------- tabbar */}
       <nav className="tabbar" aria-label="Sections">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            className={`tabbar__tab ${tab === t.key ? 'is-on' : ''}`}
-            aria-current={tab === t.key ? 'page' : undefined}
-            onClick={() => setTab(t.key)}
-          >
-            <TabIcon tab={t.key} />
-            <span>{t.label}</span>
-            {t.key === 'compose' && selectedIds.length ? (
-              <span className="tabbar__badge">{selectedIds.length}</span>
-            ) : null}
-            {t.key === 'vendors' && counts.pending ? (
-              <span className="tabbar__badge tabbar__badge--review">{counts.pending}</span>
-            ) : null}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          /* More stays lit while you are on one of the panels it opens, so the
+             way back is the button you came through rather than a guess. */
+          const on = tab === t.key || (t.key === 'more' && MORE.some((p) => p.key === tab));
+
+          return (
+            <button
+              key={t.key}
+              type="button"
+              className={`tabbar__tab ${on ? 'is-on' : ''}`}
+              aria-current={on ? 'page' : undefined}
+              onClick={() => setTab(t.key)}
+            >
+              <TabIcon tab={t.key} />
+              <span>{t.label}</span>
+              {/* The composer moved behind More, and so did its count: a
+                  selection you cannot see is a selection you send to the wrong
+                  people. */}
+              {t.key === 'more' && selectedIds.length ? (
+                <span className="tabbar__badge">{selectedIds.length}</span>
+              ) : null}
+              {t.key === 'vendors' && counts.pending ? (
+                <span className="tabbar__badge tabbar__badge--review">{counts.pending}</span>
+              ) : null}
+            </button>
+          );
+        })}
       </nav>
     </div>
   );
