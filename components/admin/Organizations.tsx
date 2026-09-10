@@ -198,6 +198,15 @@ export default function Organizations({
 
       {/* ------------------------------------------------------- games */}
       <p className="orgs__head">Home games</p>
+
+      {/* One sheet, not one per game. The QR points at /park, which resolves
+          the night itself, so this is printed once and laminated and works
+          every game after this one. */}
+      <p className="orgs__doc">
+        <a className="btn btn--sm btn--ghost" href="/api/admin/parking-qr" target="_blank" rel="noreferrer">
+          Print parking QR
+        </a>
+      </p>
       <ul className="orgs__games">
         {games.map((g) => (
           <li className="orgs__game" key={g.slug}>

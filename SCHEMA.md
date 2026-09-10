@@ -60,6 +60,10 @@ org_applications
   terms_version, signature_name, signed_at, signer_ip, signer_user_agent,
   admin_notes, created_at, updated_at
 
+parking_payments
+  id, event_slug, amount_cents, vehicle_count, source, square_payment_id,
+  square_order_id, recorded_by, note, created_at
+
 org_event_awards
   id, event_slug, org_application_id, picked_at, picked_from_count,
   parking_gross_cents, payout_cents, paid_at, paid_method, published_at,
@@ -154,12 +158,73 @@ waitlist.booking_kind
 
 org_applications.status
   pending, selected, declined, withdrawn
+
+parking_payments.source
+  qr, pos, cash
 ```
 
 `denied` and `cancelled` are both on `approval_status` and are not
 interchangeable. `denied` is a decision somebody made and it refunds.
 `cancelled` is a checkout the vendor walked away from, aged out automatically,
 and there is nothing to refund because nothing was ever paid.
+
+## Parking money
+
+Every parking dollar, from every source, is one row in `parking_payments`. The
+QR page, the organization's live page, the tracker and the public ledger all
+read from that table, and nothing computes parking revenue anywhere else. Half
+of this money belongs to the organization working the night, and a number shown
+to them has to be one they can see the rows behind.
+
+`amount_cents` is checked `> 0` and `vehicle_count` defaults to 1. They are two
+different quantities: one cash tap can record several vehicles at once, so the
+row count, the vehicle count and the money are three separate numbers and the
+code does not mix them up.
+
+`square_payment_id` is unique and nullable. Unique because Square redelivers a
+webhook until it gets a 2xx and would otherwise book the same ten dollars twice.
+Nullable because a cash row never had a Square payment behind it.
+
+`source` says how the money arrived, and the three values are not
+interchangeable:
+
+| source | what it is | who writes it |
+| --- | --- | --- |
+| `qr` | a driver paid on their phone from the QR code | the Square webhook |
+| `pos` | a card taken at the gate on a reader or Tap to Pay | recorded by hand |
+| `cash` | notes into the box | recorded by hand at the gate |
+
+`pos` is recorded by hand and not by the webhook, and that is a limitation of
+Square rather than a choice. See below.
+
+RLS is enabled with no policies, so only the service role reaches it.
+
+### Payments taken at the gate
+
+A card tapped on a reader or on Tap to Pay at the gate fires the same
+`payment.updated` webhook every other payment on the account fires. It arrives
+with an `order_id`, and the order it names has **no `reference_id`**.
+
+`reference_id` is set by whoever creates the order. This site sets it on every
+order it creates: a vendor's is the application UUID, and parking's is
+`parking:<event slug>`. The Square Point of Sale app does not set one, and
+there is no setting that makes it. So a sale rung up at the gate is
+indistinguishable, in the webhook, from any other sale taken on this Square
+account anywhere, for anything.
+
+The webhook therefore ignores a payment with no reference id, which it already
+did before parking existed, and card sales at the gate are recorded by hand as
+`source = 'pos'`. That is a real gap and it is stated here rather than papered
+over: if nobody types them in, that money is missing from the organization's
+half.
+
+There is one way to close it automatically, and it is a decision rather than a
+code change: give the gate **its own Square location**, and have the webhook
+treat any payment on that location with no reference id as parking. Square
+stamps `location_id` on every payment and the POS app is assigned a location
+when it is set up. Nothing else about the account has to change. It is not built
+because it needs a second location created and the reader assigned to it, which
+is Robert's call and not something to guess at two days before a game.
 
 ## The volunteer waiver
 

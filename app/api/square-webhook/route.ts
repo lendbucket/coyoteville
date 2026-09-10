@@ -5,6 +5,7 @@ import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { SITE_URL } from '@/lib/seo';
 import { eventNameFor } from '@/lib/events-source';
 import { invalidateSpots } from '@/lib/spots';
+import { eventSlugFromReference, recordParkingPayment } from '@/lib/parking';
 import { notifyPaymentReceived } from '@/lib/notify';
 import {
   handleInvoiceFailed,
@@ -239,13 +240,61 @@ export async function POST(request: Request) {
       throw err;
     }
 
-    const applicationId = order?.referenceId;
+    const reference = order?.referenceId;
 
-    if (!applicationId) {
-      // Every order we create carries one. This is a payment taken somewhere
-      // else on the same Square account, so it is not ours to act on.
+    if (!reference) {
+      /* Every order this site creates carries one. A payment with none was
+         taken somewhere else on the same Square account, which includes every
+         sale rung up on the Square POS app at the gate: that app does not set a
+         referenceId and there is no way to tell one of its sales from any
+         other. Those are recorded by hand as source 'pos'. See the note on
+         "Payments taken at the gate" in SCHEMA.md. */
       return NextResponse.json({ received: true, ignored: 'no reference id' });
     }
+
+    /* Parking is its own kind of money and its own table. Branched before the
+       vendor path reads anything, so a parking referenceId can never be looked
+       up as an application UUID, and so nothing about the vendor path changes
+       shape to accommodate it. */
+    const parkingEventSlug = eventSlugFromReference(reference);
+    if (parkingEventSlug) {
+      const amount = Number(payment.amount_money?.amount ?? 0);
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        console.warn('parking payment with no amount', payment.id);
+        return NextResponse.json({ received: true, ignored: 'parking payment with no amount' });
+      }
+
+      /* The amount is taken from the payment rather than from our price
+         constant. A driver paid what Square charged them, and recording a
+         different number would be recording a fiction into the one table the
+         organization's cut is computed from. */
+      const recorded = await recordParkingPayment({
+        eventSlug: parkingEventSlug,
+        amountCents: amount,
+        vehicleCount: 1,
+        source: 'qr',
+        squarePaymentId: payment.id ?? null,
+        squareOrderId: orderId,
+      });
+
+      if (!recorded.ok) {
+        /* A non 2xx makes Square redeliver, which is what should happen when
+           the write failed: this is somebody's ten dollars. */
+        return NextResponse.json({ error: 'Could not record the parking payment.' }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        received: true,
+        parking: true,
+        eventSlug: parkingEventSlug,
+        /* False on a redelivery of a payment already recorded, which is the
+           normal case Square produces and not an error. */
+        inserted: recorded.inserted,
+      });
+    }
+
+    const applicationId = reference;
 
     const supabase = getSupabaseAdmin();
 

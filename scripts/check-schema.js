@@ -383,7 +383,20 @@ function readAllowedValues() {
 }
 
 /** Column names too common to identify a database column by name alone. */
-const GENERIC_COLUMNS = new Set(['status']);
+/**
+ * Column names that more than one table uses for unrelated things.
+ *
+ * For these, only the .eq('column', 'value') form is checked, because that form
+ * is at least attached to a query somebody can trace to a table. The bare
+ * "column: 'value'" and "column === 'value'" forms are skipped: they match any
+ * object literal or comparison in the codebase that happens to use the word.
+ *
+ * 'source' joined 'status' when parking_payments arrived with a constrained
+ * source of qr, pos and cash. subscribers.source is a free text column holding
+ * things like 'homepage', and reading one table's constraint against another
+ * table's column is how a gate starts crying wolf and gets switched off.
+ */
+const GENERIC_COLUMNS = new Set(['status', 'source']);
 
 function checkAllowedValues(files, allowed) {
   const problems = [];

@@ -7753,3 +7753,130 @@ p {
 .wv__name:focus-visible {
   text-decoration-color: var(--ember);
 }
+
+/* ============================================================
+   /park, the QR target
+   ============================================================
+
+   A driver, a phone, one bar of signal, a car behind them. Everything here
+   follows from that: no lights, no hero, no image above the button, and type
+   big enough to read at arm's length in a moving queue. The two brand faces
+   are already preloaded site wide and nothing else is asked for. */
+
+.park {
+  min-height: 100dvh;
+  padding: clamp(1.5rem, 7vw, 3rem) var(--gutter) 3rem;
+  background: var(--char);
+  text-align: center;
+}
+
+.park__shell {
+  max-width: 26rem;
+  margin: 0 auto;
+}
+
+.park__eyebrow {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-condensed);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+.park__price,
+.park__thanks {
+  margin: 0 0 1.5rem;
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 13vw, 4rem);
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+/* The button. Full width, thumb height, and the only thing on the screen that
+   looks tappable. 64px rather than the 44px minimum: this is pressed one
+   handed, in the dark, through a car window. */
+.park__pay {
+  display: block;
+  width: 100%;
+  min-height: 64px;
+  padding: 1.1rem 1rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--ember);
+  color: var(--ink);
+  font-family: var(--font-condensed);
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  line-height: 1.2;
+}
+
+.park__pay:active {
+  background: var(--cream-deep);
+}
+
+.park__apple {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  color: var(--cream-50);
+}
+
+.park__lede {
+  margin: 0 0 1rem;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--cream-70);
+}
+
+.park__lede--warn {
+  padding: 0.9rem 1rem;
+  border-left: 3px solid var(--ember);
+  background: rgba(240, 169, 75, 0.08);
+  text-align: left;
+  color: var(--cream);
+}
+
+/* The organization. Below the button, and the reason the ten dollars is worth
+   paying rather than arguing about. */
+.park__org {
+  margin-top: 2.5rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--hairline-dark);
+}
+
+.park__logo {
+  width: auto;
+  max-width: 9rem;
+  max-height: 5rem;
+  height: auto;
+  margin: 0 auto 1rem;
+  display: block;
+}
+
+.park__share {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  color: var(--cream);
+}
+
+.park__raised {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--cream-70);
+}
+
+.park__raised b {
+  font-family: var(--font-condensed);
+  font-size: 1.9rem;
+  font-weight: 700;
+  /* Tabular, so a number that ticks up while somebody is reading it does not
+     make the line jump around. */
+  font-variant-numeric: tabular-nums;
+  color: var(--ember);
+}

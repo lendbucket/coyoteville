@@ -46,8 +46,15 @@ const RETRY_DELAY_MS = Number(process.env.HEALTHCHECK_RETRY_MS || 60_000);
 const SHOTS = path.join(os.tmpdir(), 'coyoteville-healthcheck');
 const HEALTHCHECK_NAME = '__healthcheck__';
 
-/** Steps urgent enough to wake somebody. A broken signup or a locked out admin. */
-const SMS_STEPS = new Set(['signup', 'admin-login']);
+/**
+ * Steps urgent enough to wake somebody.
+ *
+ * A broken signup or a locked out admin, and now the parking page: it is only
+ * live on a game night, it is the only way a driver can pay by phone, and every
+ * minute it is down is money that is not collected and half of which belonged
+ * to somebody else. The other steps can wait for an email.
+ */
+const SMS_STEPS = new Set(['signup', 'admin-login', 'parking']);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -783,6 +790,83 @@ async function stepVolunteerWaiver(ctx) {
     `${seen.conspicuous} conspicuous blocks, version ${version}`;
 }
 
+/**
+ * 12. The parking page renders, with a way to pay and the organization named.
+ *
+ * This is the page a QR code on a post points at, opened by somebody who has
+ * never seen this site and never will, from a car, in a queue. Nobody is
+ * watching a dashboard at that moment and there is no second chance at it: a
+ * broken /park on a Friday night is cash that was never taken and an
+ * organization that was never paid.
+ *
+ * Asserts the price, a pay button that goes to Square, and the organization
+ * line. The organization is checked because it is not decoration: it is the
+ * reason a driver pays ten dollars without arguing, and a page that quietly
+ * lost it is a page that still works and stops earning.
+ *
+ * Also times it. Under a second on a bad connection is the requirement, so a
+ * page that has slipped into rendering per request rather than being served
+ * from the edge is worth knowing about before a game night rather than during
+ * one.
+ */
+async function stepParking(ctx) {
+  const page = await newPage();
+  ctx.parkPage = page;
+
+  const started = Date.now();
+  const res = await page.goto(`${BASE}/park`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  const ms = Date.now() - started;
+
+  assert(res && res.ok(), `/park returned ${res && res.status()}`);
+  await settle(page, 400);
+
+  const seen = await page.evaluate(() => {
+    const pay = document.querySelector('.park__pay');
+    return {
+      h1: (document.querySelector('h1') || {}).innerText || '',
+      payText: pay ? pay.innerText.trim() : '',
+      payHref: pay ? pay.getAttribute('href') || '' : '',
+      share: (document.querySelector('.park__share') || {}).innerText || '',
+      raised: (document.querySelector('.park__raised') || {}).innerText || '',
+      warn: Boolean(document.querySelector('.park__lede--warn')),
+      overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  });
+
+  assert(/parking/i.test(seen.h1), `the page rendered no parking heading: "${seen.h1.slice(0, 50)}"`);
+  assert(
+    seen.h1.includes('$10'),
+    `the price is not in the heading: "${seen.h1.slice(0, 50)}"`
+  );
+
+  /* No button is a real outage, not a soft state. The page says so on purpose
+     when Square is unreachable, and that message is exactly what this has to
+     catch rather than tolerate. */
+  assert(!seen.warn, 'the page is telling drivers card payment is unavailable');
+  assert(seen.payText.length > 0, 'there is no pay button on the parking page');
+  assert(
+    seen.payHref.startsWith('https://') && /square/.test(seen.payHref),
+    `the pay button does not point at Square: "${seen.payHref.slice(0, 60)}"`
+  );
+
+  assert(seen.share.length > 0, 'the organization line is missing, so nobody is named');
+  assert(/50%/.test(seen.share), `the 50 percent line is missing: "${seen.share.slice(0, 60)}"`);
+  assert(/raised/i.test(seen.raised), 'the running total is missing');
+
+  assert(seen.overflow === 0, `the parking page scrolls sideways by ${seen.overflow}px`);
+  assert(
+    page.__cspViolations.length === 0,
+    `CSP violations on the parking page: ${page.__cspViolations.join(' | ')}`
+  );
+
+  /* Generous, because this runs from a GitHub runner and not from a phone. It
+     is here to catch the page falling out of ISR, which costs seconds and not
+     milliseconds, rather than to police a hundred millisecond regression. */
+  assert(ms < 4000, `/park took ${ms}ms to respond, which is too slow for a QR target`);
+
+  return `${ms}ms, "${seen.h1.trim()}", pay button to Square, ${seen.share.trim().slice(0, 60)}`;
+}
+
 /* ------------------------------------------------------------- the runner */
 
 const STEPS = [
@@ -795,6 +879,7 @@ const STEPS = [
   ['agreement-pdf', stepAgreementPdf],
   ['parking-fundraiser', stepParkingFundraiser],
   ['webhook', stepWebhook],
+  ['parking', stepParking],
   ['volunteer-waiver', stepVolunteerWaiver],
   ['deny', stepDeny],
 ];
