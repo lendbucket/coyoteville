@@ -55,7 +55,7 @@ export default async function Hero() {
 
         <p className="hero__lede">
           Coyoteville is an outdoor food truck park on North Stadium Road, directly across from
-          the stadium. We open at 4:00 PM before home games. Admission is free and everyone is
+          the stadium. We open at 5:30 PM before home games. Admission is free and everyone is
           welcome.
         </p>
       </div>

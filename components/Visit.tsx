@@ -46,7 +46,7 @@ export default async function Visit() {
             <li>
               <span className="factlist__label">Parking</span>
               <span className="factlist__value">
-                Parking opens on the lot at kickoff for $10 per vehicle.
+                Parking on the lot is $10 per vehicle from the moment we open.
               </span>
             </li>
             <li>

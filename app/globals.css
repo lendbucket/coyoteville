@@ -8602,3 +8602,69 @@ p {
     font-size: 0.85rem;
   }
 }
+
+/* --------------------------------------------- spot assignments, tracker */
+
+/* Two buttons and a report. Everything that did not work is listed rather than
+   counted: the count tells you nothing about the one name that missed, and the
+   one that missed is the reason for running it. */
+
+.spots {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.spots__head {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cream-50);
+}
+
+.spots__report {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--cream-70);
+}
+
+.spots__report p {
+  margin: 0 0 6px;
+}
+
+.spots__warn {
+  color: var(--ember);
+}
+
+.spots__list {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.spots__send {
+  margin: 12px 0 0;
+}
+
+/* The night in progress, above the published rows. Marked rather than mixed
+   in: a published figure has been reconciled against the payments and paid, and
+   a live one is a number still moving. */
+.fnf__row--live td {
+  background: rgba(240, 169, 75, 0.06);
+}
+
+.fnf__live {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--ember);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ember);
+}

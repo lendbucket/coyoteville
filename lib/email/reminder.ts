@@ -85,7 +85,7 @@ ${preheader('Your spot is not held until payment goes through.')}
     </p>
 
     <p style="margin:0 0 16px;">
-      Setup opens at 8:00 AM Friday morning and gates open to the public at 4:00 PM.
+      Setup opens at 8:00 AM Friday morning and we open to the public at 5:30 PM.
     </p>
 
     <p style="margin:0 0 18px;color:#555555;font-size:14px;">
@@ -112,7 +112,7 @@ ${preheader('Your spot is not held until payment goes through.')}
     'Finish your payment here:',
     finishUrl,
     '',
-    'Setup opens at 8:00 AM Friday morning and gates open to the public at 4:00 PM.',
+    'Setup opens at 8:00 AM Friday morning and we open to the public at 5:30 PM.',
     '',
     `Questions, call or text ${PHONE} or email ${supportEmail}.`,
     '',

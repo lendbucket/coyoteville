@@ -61,12 +61,6 @@ export type GameRow = {
 const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US')}`;
 
 /**
- * The Parking Fundraiser panel.
- *
- * Reads the same density, type scale and chip discipline as the rest of the
- * tracker: neutral by default, orange only where something needs doing.
- */
-/**
  * Parking money for one game, and the one number the organization never sees.
  *
  * They are paid on a flat 3.25 percent, which is stable while the night is on
@@ -127,18 +121,6 @@ function Parking({ game }: { game: GameRow }) {
 }
 
 /**
- * Signed waivers for one game, read at a glance in the dark.
- *
- * The adult count against the minimum is the whole point and is the only thing
- * here in large type: it decides whether the forfeit in section 4 applies, and
- * that decision gets made standing in a lot a few minutes before parking opens.
- * So it says "4 of 6" and, when it is short, exactly how many are missing.
- *
- * Minors are counted and named and never added in. A minor who has signed is a
- * real volunteer with a real waiver and is explicitly not one of the six, so a
- * single total would answer the wrong question at the one moment it matters.
- */
-/**
  * The signed names, each one a link to that person's waiver.
  *
  * A list of names is what you read on the night; a link under the name is what
@@ -160,6 +142,18 @@ function WaiverNames({ people }: { people: { id: string; name: string }[] }) {
   );
 }
 
+/**
+ * Signed waivers for one game, read at a glance in the dark.
+ *
+ * The adult count against the minimum is the whole point and is the only thing
+ * here in large type: it decides whether the forfeit in section 4 applies, and
+ * that decision gets made standing in a lot a few minutes before parking opens.
+ * So it says "4 of 6" and, when it is short, exactly how many are missing.
+ *
+ * Minors are counted and named and never added in. A minor who has signed is a
+ * real volunteer with a real waiver and is explicitly not one of the six, so a
+ * single total would answer the wrong question at the one moment it matters.
+ */
 function Waivers({ game }: { game: GameRow }) {
   const { adults, minors, minimum, short, met } = game.waivers;
   const qr = `/api/admin/volunteer-qr?event=${encodeURIComponent(game.slug)}${
@@ -219,6 +213,12 @@ function Waivers({ game }: { game: GameRow }) {
   );
 }
 
+/**
+ * The Parking Fundraiser panel.
+ *
+ * Reads the same density, type scale and chip discipline as the rest of the
+ * tracker: neutral by default, orange only where something needs doing.
+ */
 export default function Organizations({
   applications,
   games,
@@ -231,7 +231,6 @@ export default function Organizations({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [draw, setDraw] = useState<{ slug: string; count: number; names: string[]; reopened: boolean } | null>(null);
-  const [gross, setGross] = useState<Record<string, string>>({});
   const [sent, setSent] = useState<{
     slug: string;
     emailed: boolean;
@@ -352,32 +351,24 @@ export default function Organizations({
                   ) : null}
                 </p>
 
+                {/* The gross is no longer typed in. It is the sum of
+                    parking_payments, which is the one table parking money lives
+                    in, so this records what the rows say rather than what
+                    somebody remembers. The button marks it paid by check. */}
                 <div className="orgs__payout">
-                  <label className="orgs__field">
-                    <span className="orgs__label">Parking gross, dollars</span>
-                    <input
-                      className="input input--sm"
-                      inputMode="decimal"
-                      value={gross[g.slug] ?? (g.parkingGrossCents ? String(g.parkingGrossCents / 100) : '')}
-                      onChange={(e) => setGross((s) => ({ ...s, [g.slug]: e.target.value }))}
-                      disabled={locked}
-                    />
-                  </label>
                   <button
                     className="btn btn--sm btn--ghost"
                     type="button"
-                    disabled={locked}
+                    disabled={locked || !g.parking.cents}
                     onClick={async () => {
-                      const value = Number(gross[g.slug] ?? '');
-                      if (!Number.isFinite(value)) return setError('Enter the parking total in dollars.');
-                      const r = await call(
-                        { action: 'payout', eventSlug: g.slug, grossCents: Math.round(value * 100), paidMethod: 'check' },
+                      const res = await call(
+                        { action: 'payout', eventSlug: g.slug, paidMethod: 'check' },
                         'payout:' + g.slug
                       );
-                      if (r) refresh();
+                      if (res) refresh();
                     }}
                   >
-                    Record
+                    Mark paid by check
                   </button>
                 </div>
 
@@ -389,7 +380,7 @@ export default function Organizations({
                       {g.paidAt ? <span className="orgs__from"> paid {g.paidAt}</span> : null}
                     </>
                   ) : (
-                    <span className="orgs__from">No parking total entered yet.</span>
+                    <span className="orgs__from">Not recorded yet.</span>
                   )}
                 </p>
 

@@ -103,7 +103,7 @@ export function renderVendorConfirmation(
       any more: a template that guesses at a date is how a vendor approved for
       one ordinary Tuesday was told the date of an event they had not booked. */
   const whenLabel = r.booking_when || r.event_name || 'the date you booked';
-  const gatesLabel = monthly ? 'Every day we are open' : '4:00 PM';
+  const gatesLabel = monthly ? 'Every day we are open' : '5:30 PM';
   const logo = LOGO_URL;
   const lights = `${SITE_URL}/email/lights.png`;
 
@@ -174,7 +174,7 @@ ${preheader(`Your spot is confirmed for ${whenLabel}. Setup opens at 8 AM.`)}
             ${detailRow('Spot', spotLabel(r.spot_type))}
             ${detailRow('Event', r.event_name)}
             ${detailRow(monthly ? 'Runs' : 'Date', whenLabel)}
-            ${detailRow('Gates open', gatesLabel)}
+            ${detailRow('We open', gatesLabel)}
             ${detailRow('Where', `${ADDRESS.street}, ${ADDRESS.city}, ${ADDRESS.state}`, true)}
           </table>
         </td></tr>
@@ -206,7 +206,7 @@ ${preheader(`Your spot is confirmed for ${whenLabel}. Setup opens at 8 AM.`)}
             <tr><td>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 ${bullet('Admission is free and open to everyone.')}
-                ${bullet('Parking opens on the lot at kickoff for $10 per vehicle.')}
+                ${bullet('Parking on the lot is $10 per vehicle from the moment we open.')}
               </table>
             </td></tr>
           </table>
@@ -311,7 +311,7 @@ ${preheader(`Your spot is confirmed for ${whenLabel}. Setup opens at 8 AM.`)}
     `Spot:        ${spotLabel(r.spot_type)}`,
     `Event:       ${r.event_name}`,
     `${monthly ? 'Runs:        ' : 'Date:        '}${whenLabel}`,
-    `Gates open:  ${gatesLabel}`,
+    `We open:     ${gatesLabel}`,
     `Where:       ${ADDRESS.street}, ${ADDRESS.city}, ${ADDRESS.state}`,
     '',
     'WHAT TO BRING',
@@ -326,7 +326,7 @@ ${preheader(`Your spot is confirmed for ${whenLabel}. Setup opens at 8 AM.`)}
     '',
     'GAME NIGHT',
     '- Admission is free and open to everyone.',
-    '- Parking opens on the lot at kickoff for $10 per vehicle.',
+    '- Parking on the lot is $10 per vehicle from the moment we open.',
     '',
     NEXT_STEPS_HEADING.toUpperCase(),
     ...NEXT_STEPS_SHARED.map((i) => `- ${i}`),

@@ -26,7 +26,7 @@ export default function Split() {
           The lot is on North Stadium Road, directly across from the stadium and next to Alice
           High School.
         </p>
-        <p>Parking opens on the lot at kickoff for $10 per vehicle.</p>
+        <p>Parking on the lot is $10 per vehicle from the moment we open.</p>
       </div>
     </section>
   );

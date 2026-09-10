@@ -27,7 +27,7 @@ export default async function Ticker() {
     `${NEXT_EVENT_RESOLVED.name} · ${NEXT_EVENT_RESOLVED.displayDate} · ${NEXT_EVENT_RESOLVED.displayTime}`,
     'Alice organizations set up free',
     `Vendor booths ${PRICING.booth.price} · Truck spots ${PRICING.truck.price}`,
-    'Admission is free · Parking $10 per vehicle at kickoff',
+    'Admission is free · Parking $10 per vehicle from 5:30 PM',
   ];
 
   const COPIES = 3;
@@ -41,7 +41,7 @@ export default async function Ticker() {
           {NEXT_EVENT_RESOLVED.displayDate} at {NEXT_EVENT_RESOLVED.displayTime}
         </time>
         . Vendor booths {PRICING.booth.price}, food truck spots {PRICING.truck.price}. Alice
-        organizations set up free. Admission is free and parking on the lot opens at kickoff for
+        organizations set up free. Admission is free and parking on the lot is $10 per vehicle from
         $10 per vehicle.
       </p>
 

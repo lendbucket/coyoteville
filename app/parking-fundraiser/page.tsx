@@ -14,7 +14,12 @@ import {
   getGameSlots,
   getPublishedLedger,
 } from '@/lib/parking-fundraiser';
-import { PROCESSING_FEE_RATE, processingFeeOn } from '@/lib/parking';
+import {
+  PROCESSING_FEE_RATE,
+  currentParkingEvent,
+  getParkingTotals,
+  processingFeeOn,
+} from '@/lib/parking';
 import { ADDRESS, OG_IMAGE, SITE, SITE_URL } from '@/lib/seo';
 import { supportEmail } from '@/lib/support';
 
@@ -131,6 +136,16 @@ const FAQ: { q: string; a: string; link?: { href: string; text: string } }[] = [
 
 export default async function FridayNightFundPage() {
   const [slots, ledger] = await Promise.all([getGameSlots(), getPublishedLedger()]);
+
+  /* The night in progress, if there is one, above the published rows.
+     Deliberately not mixed in with them: a published figure has been
+     reconciled against the payments and paid, and a live one is a number still
+     moving. Labelled as such rather than left to be read as settled. */
+  const running = await currentParkingEvent();
+  const live = running ? await getParkingTotals(running.slug) : null;
+  const alreadyPublished = running
+    ? ledger.some((row) => row.eventSlug === running.slug)
+    : false;
 
   const games: GameOption[] = slots.map((s) => ({
     slug: s.event.slug,
@@ -375,6 +390,23 @@ export default async function FridayNightFundPage() {
                     </tr>
                   </thead>
                   <tbody>
+                    {live && running && !alreadyPublished && (live.cents || live.donationCents) ? (
+                      <tr className="fnf__row--live">
+                        <td>
+                          <b>{running.name}</b>
+                          <span className="fnf__cell-sub">{running.displayDate}</span>
+                        </td>
+                        <td>
+                          <span className="fnf__live">Live</span>
+                          <span className="fnf__cell-sub">
+                            Unreconciled until the night is paid
+                          </span>
+                        </td>
+                        <td>{dollars(live.cents)}</td>
+                        <td>{dollars(live.owedCents)}</td>
+                      </tr>
+                    ) : null}
+
                     {ledger.map((row) => (
                       <tr key={row.eventSlug}>
                         <td>

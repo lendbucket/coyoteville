@@ -97,7 +97,7 @@ export default function VendorSheet({
             <p className="sheet__sub">{row.contactName}</p>
             <div className="vcard__badges">
               <span className={`badge badge--${row.spotType}`}>{row.spotTypeLabel}</span>
-              {row.spotNumber ? <span className="badge badge--spot">Spot {row.spotNumber}</span> : null}
+              {row.spotNumber ? <span className="badge badge--spot">{row.spotNumber}</span> : null}
               <span className={`pill ${settled ? 'pill--ok' : 'pill--warn'}`}>
                 {row.paymentStatus === 'not_required' ? 'Free' : row.paymentStatus}
                 {row.amountLabel ? ` ${row.amountLabel}` : ''}

@@ -20,13 +20,13 @@ export type SpotKind = 'booth' | 'truck' | 'free';
 /** Shown to every vendor, whatever they booked. */
 export const NEXT_STEPS_SHARED: readonly string[] = [
   'Setup opens at 8:00 AM Friday morning.',
-  'Gates open to the public at 4:00 PM.',
+  'We open to the public at 5:30 PM.',
   'Bring one vehicle per space so the lot does not get crowded.',
   'Bring your own table, chairs, canopy, and decorations.',
   'Pack out everything you bring in, including all trash.',
   'Nothing goes on the ground, no gray water and no grease.',
   'Admission is free and the whole town is invited, so expect a crowd.',
-  'Lot parking opens at kickoff for ten dollars per vehicle.',
+  'Lot parking is ten dollars per vehicle from the moment we open.',
 ] as const;
 
 export type NextStepsBlock = {

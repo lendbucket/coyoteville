@@ -19,7 +19,7 @@ export default function Footer() {
           </div>
           <p style={{ maxWidth: '34ch' }}>
             Outdoor food truck park at {ADDRESS.street} in {ADDRESS.city}, {ADDRESS.state}. We
-            open at 4:00 PM before home games. Admission is free.
+            open at 5:30 PM before home games. Admission is free.
           </p>
         </div>
 

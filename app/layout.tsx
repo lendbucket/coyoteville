@@ -43,7 +43,7 @@ const TITLE = 'Food Truck Park in Alice TX | Coyoteville Live Music';
  * the rest, and the previous one was 296.
  */
 const DESCRIPTION =
-  'Coyoteville is an outdoor food truck park in Alice, TX, across from the stadium. Local food trucks, live music, free admission. Gates 4 PM Fridays.';
+  'Coyoteville is an outdoor food truck park in Alice, TX, across from the stadium. Local food trucks, live music, free admission. We open 5:30 PM Fridays.';
 
 export const viewport: Viewport = {
   themeColor: '#0B0B0C',

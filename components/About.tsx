@@ -18,7 +18,7 @@ export default async function About() {
 
           <p className="lede">
             Coyoteville is on North Stadium Road, between Alice High School and the stadium. We
-            open at 4:00 PM before home games.
+            open at 5:30 PM before home games.
           </p>
 
           <p>
@@ -67,7 +67,7 @@ export default async function About() {
             <li>
               <span className="factlist__label">Admission</span>
               <span className="factlist__value">
-                Free. Parking on the lot opens at kickoff for $10 per vehicle.
+                Free. Parking on the lot is $10 per vehicle from the moment we open.
               </span>
             </li>
             <li>

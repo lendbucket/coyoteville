@@ -248,7 +248,7 @@ export const GAME_NIGHT = [
   },
   {
     label: 'Parking',
-    body: 'Parking opens on the lot at kickoff for $10 per vehicle.',
+    body: 'Parking on the lot is $10 per vehicle from the moment we open.',
   },
 ] as const;
 
@@ -308,11 +308,11 @@ export function faqItems(
     },
     {
       q: 'What time do you open?',
-      a: 'We open at 4:00 PM before home games. Admission is free.',
+      a: 'We open at 5:30 PM before home games. Admission is free.',
     },
     {
       q: 'Is there parking at Coyoteville?',
-      a: 'Parking opens on the lot at kickoff for $10 per vehicle.',
+      a: 'Parking on the lot is $10 per vehicle from the moment we open, not from kickoff.',
     },
     {
       q: 'What does it cost to vend?',
@@ -409,7 +409,7 @@ export function websiteSchema() {
     '@id': `${SITE_URL}/#website`,
     url: SITE_URL,
     name: SITE.name,
-    description: 'Outdoor food truck park on North Stadium Road in Alice, Texas. Opens 4:00 PM before home games.',
+    description: 'Outdoor food truck park on North Stadium Road in Alice, Texas. Opens 5:30 PM before home games.',
     inLanguage: 'en-US',
     publisher: { '@id': `${SITE_URL}/#organization` },
   };
@@ -423,7 +423,7 @@ export function localBusinessSchema(email: string = SITE.email) {
     name: SITE.name,
     alternateName: `${SITE.name} ${ADDRESS.city} ${ADDRESS.stateCode}`,
     description:
-      'Outdoor food truck park at 150 N. Stadium Road in Alice, Texas, directly across from the stadium. Local food trucks, vendor booths and live music before and after home games. Admission is free. Parking on the lot opens at kickoff for $10 per vehicle.',
+      'Outdoor food truck park at 150 N. Stadium Road in Alice, Texas, directly across from the stadium. Local food trucks, vendor booths and live music before and after home games. Admission is free. Parking on the lot is $10 per vehicle from the moment we open.',
     slogan: SITE.tagline,
     url: SITE_URL,
     image: SITE.ogImage,
@@ -431,16 +431,16 @@ export function localBusinessSchema(email: string = SITE.email) {
     email,
     telephone: SITE.telephone,
     /**
-     * Gates open at 4:00 PM on event Fridays and we run to 10:00 PM. Stated as
+     * We open at 5:30 PM on event Fridays and run to 10:00 PM. Stated as
      * an openingHoursSpecification as well as the plain string, because Google
      * reads the structured form and the string is the human fallback.
      */
-    openingHours: 'Fr 16:00-22:00',
+    openingHours: 'Fr 17:30-22:00',
     openingHoursSpecification: [
       {
         '@type': 'OpeningHoursSpecification',
         dayOfWeek: 'https://schema.org/Friday',
-        opens: '16:00',
+        opens: '17:30',
         closes: '22:00',
       },
     ],
@@ -486,7 +486,7 @@ export function eventSchema(e: EventConfig) {
     '@type': 'Event',
     '@id': `${SITE_URL}/#event-${e.slug}`,
     name: `${e.name} at ${SITE.name}`,
-    description: `${e.blurb} Food trucks, vendor booths and live music at ${SITE.name}, ${ADDRESS.street}, ${ADDRESS.city}, ${ADDRESS.state}. Admission is free. Parking on the lot opens at kickoff for $10 per vehicle.`,
+    description: `${e.blurb} Food trucks, vendor booths and live music at ${SITE.name}, ${ADDRESS.street}, ${ADDRESS.city}, ${ADDRESS.state}. Admission is free. Parking on the lot is $10 per vehicle from the moment we open.`,
     startDate: e.startISO,
     endDate: e.endISO,
     eventStatus: 'https://schema.org/EventScheduled',

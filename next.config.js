@@ -160,6 +160,13 @@ const nextConfig = {
         './node_modules/pdfkit/js/standard-fonts/**',
         './node_modules/pdfkit/js/data/sRGB_IEC61966_2_1.icc',
       ],
+      /* The lot map is read off disk and attached to every spot email, so it
+         has to be in the function bundle the same way the PDF fonts are. A
+         glob that matches nothing today is harmless; it starts mattering the
+         moment the file is committed, which is the point. Note that dropping
+         the file in is not enough on its own: it has to be deployed, because
+         a serverless function reads the bundle it was built with. */
+      '/api/admin/spots': ['./public/photos/lot-map-*.png'],
       '/api/admin/volunteer-waivers': [
         './lib/agreement/fonts/**',
         './public/logo.png',

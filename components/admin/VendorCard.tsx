@@ -67,7 +67,7 @@ export default function VendorCard({
 
         <span className="vcard__badges">
           <span className={`badge badge--${row.spotType}`}>{row.spotTypeLabel}</span>
-          {row.spotNumber ? <span className="badge badge--spot">Spot {row.spotNumber}</span> : null}
+          {row.spotNumber ? <span className="badge badge--spot">{row.spotNumber}</span> : null}
           {cashOwed ? <span className="badge badge--cash">No cash recorded</span> : null}
           {/* Neutral on purpose. Orange means something needs doing, and a
               returning vendor needs nothing doing: it is a fact about them, not

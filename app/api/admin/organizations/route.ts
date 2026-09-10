@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/admin-auth';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
-import { getEvents } from '@/lib/events-source';
-import { DRAWABLE_STATUSES, PROGRAM_NAME, drawOne, payoutFor } from '@/lib/parking-fundraiser';
+import { getEventBySlug, getEvents } from '@/lib/events-source';
+import { DRAWABLE_STATUSES, PROGRAM_NAME, drawOne } from '@/lib/parking-fundraiser';
+import { dollars, getParkingTotals } from '@/lib/parking';
 import { LIVE_PURPOSE, documentToken } from '@/lib/doc-token';
 import { renderLiveLink } from '@/lib/email/live-link';
 import { sendReminderEmail } from '@/lib/notify';
@@ -155,21 +156,36 @@ export async function POST(request: Request) {
 
   /* ---------------------------------------------------------- payout */
 
+  /**
+   * Record what parking took and what the organization is owed.
+   *
+   * The gross is not typed in any more. It is the sum of parking_payments for
+   * the event, which is the one table parking money lives in, and taking it
+   * from anywhere else would be a second answer to a question with one right
+   * one. What is recorded is what the rows say.
+   *
+   * payout_cents is the share on this event's basis plus every gift, because
+   * gifts go to the organization whole and are part of what is written on the
+   * cheque. The share and the gifts are both derived in lib/parking, so the
+   * page the organization watched all night and the payout cannot disagree.
+   */
   if (action === 'payout') {
     const eventSlug = String(body?.eventSlug ?? '');
-    const grossCents = Number(body?.grossCents);
 
-    if (!Number.isFinite(grossCents) || grossCents < 0 || grossCents > 100_000_00) {
-      return bad('That parking total does not look right.');
+    const event = await getEventBySlug(eventSlug);
+    if (!event) return bad('That is not an event we know about.', 404);
+
+    const totals = await getParkingTotals(eventSlug);
+
+    if (!totals.cents && !totals.donationCents) {
+      return bad('There are no parking payments recorded for that game yet.', 409);
     }
 
     const { error } = await supabase
       .from('org_event_awards')
       .update({
-        parking_gross_cents: Math.round(grossCents),
-        /* Computed here rather than stored as a rate, so the number on the
-           ledger is the number that was paid and the arithmetic is checkable. */
-        payout_cents: payoutFor(Math.round(grossCents)),
+        parking_gross_cents: totals.cents,
+        payout_cents: totals.owedCents,
         paid_at: body?.paidMethod ? new Date().toISOString() : null,
         paid_method: body?.paidMethod ?? null,
         notes: body?.notes ?? null,
@@ -178,7 +194,15 @@ export async function POST(request: Request) {
       .eq('event_slug', eventSlug);
 
     if (error) return bad('Could not record that.', 500);
-    return NextResponse.json({ ok: true, payoutCents: payoutFor(Math.round(grossCents)) });
+
+    return NextResponse.json({
+      ok: true,
+      grossCents: totals.cents,
+      payoutCents: totals.owedCents,
+      shareCents: totals.shareCents,
+      donationCents: totals.donationCents,
+      basis: totals.basis,
+    });
   }
 
   /* --------------------------------------------------------- publish */
@@ -196,7 +220,22 @@ export async function POST(request: Request) {
     if (award.parking_gross_cents === null || award.payout_cents === null) {
       /* The ledger is the argument for the whole program. A row on it with no
          numbers is worse than no row. */
-      return bad('Enter the parking total before publishing this one.', 409);
+      return bad('Record the payout before publishing this one.', 409);
+    }
+
+    /* The reconciliation. The published ledger is the whole case for this
+       program being honest, so a figure on it that does not equal the sum of
+       the rows behind it is the one thing that must never go up. A payment
+       arriving after the payout was recorded is the ordinary way this happens,
+       and the fix is to record the payout again rather than to publish a number
+       nobody can reproduce. */
+    const totals = await getParkingTotals(eventSlug);
+    if (totals.cents !== award.parking_gross_cents) {
+      return bad(
+        `The recorded gross is ${dollars(award.parking_gross_cents)} and the payments add up to ` +
+          `${dollars(totals.cents)}. Record the payout again, then publish.`,
+        409
+      );
     }
 
     const { error } = await supabase

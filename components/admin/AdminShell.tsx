@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AdminRevenue from '../AdminRevenue';
 import AdminAbandoned from '../AdminAbandoned';
 import AdminSendAllPhotos from '../AdminSendAllPhotos';
+import SpotAssignments from './SpotAssignments';
 import AdminWaitlist from '../AdminWaitlist';
 import AdminCalendar from './AdminCalendar';
 import { AgreementBulkDownload } from './AgreementDownload';
@@ -504,6 +505,11 @@ export default function AdminShell({
           )}
 
           <div className="ash__afterlist">
+            {/* The lot plan. With the other bulk actions rather than in the
+                header, which is for the controls that change what is on
+                screen. */}
+            <SpotAssignments eventSlug={eventSlug} />
+
             <AdminSendAllPhotos
               event={eventSlug}
               vendorCount={mediaVendorCount}
