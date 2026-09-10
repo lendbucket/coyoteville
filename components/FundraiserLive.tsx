@@ -145,20 +145,18 @@ export default function FundraiserLive({
   const [arrived, setArrived] = useState<Set<string>>(() => new Set());
 
   /**
-   * The receipt: shut on a phone, open where there is room.
+   * The receipt: open everywhere, closable anywhere.
    *
-   * Decided after mount rather than in CSS, because a details element cannot be
-   * opened by a stylesheet and the server has no idea how wide the screen is.
-   * It starts shut, which is the safe default: a phone gets the right thing on
-   * first paint and a desktop opens it a frame later, rather than every phone
-   * flashing the whole receipt and collapsing it.
+   * It used to open only above 900px, which meant a parent on a phone could not
+   * see the arithmetic that somebody on a laptop could. This page exists to be
+   * transparent about where the money went, and a page cannot be transparent on
+   * one screen and not another. It scrolls, so the cost of being open is
+   * scrolling past it rather than losing anything above.
+   *
+   * Open in the initial state rather than after mount, so the server renders it
+   * open too and nothing expands a frame later. The summary still toggles it.
    */
-  const [calcOpen, setCalcOpen] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    if (window.matchMedia('(min-width: 900px)').matches) setCalcOpen(true);
-  }, []);
+  const [calcOpen, setCalcOpen] = useState(true);
 
   const startsAt = useMemo(() => Date.parse(startsAtISO), [startsAtISO]);
   const endsAt = useMemo(() => Date.parse(endsAtISO), [endsAtISO]);
@@ -360,9 +358,9 @@ export default function FundraiserLive({
 
       {/* ------------------------------------------------------- the scroller */}
       <div className="live__scroll">
-        {/* The receipt. Complete, and one tap down: the arithmetic is the
-            promise being kept rather than the thing a parent came to read.
-            Open by default on a wide screen, where it costs nothing. */}
+        {/* The receipt. Complete, open, and inside the scroller: the arithmetic
+            is the promise being kept, so it is not something a phone has to go
+            looking for. Anyone who wants the feed sooner can close it. */}
         <details
           className="live__calc"
           open={calcOpen}
