@@ -11,6 +11,7 @@ import {
   recordParkingPayment,
 } from '@/lib/parking';
 import { notifyPaymentReceived } from '@/lib/notify';
+import { sendParkingAlert } from '@/lib/parking-alert';
 import {
   handleInvoiceFailed,
   handleInvoicePaid,
@@ -337,6 +338,38 @@ export async function POST(request: Request) {
         /* A non 2xx makes Square redeliver, which is what should happen when
            the write failed: this is somebody's ten dollars. */
         return NextResponse.json({ error: 'Could not record the parking payment.' }, { status: 500 });
+      }
+
+      /**
+       * Tell Robert a payment landed, and never at the cost of the payment.
+       *
+       * Three rules hold this to that, and check-webhook-settles enforces all
+       * three against a sender that throws on every call:
+       *
+       *   It runs only when recorded.inserted is true. The fee that arrives on
+       *   a later payment.updated is an update rather than an insert, and a
+       *   redelivery of the same square_payment_id is neither, so both are
+       *   silent. The idempotency is the row's, not a second mechanism.
+       *
+       *   It is not awaited. The response to Square is already built below and
+       *   does not wait on Resend. If Resend is slow, the 200 is not.
+       *
+       *   It cannot throw into this path. The whole thing is inside a catch,
+       *   including the reads it does, and the promise carries its own catch so
+       *   a rejection after the response cannot become an unhandled one.
+       *
+       * A missing email is a nuisance. A lost ten dollars is not.
+       */
+      if (recorded.inserted) {
+        try {
+          void sendParkingAlert({
+            eventSlug,
+            kind,
+            amountCents: amount,
+          }).catch((err) => console.error('parking alert failed', err));
+        } catch (err) {
+          console.error('parking alert could not be started', err);
+        }
       }
 
       return NextResponse.json({

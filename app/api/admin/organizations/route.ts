@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sendEventReport } from '@/lib/send-event-report';
 import { isAdminRequest } from '@/lib/admin-auth';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { getEventBySlug, getEvents } from '@/lib/events-source';
@@ -264,6 +265,19 @@ export async function POST(request: Request) {
    * is a different situation from neither going, and telling him "sent" when
    * half of it did would be the kind of small lie that costs a night.
    */
+  /* The end of night report, by hand. Same builder as the cron, so the two
+     cannot produce different numbers, and force is on because the reason
+     somebody presses this is that the automatic one did not arrive. */
+  if (action === 'report') {
+    const slug = String(body?.eventSlug ?? '');
+    if (!slug) return bad('Which event?');
+
+    const result = await sendEventReport(slug, { force: true });
+    if (!result.ok) return bad(result.reason ?? 'The report did not send.', 502);
+
+    return NextResponse.json({ ok: true, sent: true, eventSlug: slug });
+  }
+
   if (action === 'live-link') {
     const id = String(body?.id ?? '');
     if (!UUID.test(id)) return bad('Bad application id.');

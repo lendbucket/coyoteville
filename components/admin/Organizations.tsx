@@ -230,6 +230,7 @@ export default function Organizations({
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reported, setReported] = useState<string | null>(null);
   const [draw, setDraw] = useState<{ slug: string; count: number; names: string[]; reopened: boolean } | null>(null);
   const [sent, setSent] = useState<{
     slug: string;
@@ -328,6 +329,26 @@ export default function Organizations({
                 </button>
               </p>
             ) : null}
+
+            {/* The report, by hand. The cron sends it a quarter hour after the
+                lot closes; this is the button for the night it does not fire,
+                and it runs the same builder so the numbers cannot differ. */}
+            <p className="orgs__doc">
+              <button
+                className="btn btn--sm btn--ghost"
+                type="button"
+                disabled={busy === 'report:' + g.slug}
+                onClick={async () => {
+                  const res = await call({ action: 'report', eventSlug: g.slug }, 'report:' + g.slug);
+                  if (res) setReported(g.slug);
+                }}
+              >
+                {busy === 'report:' + g.slug ? 'Sending the report' : 'Send report now'}
+              </button>
+              {reported === g.slug ? (
+                <span className="orgs__from"> Sent to the owner address with the CSV attached.</span>
+              ) : null}
+            </p>
 
             {sent && sent.slug === g.slug ? (
               <p className="orgs__from orgs__sent">

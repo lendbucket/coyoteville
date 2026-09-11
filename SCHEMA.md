@@ -15,7 +15,7 @@ that references one fails the whole statement with Postgres error 42703.
 `npm run check:schema` checks the repo against this file, and runs
 automatically before `npm run build`. See "Checking the schema" below.
 
-Last verified against production: 2026-09-08.
+Last verified against production: 2026-09-11.
 
 ```
 day_availability
@@ -25,7 +25,8 @@ day_availability
 events
   id, slug, name, starts_at, ends_at, display_date, display_time, blurb,
   location_name, is_published, booth_capacity, truck_capacity, created_at,
-  updated_at, booth_claimed_offline, truck_claimed_offline, signup_closes_at
+  updated_at, booth_claimed_offline, truck_claimed_offline, signup_closes_at,
+  report_sent_at
 
 vendor_applications
   id, business_name, contact_name, phone, email, spot_type, event_slug,

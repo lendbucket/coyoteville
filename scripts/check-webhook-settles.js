@@ -91,10 +91,20 @@ let invalidated = [];
    square_payment_id, which is what makes a redelivery a no-op. */
 let parkingRows = [];
 
+/* The alert sent after a payment is recorded, and how it is made to misbehave.
+
+   "sync" throws before it ever returns a promise; "reject" returns one that
+   rejects. Those fail in different places, and only one of them is caught by a
+   try/catch around the call, which is why both are driven. */
+let alerts = [];
+let alertMode = 'ok';
+
 function reset() {
   writes = [];
   emails = [];
   invalidated = [];
+  alerts = [];
+  alertMode = 'ok';
 }
 
 function supabaseFake() {
@@ -245,6 +255,16 @@ const FAKES = {
   '@/lib/seo': {
     SITE_URL,
     EVENTS: [{ slug: 'home-game-2026-09-11', name: 'Home Game, September 11' }],
+  },
+  /* The alert after a payment lands. Never awaited by the route and never
+     allowed to reach it, which is what the sabotage below proves. */
+  '@/lib/parking-alert': {
+    sendParkingAlert: (input) => {
+      alerts.push(input);
+      if (alertMode === 'sync') throw new Error('Resend is down');
+      if (alertMode === 'reject') return Promise.reject(new Error('Resend refused it'));
+      return Promise.resolve(true);
+    },
   },
   '@/lib/spots': {
     invalidateSpots: (slug) => invalidated.push(slug),
@@ -543,10 +563,77 @@ async function donationCase() {
   check('gift: vendor_applications was never written', writes.length === 0, `${writes.length} writes`);
 }
 
+/**
+ * A mailer that is on fire, and a payment that lands anyway.
+ *
+ * The rule for game night is that nothing added to this route may cost a
+ * parking payment. The email is a nicety; the row is ten dollars somebody
+ * handed over at a gate. So the alert is driven in both of the ways it can
+ * fail and the same three things are checked each time: the row was written,
+ * Square got a 200, and the response is the same one a working mailer
+ * produces.
+ *
+ * Driven through the real route and the real lib/parking, so this is the
+ * actual insert and the actual response, not a description of them.
+ */
+async function alertFailureCase() {
+  for (const mode of ['sync', 'reject']) {
+    reset();
+    parkingRows = [];
+    alertMode = mode;
+
+    const payment = {
+      id: 'sqpay_alert_' + mode,
+      status: 'COMPLETED',
+      order_id: PARKING_ORDER_ID,
+      amount_money: { amount: PARKING_CENTS, currency: 'USD' },
+    };
+
+    const response = await deliver(payment);
+    const body = response.__json || {};
+
+    const label = 'alert ' + mode;
+
+    check(label + ': the alert was reached', alerts.length === 1, alerts.length + ' calls');
+    check(label + ': Square still got a 200', response.status === 200, 'got ' + response.status);
+    check(label + ': the row was still written', parkingRows.length === 1, parkingRows.length + ' rows');
+    check(label + ': the response still reports the insert', body.inserted === true, String(body.inserted));
+    check(label + ': no error was reported to Square', body.error === undefined, String(body.error));
+
+    const row = parkingRows[0] || {};
+    check(label + ': the amount is intact', row.amount_cents === PARKING_CENTS, String(row.amount_cents));
+    check(label + ': kind is parking', row.kind === 'parking', String(row.kind));
+  }
+
+  /* The other half of the rule: a delivery that is not an insert sends
+     nothing. The fee arriving later and a plain redelivery are both silent, so
+     a night of redeliveries cannot become a night of duplicate mail. */
+  reset();
+  parkingRows = [];
+
+  const payment = {
+    id: 'sqpay_alert_once',
+    status: 'COMPLETED',
+    order_id: PARKING_ORDER_ID,
+    amount_money: { amount: PARKING_CENTS, currency: 'USD' },
+  };
+
+  await deliver(payment);
+  check('alert: the first delivery sent one', alerts.length === 1, alerts.length + ' calls');
+
+  await deliver(payment);
+  check('alert: a redelivery sent nothing', alerts.length === 1, alerts.length + ' calls');
+
+  await deliver({ ...payment, processing_fee: [{ amount_money: { amount: 33 } }] });
+  check('alert: the fee update sent nothing', alerts.length === 1, alerts.length + ' calls');
+  check('alert: the fee still landed', parkingRows[0].square_fee_cents === 33, String(parkingRows[0].square_fee_cents));
+}
+
 (async () => {
   await vendorCase();
   await parkingCase();
   await donationCase();
+  await alertFailureCase();
 
   fs.rmSync(outDir, { recursive: true, force: true });
 
@@ -562,7 +649,9 @@ async function donationCase() {
       'a parking referenceId books one row as source qr and kind parking, ' +
       'a donation referenceId books one as kind donation with no vehicle, ' +
       "neither touches a vendor row, both are no-ops on redelivery, and Square's " +
-      'own fee is written when the later delivery brings it and never overwritten.'
+      'own fee is written when the later delivery brings it and never overwritten. ' +
+      'A payment alert that throws, or rejects, changes none of it: the row is ' +
+      'still written and Square still gets a 200, and only a real insert sends one.'
   );
 })().catch((err) => {
   console.error('check-webhook-settles: threw');
