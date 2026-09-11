@@ -25,7 +25,32 @@ export function getSupabaseAdmin(): SupabaseClient {
 
   cached = createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { 'x-application-name': 'coyoteville-web' } },
+    global: {
+      headers: { 'x-application-name': 'coyoteville-web' },
+      /**
+       * Never serve a database read out of Next's Data Cache.
+       *
+       * 2026-09-11, mid event. Velocity Vipers' live page sat at one vehicle
+       * and an empty ledger while five rows and fifty dollars were in the
+       * table. No query filtered them out. PostgREST reads are GETs, Next
+       * patches global fetch, and supabase-js was using that patched fetch, so
+       * every distinct select URL became its own cache entry and froze at
+       * whatever the table held the first time it was asked. The totals and
+       * the ledger are separate URLs, which is why they froze at different
+       * row counts and gave two different wrong answers on one page.
+       *
+       * force-dynamic on the route is not enough. It changes a default that
+       * only applies to fetches the route itself makes, and this one is made
+       * several layers down inside a library, on a client built once and held
+       * in module memory across every request the lambda serves.
+       *
+       * So it is set here rather than at a call site. This client reads money
+       * and writes rows; there is no query it makes whose answer is safe to
+       * reuse from a previous request, and a rule that has to be remembered at
+       * each call site is one that will be missed at the next one.
+       */
+      fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }),
+    },
   });
 
   return cached;
