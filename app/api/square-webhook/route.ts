@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { getSquare, isSquareConfigured } from '@/lib/square';
 import { getSupabaseAdmin, isSupabaseConfigured } from '@/lib/supabase';
 import { SITE_URL } from '@/lib/seo';
-import { eventNameFor } from '@/lib/events-source';
+import { eventNameFor, getEvents } from '@/lib/events-source';
 import { invalidateSpots } from '@/lib/spots';
 import {
   donationFromReference,
@@ -204,6 +204,42 @@ function feeFrom(fees: { amount_money?: { amount?: number } }[] | undefined): nu
   return seen ? total : null;
 }
 
+/**
+ * The amount fallback, temporary. See the comment where it is used.
+ *
+ * Exactly one price, because the two vendor prices are 2500 and 5000 and a
+ * width that reached either would book a spot fee as parking money.
+ */
+const FALLBACK_CENTS = 1000;
+const FALLBACK_NOTE = 'Matched by the amount fallback, no referenceId on the order.';
+
+/**
+ * The event that is running right now, or null.
+ *
+ * Strictly in progress: started and not finished. Deliberately not
+ * currentParkingEvent from lib/parking, which answers "the next event still to
+ * come" and would happily match a payment days before a game.
+ */
+async function eventInProgress(now: number = Date.now()) {
+  try {
+    const events = await getEvents();
+    return (
+      events.find((e) => {
+        const starts = Date.parse(e.startISO);
+        const ends = Date.parse(e.endISO);
+        if (!Number.isFinite(starts) || !Number.isFinite(ends)) return false;
+        return starts <= now && now < ends;
+      }) ?? null
+    );
+  } catch (err) {
+    /* A calendar read that failed means we cannot say an event is running, so
+       nothing is recorded. Ignoring a payment is recoverable by hand; booking
+       one against a guess is not. */
+    console.error('could not read the calendar for the amount fallback', err);
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   const signatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
 
@@ -280,6 +316,83 @@ export async function POST(request: Request) {
     const reference = order?.referenceId;
 
     if (!reference) {
+      /**
+       * 2026-09-11, mid event, temporary. Revert after tonight.
+       *
+       * Parking is going through a Square dashboard payment link that carries
+       * no referenceId, so every car was landing here and being ignored while
+       * the organization watched a page that never moved.
+       *
+       * So a payment with no reference is read as parking when all three of
+       * these hold, and ignored exactly as before when any one of them does
+       * not:
+       *
+       *   The amount is exactly 1000 cents. Not a range and not a ceiling: a
+       *   booth is 2500 and a truck is 5000, and a range that reached either
+       *   would book a vendor's spot fee as parking money and pay half of it
+       *   away. Exact is the only width that cannot do that.
+       *
+       *   An event is in progress right now, meaning starts_at has passed and
+       *   ends_at has not. Outside that window a stray ten dollar sale on this
+       *   Square account is somebody buying something else, and stays ignored.
+       *
+       *   It got this far, which means no referenceId at all. Every branch
+       *   below is reached by a reference and none of them can be affected by
+       *   this.
+       *
+       * Source 'pos' and a note naming the fallback, so tonight's rows can be
+       * told apart from a real QR payment afterwards.
+       */
+      const amount = Number(payment.amount_money?.amount ?? 0);
+      const live = amount === FALLBACK_CENTS ? await eventInProgress() : null;
+
+      if (live) {
+        const recorded = await recordParkingPayment({
+          eventSlug: live.slug,
+          amountCents: amount,
+          vehicleCount: 1,
+          source: 'pos',
+          kind: 'parking',
+          feeCents: feeFrom(payment.processing_fee),
+          squarePaymentId: payment.id ?? null,
+          squareOrderId: orderId,
+          note: FALLBACK_NOTE,
+        });
+
+        if (!recorded.ok) {
+          /* Somebody's ten dollars. A non 2xx makes Square redeliver, which is
+             what should happen when the write failed. */
+          return NextResponse.json(
+            { error: 'Could not record the parking payment.' },
+            { status: 500 }
+          );
+        }
+
+        /* Same three rules as the referenced path: only on a real insert, never
+           awaited, and it cannot throw into this response. */
+        if (recorded.inserted) {
+          try {
+            void sendParkingAlert({
+              eventSlug: live.slug,
+              kind: 'parking',
+              amountCents: amount,
+            }).catch((err) => console.error('parking alert failed', err));
+          } catch (err) {
+            console.error('parking alert could not be started', err);
+          }
+        }
+
+        return NextResponse.json({
+          received: true,
+          parking: true,
+          kind: 'parking',
+          eventSlug: live.slug,
+          matchedBy: 'amount',
+          inserted: recorded.inserted,
+          feeRecorded: recorded.feeRecorded,
+        });
+      }
+
       /* Every order this site creates carries one. A payment with none was
          taken somewhere else on the same Square account, which includes every
          sale rung up on the Square POS app at the gate: that app does not set a

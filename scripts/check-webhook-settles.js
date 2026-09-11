@@ -99,7 +99,13 @@ let parkingRows = [];
 let alerts = [];
 let alertMode = 'ok';
 
+/* The calendar the amount fallback reads. Empty by default, so every case
+   that predates the fallback runs with no event in progress. */
+let calendar = [];
+const NOREF_ORDER_ID = 'ord_no_reference';
+
 function reset() {
+  calendar = [];
   writes = [];
   emails = [];
   invalidated = [];
@@ -233,6 +239,11 @@ const FAKES = {
               },
             };
           }
+          if (orderId === NOREF_ORDER_ID) {
+            /* What the Square dashboard payment link produces: a real order
+               with nothing on it that says what it was for. */
+            return { order: { id: NOREF_ORDER_ID, totalMoney: { amount: 0 } } };
+          }
           throw new Error('unexpected order ' + orderId);
         },
       },
@@ -247,7 +258,7 @@ const FAKES = {
   '@/lib/events-source': {
     eventNameFor: async (slug) =>
       slug === 'home-game-2026-09-11' ? 'Alice Home Game' : slug || 'Coyoteville',
-    getEvents: async () => [],
+    getEvents: async () => calendar,
     getNextEvent: async () => null,
     getEventBySlug: async () => null,
     isKnownEventSlug: async () => false,
@@ -629,11 +640,133 @@ async function alertFailureCase() {
   check('alert: the fee still landed', parkingRows[0].square_fee_cents === 33, String(parkingRows[0].square_fee_cents));
 }
 
+/**
+ * The amount fallback, added mid event on 2026-09-11 and meant to be reverted.
+ *
+ * It is the one branch here that decides what a payment was for without being
+ * told, so the three conditions are each driven on their own. Two of them are
+ * the ones that keep it from doing damage:
+ *
+ *   2500 is a booth. If a range ever replaces the exact match, that row books
+ *   a vendor spot fee into parking_payments and pays half of it to an
+ *   organization. This case is what stands between those two.
+ *
+ *   Outside an event window there is no night to attribute money to, so a
+ *   stray ten dollar sale on the same Square account stays ignored.
+ */
+function eventWindow(inProgress) {
+  const now = Date.now();
+  return [
+    {
+      slug: PARKING_EVENT,
+      name: 'Alice Home Game',
+      startISO: new Date(inProgress ? now - 3600000 : now + 86400000).toISOString(),
+      endISO: new Date(inProgress ? now + 3600000 : now + 86400000 + 3600000).toISOString(),
+    },
+  ];
+}
+
+async function amountFallbackCase() {
+  /* ---- a ten dollar payment with no reference, during the event ---- */
+
+  reset();
+  parkingRows = [];
+  calendar = eventWindow(true);
+
+  let response = await deliver({
+    id: 'sqpay_noref_during',
+    status: 'COMPLETED',
+    order_id: NOREF_ORDER_ID,
+    amount_money: { amount: 1000, currency: 'USD' },
+  });
+  let body = response.__json || {};
+
+  check('fallback: handler returned 200', response.status === 200, 'got ' + response.status);
+  check('fallback: it was treated as parking', body.parking === true, JSON.stringify(body));
+  check('fallback: it says how it matched', body.matchedBy === 'amount', String(body.matchedBy));
+  check('fallback: the event was named', body.eventSlug === PARKING_EVENT, String(body.eventSlug));
+  check('fallback: exactly one row', parkingRows.length === 1, parkingRows.length + ' rows');
+
+  const row = parkingRows[0] || {};
+  check('fallback: source is pos', row.source === 'pos', String(row.source));
+  check('fallback: kind is parking', row.kind === 'parking', String(row.kind));
+  check('fallback: one vehicle', row.vehicle_count === 1, String(row.vehicle_count));
+  check('fallback: the amount is 1000', row.amount_cents === 1000, String(row.amount_cents));
+  check(
+    'fallback: the note identifies it afterwards',
+    typeof row.note === 'string' && /fallback/i.test(row.note),
+    String(row.note)
+  );
+  check(
+    'fallback: vendor_applications was never written',
+    writes.length === 0,
+    writes.length + ' writes'
+  );
+
+  /* Idempotent on square_payment_id like every other path. */
+  await deliver({
+    id: 'sqpay_noref_during',
+    status: 'COMPLETED',
+    order_id: NOREF_ORDER_ID,
+    amount_money: { amount: 1000, currency: 'USD' },
+  });
+  check('fallback: a redelivery adds no row', parkingRows.length === 1, parkingRows.length + ' rows');
+
+  /* ---- 2500 during the event. A booth, and it must never match ---- */
+
+  reset();
+  parkingRows = [];
+  calendar = eventWindow(true);
+
+  response = await deliver({
+    id: 'sqpay_noref_2500',
+    status: 'COMPLETED',
+    order_id: NOREF_ORDER_ID,
+    amount_money: { amount: 2500, currency: 'USD' },
+  });
+  body = response.__json || {};
+
+  check('fallback 2500: handler returned 200', response.status === 200, 'got ' + response.status);
+  check(
+    'fallback 2500: it was ignored',
+    body.ignored === 'no reference id',
+    JSON.stringify(body)
+  );
+  check('fallback 2500: no row was written', parkingRows.length === 0, parkingRows.length + ' rows');
+
+  /* ---- 1000 with no event in progress ---- */
+
+  reset();
+  parkingRows = [];
+  calendar = eventWindow(false);
+
+  response = await deliver({
+    id: 'sqpay_noref_outside',
+    status: 'COMPLETED',
+    order_id: NOREF_ORDER_ID,
+    amount_money: { amount: 1000, currency: 'USD' },
+  });
+  body = response.__json || {};
+
+  check('fallback outside: handler returned 200', response.status === 200, 'got ' + response.status);
+  check(
+    'fallback outside: it was ignored',
+    body.ignored === 'no reference id',
+    JSON.stringify(body)
+  );
+  check(
+    'fallback outside: no row was written',
+    parkingRows.length === 0,
+    parkingRows.length + ' rows'
+  );
+}
+
 (async () => {
   await vendorCase();
   await parkingCase();
   await donationCase();
   await alertFailureCase();
+  await amountFallbackCase();
 
   fs.rmSync(outDir, { recursive: true, force: true });
 
@@ -651,7 +784,10 @@ async function alertFailureCase() {
       "neither touches a vendor row, both are no-ops on redelivery, and Square's " +
       'own fee is written when the later delivery brings it and never overwritten. ' +
       'A payment alert that throws, or rejects, changes none of it: the row is ' +
-      'still written and Square still gets a 200, and only a real insert sends one.'
+      'still written and Square still gets a 200, and only a real insert sends one. ' +
+      'A reference-less payment of exactly 1000 during an event books one parking ' +
+      'row as source pos with a note naming the fallback, while 2500 during an ' +
+      'event and 1000 outside one are both still ignored.'
   );
 })().catch((err) => {
   console.error('check-webhook-settles: threw');
