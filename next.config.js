@@ -192,6 +192,22 @@ const nextConfig = {
 
   async redirects() {
     return [
+      /* 2026-09-11, mid event. The Pay button on /park was landing people on
+         /park/thanks instead of a Square checkout and one payment went through
+         all night, so /park goes straight to the hosted checkout instead.
+
+         The printed QR codes point at /park and keep working, which is the
+         whole reason this is a redirect here rather than a change to the page.
+         Exact source, so /park/thanks, /park/thanks/gift and anything else
+         under /park are untouched.
+
+         permanent: false, so it is a 307 that no browser or proxy caches and
+         reverting it is one line. Revert once the button is fixed. */
+      {
+        source: '/park',
+        destination: 'https://square.link/u/APGVaNnU',
+        permanent: false,
+      },
       { source: '/vendor', destination: '/#apply', permanent: true },
       { source: '/vendors', destination: '/#vendors', permanent: true },
       { source: '/apply', destination: '/#apply', permanent: true },
