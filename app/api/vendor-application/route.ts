@@ -62,6 +62,8 @@ type Stage =
   | 'deadline'
   /** No review slots left for the type asked for, so intake has shut. */
   | 'full'
+  /** The type is not sold on this event at all, which is not the same as full. */
+  | 'not-offered'
   | 'upload-validation'
   /** A stored profile permit that is missing an expiry, or has passed one. */
   | 'permit-expiry'
@@ -514,6 +516,20 @@ export async function POST(request: Request) {
        space for. This is the gate that stops a payment being taken for a queue
        that is already deeper than it is worth reviewing. */
     const slot = reviewSlotFor(await getSpots(event.slug), value.spot_type);
+
+    /* Not sold on this night, which is a different answer from sold out and
+       has to say so. Reached by a stale tab or a hand made post, since the
+       form no longer offers the type at all. */
+    if (!slot.offered) {
+      logFailure('not-offered', { eventSlug: event.slug, spotType: value.spot_type });
+      return bad(
+        `${event.name} does not offer ${
+          value.spot_type === 'truck' ? 'food truck spots' : 'vendor booths or organization tables'
+        }. We will announce other event nights for those.`,
+        409
+      );
+    }
+
     if (!slot.open) {
       logFailure('full', { eventSlug: event.slug, spotType: value.spot_type, reason: 'no review slots' });
       return bad(

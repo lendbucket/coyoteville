@@ -76,6 +76,16 @@ export type SpotLine = {
   /** Null when capacity is unknown. Never negative, never above capacity. */
   remaining: number | null;
   /**
+   * Is this type sold on this event at all?
+   *
+   * Zero capacity is a decision and no capacity is the absence of one, and the
+   * meter was rendering both as a shortage. Home games are food trucks only, so
+   * a booth there is not something that ran out. Same rule as
+   * availability() in lib/event-state, kept in step because the cards and the
+   * form must not disagree about what a night sells.
+   */
+  offered: boolean;
+  /**
    * The unclamped count, which is what the review slot arithmetic runs on.
    * `claimed` is clamped for display and would quietly hide an oversubscription
    * from the very calculation that exists to prevent one.
@@ -113,6 +123,7 @@ function emptySnapshot(eventSlug: string): SpotsSnapshot {
     claimed: 0,
     offline: 0,
     remaining: null,
+    offered: true,
     held: 0,
     reviewCapacity: null,
     reviewRemaining: null,
@@ -145,6 +156,7 @@ function line(capacity: number | null, website: number, alsoHolding: number): Sp
     claimed: capacity === null ? total : Math.min(total, capacity),
     offline: offlineCount,
     remaining: capacity === null ? null : Math.max(0, capacity - total),
+    offered: capacity === null || capacity > 0,
     held: total,
     reviewCapacity: capacity === null ? null : reviewCapacity(capacity),
     reviewRemaining: capacity === null ? null : reviewSlotsLeft(capacity, total),
@@ -331,6 +343,8 @@ async function loadSnapshot(eventSlug: string): Promise<SpotsSnapshot> {
         capacity: totalCapacity,
         claimed: totalClaimed,
         offline: booth.offline + truck.offline,
+        /* The event sells something as long as one of its types does. */
+        offered: booth.offered || truck.offered,
         remaining: totalCapacity === null ? null : Math.max(0, totalCapacity - totalClaimed),
         held: booth.held + truck.held,
         /* The two per type caps added together, not the buffer applied once to
@@ -398,15 +412,24 @@ export const getSpots = cache(
 export function reviewSlotFor(
   spots: SpotsSnapshot,
   spotType: string
-): { open: boolean; remaining: number | null } {
-  if (spotType === 'free') return { open: true, remaining: null };
+): { open: boolean; remaining: number | null; offered: boolean } {
+  /* A free organisation spot follows the booths, because it is one: an org
+     stands in a booth footprint, which is what FREE_CONSUMES_BOOTH says above.
+     A night with no booth footprints has nowhere to put one.
 
+     This is the gate that a hidden form field or a stale tab reaches. Without
+     it a free spot was accepted unconditionally, so a truck only night would
+     still have taken an organisation table on a lot that has none. */
   const line = spotType === 'truck' ? spots.truck : spots.booth;
 
-  // No capacity set means no number to cap against, so nothing is refused.
-  if (line.reviewRemaining === null) return { open: true, remaining: null };
+  if (!line.offered) return { open: false, remaining: 0, offered: false };
 
-  return { open: line.reviewRemaining > 0, remaining: line.reviewRemaining };
+  if (spotType === 'free') return { open: true, remaining: null, offered: true };
+
+  // No capacity set means no number to cap against, so nothing is refused.
+  if (line.reviewRemaining === null) return { open: true, remaining: null, offered: true };
+
+  return { open: line.reviewRemaining > 0, remaining: line.reviewRemaining, offered: true };
 }
 
 /** Drop the cached snapshot, so an admin edit shows up immediately. */

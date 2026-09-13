@@ -312,6 +312,213 @@ const ABANDONED_CASES = [
   ],
 ];
 
+/* ------------------------------------- 4. zero capacity means not offered */
+
+/**
+ * Zero and null are different answers and were being given the same one.
+ *
+ * Home games became food trucks only: truck_capacity 5, booth_capacity 0. The
+ * arithmetic already read 0 as full, so the site told booth vendors they were
+ * sold out, which is the wrong fact. It is not a shortage, it is a night that
+ * does not sell booths, and the two need different words and different paths.
+ *
+ * Driven through the real lib/event-state, so the rule cannot be restated here
+ * and then drift from the one the site runs. The two cases that matter most:
+ *
+ *   Five trucks and no booths is OPEN, not FULL. Reading a zero as half a full
+ *   house would shut an event with every one of its spots still available.
+ *
+ *   Null capacity stays offered. Nobody having set a number is the absence of
+ *   a decision, and turning that into "we do not sell this" would lose real
+ *   business the first time an event row was added without capacities.
+ */
+const EVENT_STATE = path.join(root, 'lib', 'event-state.ts');
+
+const HOUR = 3600000;
+
+function lifecycleWith(boothCapacity, boothTaken, truckCapacity, truckTaken) {
+  const { availability, eventLifecycle } = loadModule(EVENT_STATE);
+  return eventLifecycle(
+    {
+      isPublished: true,
+      startsAtMs: NOW + 48 * HOUR,
+      endsAtMs: NOW + 52 * HOUR,
+      signupClosesAtMs: NOW + 24 * HOUR,
+      booth: availability(boothCapacity, boothTaken),
+      truck: availability(truckCapacity, truckTaken),
+    },
+    NOW
+  );
+}
+
+/* [label, boothCapacity, boothTaken, truckCapacity, truckTaken, expected] */
+const OFFER_CASES = [
+  /* Tonight's policy: the three upcoming home games. */
+  [
+    'five trucks, no booths',
+    0,
+    0,
+    5,
+    0,
+    {
+      state: 'OPEN',
+      boothOffered: false,
+      truckOffered: true,
+      canBooth: false,
+      canTruck: true,
+      canFree: false,
+      waitBooth: false,
+      waitTruck: false,
+      showWaitlist: false,
+    },
+  ],
+  [
+    'five trucks all taken, no booths',
+    0,
+    0,
+    5,
+    5,
+    {
+      state: 'FULL',
+      boothOffered: false,
+      truckOffered: true,
+      canBooth: false,
+      canTruck: false,
+      canFree: false,
+      waitBooth: false,
+      waitTruck: true,
+      showWaitlist: true,
+    },
+  ],
+  /* The same rule read the other way, for the booth only nights to come. */
+  [
+    'booths only, trucks zero',
+    6,
+    1,
+    0,
+    0,
+    {
+      state: 'OPEN',
+      boothOffered: true,
+      truckOffered: false,
+      canBooth: true,
+      canTruck: false,
+      canFree: true,
+      waitBooth: false,
+      waitTruck: false,
+      showWaitlist: false,
+    },
+  ],
+  /* Sold out is still sold out, and still offers a waitlist. */
+  [
+    'both on offer, booths gone',
+    4,
+    4,
+    5,
+    1,
+    {
+      state: 'OPEN',
+      boothOffered: true,
+      truckOffered: true,
+      canBooth: false,
+      canTruck: true,
+      canFree: true,
+      waitBooth: true,
+      waitTruck: false,
+      showWaitlist: false,
+    },
+  ],
+  [
+    'both gone',
+    4,
+    4,
+    5,
+    5,
+    {
+      state: 'FULL',
+      boothOffered: true,
+      truckOffered: true,
+      canBooth: false,
+      canTruck: false,
+      canFree: false,
+      waitBooth: true,
+      waitTruck: true,
+      showWaitlist: true,
+    },
+  ],
+  [
+    'no capacity set anywhere',
+    null,
+    0,
+    null,
+    0,
+    {
+      state: 'OPEN',
+      boothOffered: true,
+      truckOffered: true,
+      canBooth: true,
+      canTruck: true,
+      canFree: true,
+      waitBooth: false,
+      waitTruck: false,
+      showWaitlist: false,
+    },
+  ],
+  /* Nothing sold at all. No form and no queue: a waitlist here would collect
+     an address that nothing can ever take off it. */
+  [
+    'nothing sold at all',
+    0,
+    0,
+    0,
+    0,
+    {
+      state: 'FULL',
+      boothOffered: false,
+      truckOffered: false,
+      canBooth: false,
+      canTruck: false,
+      canFree: false,
+      waitBooth: false,
+      waitTruck: false,
+      showWaitlist: false,
+    },
+  ],
+];
+
+function driveTheOfferRule() {
+  const { canApplyForSpot, offeredForSpot, waitlistForSpot } = loadModule(EVENT_STATE);
+  const problems = [];
+
+  for (const [label, bc, bt, tc, tt, want] of OFFER_CASES) {
+    const life = lifecycleWith(bc, bt, tc, tt);
+
+    const got = {
+      state: life.state,
+      boothOffered: offeredForSpot(life, 'booth'),
+      truckOffered: offeredForSpot(life, 'truck'),
+      canBooth: canApplyForSpot(life, 'booth'),
+      canTruck: canApplyForSpot(life, 'truck'),
+      /* A free organisation table is a booth footprint, so it follows the
+         booths. This is the assertion that keeps the two in step. */
+      canFree: canApplyForSpot(life, 'free'),
+      waitBooth: waitlistForSpot(life, 'booth'),
+      waitTruck: waitlistForSpot(life, 'truck'),
+      showWaitlist: life.showWaitlist,
+    };
+
+    for (const key of Object.keys(want)) {
+      if (got[key] !== want[key]) {
+        problems.push(
+          `offered: ${label}: ${key} should be ${want[key]}, got ${got[key]}`
+        );
+      }
+    }
+  }
+
+  return problems;
+}
+
 function driveTheRule() {
   const { holdsSpot, isAbandonedCheckout } = loadModule(HELPER);
   const problems = [];
@@ -376,6 +583,7 @@ function main() {
   }
 
   problems.push(...driveTheRule());
+  problems.push(...driveTheOfferRule());
 
   if (problems.length) {
     console.error(`\ncheck-capacity: ${problems.length} problem(s).\n`);
@@ -398,7 +606,8 @@ function main() {
     `check-capacity: ${COUNTERS.length} counting files import lib/holds-spot directly, ` +
       `${reached.length} capacity surfaces all reach it, ` +
       `no second copy of the settled rule, and ` +
-      `${HOLDS_CASES.length + ABANDONED_CASES.length} cases of the rule itself hold. ` +
+      `${HOLDS_CASES.length + ABANDONED_CASES.length} cases of the rule itself hold, ` +
+      `and ${OFFER_CASES.length} cases of zero capacity meaning a type is not offered rather than sold out. ` +
       `Import hops: ${hops}.`
   );
 }

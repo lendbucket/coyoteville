@@ -7,7 +7,12 @@
  * live state travels with the event so the form can decide between applying
  * and waitlisting without a second round trip.
  */
-import { canApplyForSpot, waitlistForSpot, type EventLifecycle } from './event-state';
+import {
+  canApplyForSpot,
+  offeredForSpot,
+  waitlistForSpot,
+  type EventLifecycle,
+} from './event-state';
 
 export type EventOption = {
   slug: string;
@@ -43,6 +48,54 @@ export function isOpenForSpot(event: EventOption, spot: string): boolean {
 }
 
 /**
+ * Does this event sell this spot type at all?
+ *
+ * The difference between "gone" and "not on the menu", which the site was
+ * telling vendors was the same thing. A booth vendor reading "sold out" on a
+ * home game thinks they were slow; the truth is that home games are trucks
+ * only and their night is a different night. One of those makes them come
+ * back and the other loses them.
+ */
+export function isOfferedForSpot(event: EventOption, spot: string): boolean {
+  return offeredForSpot(event.lifecycle, spot);
+}
+
+/** Every type this event actually sells, in the order the form lists them. */
+export function offeredSpotTypes(event: EventOption): ('booth' | 'truck' | 'free')[] {
+  return (['booth', 'truck', 'free'] as const).filter((s) => isOfferedForSpot(event, s));
+}
+
+/**
+ * The line shown where the missing types used to be.
+ *
+ * Says what this night is rather than what it is not, and points at the thing
+ * that replaces it, because a vendor who has just lost their option needs
+ * somewhere to go next.
+ */
+export function notOfferedNote(event: EventOption): string | null {
+  const booth = isOfferedForSpot(event, 'booth');
+  const truck = isOfferedForSpot(event, 'truck');
+
+  if (booth && truck) return null;
+
+  if (truck && !booth) {
+    return (
+      `${event.name} is food trucks only. Vendor booths and organization tables are not ` +
+      'offered on home game nights. We will announce other event nights for booths.'
+    );
+  }
+
+  if (booth && !truck) {
+    return (
+      `${event.name} is vendor booths only. Food truck spots are not offered on this night. ` +
+      'We will announce other event nights for trucks.'
+    );
+  }
+
+  return `${event.name} is not selling vendor spots.`;
+}
+
+/**
  * Whether this vendor should be offered the waitlist rather than the form.
  *
  * Only inside the signup window, and only for a type that has actually run
@@ -67,6 +120,11 @@ export function closedReason(event: EventOption, spot?: string): string {
   }
   if (event.deadlinePassed) {
     return `Signup for ${event.name} closed ${event.signupClosesDisplay} Central.`;
+  }
+  /* Not offered is answered before full, because it is a different fact and
+     the wrong one of the two is the reason this exists. */
+  if (spot && !isOfferedForSpot(event, spot)) {
+    return notOfferedNote(event) ?? `${event.name} does not offer that spot type.`;
   }
   if (event.isFull === true) {
     return `${event.name} is full.`;

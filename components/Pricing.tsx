@@ -45,8 +45,20 @@ export default async function Pricing() {
      the cards were quoting the finished event's remainders. */
   const spots = await getSpots((await getNextEvent())?.slug);
 
+  /* Only what this event sells.
+   *
+   * A capacity of zero is a decision, not a shortage, and a card reading "Full
+   * for this event" told a booth vendor they were slow when the truth is that
+   * home games are trucks only. The organization card follows the booths
+   * because an org sets up in a booth footprint, which is the same rule
+   * FREE_CONSUMES_BOOTH states in lib/spots.
+   *
+   * Read off the capacity rather than off which event it is, so a booth only
+   * night later needs no change here. */
   const cards = [
     {
+      key: 'booth',
+      offered: spots.booth.offered,
       name: PRICING.booth.label,
       amount: PRICING.booth.price,
       per: 'per event',
@@ -56,6 +68,8 @@ export default async function Pricing() {
       left: spots.available ? spotsLeftLabel(spots.booth) : null,
     },
     {
+      key: 'truck',
+      offered: spots.truck.offered,
       name: PRICING.truck.label,
       amount: PRICING.truck.price,
       per: 'per event',
@@ -65,6 +79,8 @@ export default async function Pricing() {
       left: spots.available ? spotsLeftLabel(spots.truck) : null,
     },
     {
+      key: 'free',
+      offered: spots.booth.offered,
       name: PRICING.free.label,
       amount: PRICING.free.price,
       per: 'always',
@@ -73,7 +89,16 @@ export default async function Pricing() {
       points: ORG_POINTS,
       left: 'No limit on organization spots',
     },
-  ];
+  ].filter((c) => c.offered);
+
+  /* One line where the missing cards were, saying what this night is. */
+  const note = spots.booth.offered
+    ? spots.truck.offered
+      ? null
+      : 'Food truck spots are not offered on this event. We will announce other event nights for trucks.'
+    : spots.truck.offered
+      ? 'Home game nights are food trucks only. Vendor booths and organization tables are not offered on these nights. We will announce other event nights for booths.'
+      : null;
 
   return (
     <section className="section section--cream-deep" id="vendors" aria-labelledby="vendors-title">
@@ -103,6 +128,8 @@ export default async function Pricing() {
             </article>
           ))}
         </div>
+
+        {note ? <p className="pricing__note pricing__note--offer">{note}</p> : null}
 
         <p className="pricing__note">
           Spots are first come, first paid, and your space is not held until the fee is in. We

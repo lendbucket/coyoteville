@@ -4,7 +4,12 @@ import { useId, useState } from 'react';
 import EventPicker from './EventPicker';
 import StringLights from './StringLights';
 import { PRICING } from '@/lib/seo';
-import { closedReason, type EventOption } from '@/lib/event-options';
+import {
+  closedReason,
+  isOfferedForSpot,
+  notOfferedNote,
+  type EventOption,
+} from '@/lib/event-options';
 
 /**
  * The waitlist.
@@ -48,6 +53,11 @@ export default function WaitlistForm({
   const [alreadyOn, setAlreadyOn] = useState(false);
 
   const event = events.find((e) => e.slug === eventSlug) ?? events[0];
+
+  /* What this night sells, and the line where the rest used to be. */
+  const offersBooth = event ? isOfferedForSpot(event, 'booth') : true;
+  const offersTruck = event ? isOfferedForSpot(event, 'truck') : true;
+  const notOffered = event ? notOfferedNote(event) : null;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -171,14 +181,25 @@ export default function WaitlistForm({
                 <option value="" disabled>
                   Pick one
                 </option>
-                <option value="booth">
-                  {PRICING.booth.label}, {PRICING.booth.price}
-                </option>
-                <option value="truck">
-                  {PRICING.truck.label}, {PRICING.truck.price}
-                </option>
-                <option value="free">{PRICING.free.label}, free</option>
+                {/* No waitlist for a type this night does not sell. A queue
+                    implies somebody ahead of you might drop out, and for a
+                    booth on a truck only night nobody is ahead of you and no
+                    cancellation will ever reach you. */}
+                {offersBooth ? (
+                  <option value="booth">
+                    {PRICING.booth.label}, {PRICING.booth.price}
+                  </option>
+                ) : null}
+                {offersTruck ? (
+                  <option value="truck">
+                    {PRICING.truck.label}, {PRICING.truck.price}
+                  </option>
+                ) : null}
+                {offersBooth ? (
+                  <option value="free">{PRICING.free.label}, free</option>
+                ) : null}
               </select>
+              {notOffered ? <p className="fieldnote">{notOffered}</p> : null}
             </div>
           </div>
 

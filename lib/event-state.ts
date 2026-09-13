@@ -37,6 +37,19 @@ export type SpotAvailability = {
   remaining: number | null;
   /** Capacity is known and none of it is left. */
   full: boolean;
+  /**
+   * Is this type sold on this event at all?
+   *
+   * Zero capacity and no capacity are different answers and were being given
+   * the same one. A capacity of zero is a decision: home games are food trucks
+   * only, so a booth is not something you missed out on, it is not on the menu.
+   * A capacity of null is the absence of a decision, which has to stay open or
+   * a config value nobody set turns into lost business.
+   *
+   * Keyed off the number rather than off which event it is, so a booth only
+   * night is the same rule read the other way and needs no new code.
+   */
+  offered: boolean;
 };
 
 export type EventLifecycle = {
@@ -69,10 +82,10 @@ export function availability(capacity: number | null, taken: number): SpotAvaila
   if (capacity === null) {
     // Unknown capacity is not full. Refusing applications because nobody has
     // set a number would turn a missing config value into lost business.
-    return { capacity: null, taken, remaining: null, full: false };
+    return { capacity: null, taken, remaining: null, full: false, offered: true };
   }
   const remaining = Math.max(0, capacity - taken);
-  return { capacity, taken, remaining, full: remaining <= 0 };
+  return { capacity, taken, remaining, full: remaining <= 0, offered: capacity > 0 };
 }
 
 /**
@@ -125,9 +138,18 @@ export function eventLifecycle(input: LifecycleInput, now: number = Date.now()):
     };
   }
 
-  // Full only when every paid type is gone. One type with room keeps the event
-  // open, and the per type flags decide who sees which form.
-  const anyRoom = !booth.full || !truck.full;
+  /* Full only when every type this event actually sells is gone. One type with
+     room keeps the event open, and the per type flags decide who sees which
+     form.
+
+     "Actually sells" is what a zero capacity changed. A night of five trucks
+     and no booths has booth.full true, because zero of zero is gone, and
+     reading that as half of a full house would have called an open night FULL
+     the moment the trucks sold out while the booths were never on offer. So an
+     unoffered type is not consulted. */
+  const anyOffered = booth.offered || truck.offered;
+  const anyRoom =
+    (booth.offered && !booth.full) || (truck.offered && !truck.full);
 
   return {
     ...base,
@@ -136,7 +158,10 @@ export function eventLifecycle(input: LifecycleInput, now: number = Date.now()):
     showCountdown: true,
     signupWindowOpen: true,
     canApply: anyRoom,
-    showWaitlist: !anyRoom,
+    /* An event that sells nothing has nothing to queue for. Without this an
+       all zero night would offer a waitlist against spots that are not coming
+       back, which is a form that collects an address and does nothing. */
+    showWaitlist: !anyRoom && anyOffered,
   };
 }
 
@@ -149,8 +174,28 @@ export function eventLifecycle(input: LifecycleInput, now: number = Date.now()):
  * footprint; the two differ on purpose and the meter is the one that decides
  * whether the lot is oversold.
  */
+/**
+ * Is this spot type sold on this event at all?
+ *
+ * A free organisation spot follows the booths, because it is one: an org sets
+ * up in a booth footprint, which is why FREE_CONSUMES_BOOTH is true in
+ * lib/spots. A night with no booth footprints has nowhere to put one, so the
+ * two answer together and neither needs to know what kind of night it is.
+ *
+ * This is about the Alice organisation table on the vendor form. The Parking
+ * Fundraiser is a different thing entirely, in a different table, and is not
+ * touched by any of this: organisations still work the lot on home games.
+ */
+export function offeredForSpot(lifecycle: EventLifecycle, spot: string): boolean {
+  if (spot === 'truck') return lifecycle.truck.offered;
+  if (spot === 'booth' || spot === 'free') return lifecycle.booth.offered;
+  /* No type named. Something is on offer as long as one of them is. */
+  return lifecycle.booth.offered || lifecycle.truck.offered;
+}
+
 export function canApplyForSpot(lifecycle: EventLifecycle, spot: string): boolean {
   if (!lifecycle.signupWindowOpen) return false;
+  if (!offeredForSpot(lifecycle, spot)) return false;
   if (spot === 'booth') return !lifecycle.booth.full;
   if (spot === 'truck') return !lifecycle.truck.full;
   return lifecycle.canApply;
@@ -161,6 +206,10 @@ export function waitlistForSpot(lifecycle: EventLifecycle, spot: string): boolea
   // Only ever inside the signup window. A closed or finished date takes nobody
   // off a waitlist, so offering one would be collecting addresses for nothing.
   if (!lifecycle.signupWindowOpen) return false;
+  /* And never for a type this event does not sell. A waitlist implies somebody
+     ahead of you might drop out; for a booth on a truck only night nobody is
+     ahead of you and no cancellation will ever reach you. */
+  if (!offeredForSpot(lifecycle, spot)) return false;
   if (spot === '') return lifecycle.showWaitlist;
   return !canApplyForSpot(lifecycle, spot);
 }

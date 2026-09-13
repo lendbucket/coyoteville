@@ -163,6 +163,22 @@ export async function POST(request: Request) {
      shut and trucks open is closed to one vendor and open to the next, so the
      type they asked for decides whether they belong here or in the form. */
   const slot = reviewSlotFor(await getSpots(event.slug), spotType);
+
+  /* A type this event does not sell has no queue. Joining one would put an
+     address on a list that nothing can ever take it off, because there is no
+     spot of that kind to free up. */
+  if (!slot.offered) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `${event.name} does not offer ${
+          spotType === 'truck' ? 'food truck spots' : 'vendor booths or organization tables'
+        }, so there is no waitlist for it. We will announce other event nights for those.`,
+      },
+      { status: 409 }
+    );
+  }
+
   const openToThem = event.isOpen && slot.open;
 
   if (openToThem) {

@@ -76,28 +76,37 @@ export function EventCard({ event, spots }: { event: ScheduledEvent; spots: Spot
         )}
       </p>
 
+      {/* Only the types this event sells. "0 of 0 booths" is not a count, it is
+          a line that makes a truck only night look broken, and the Alice org
+          row goes with the booths because an org stands in one. */}
       {spots.capacityKnown ? (
         <ul className="evcard__split">
-          <li>
-            <span>Booths</span>
-            <b>
-              {spots.booth.capacity === null
-                ? `${spots.booth.claimed} claimed`
-                : `${spots.booth.claimed} of ${spots.booth.capacity}`}
-            </b>
-          </li>
-          <li>
-            <span>Trucks</span>
-            <b>
-              {spots.truck.capacity === null
-                ? `${spots.truck.claimed} claimed`
-                : `${spots.truck.claimed} of ${spots.truck.capacity}`}
-            </b>
-          </li>
-          <li>
-            <span>Alice orgs</span>
-            <b>{spots.freeClaimed} signed up</b>
-          </li>
+          {spots.booth.offered ? (
+            <li>
+              <span>Booths</span>
+              <b>
+                {spots.booth.capacity === null
+                  ? `${spots.booth.claimed} claimed`
+                  : `${spots.booth.claimed} of ${spots.booth.capacity}`}
+              </b>
+            </li>
+          ) : null}
+          {spots.truck.offered ? (
+            <li>
+              <span>Trucks</span>
+              <b>
+                {spots.truck.capacity === null
+                  ? `${spots.truck.claimed} claimed`
+                  : `${spots.truck.claimed} of ${spots.truck.capacity}`}
+              </b>
+            </li>
+          ) : null}
+          {spots.booth.offered ? (
+            <li>
+              <span>Alice orgs</span>
+              <b>{spots.freeClaimed} signed up</b>
+            </li>
+          ) : null}
         </ul>
       ) : null}
 

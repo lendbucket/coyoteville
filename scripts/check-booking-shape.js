@@ -167,7 +167,17 @@ const FAKES = {
   '@/lib/spots': {
     invalidateSpots: () => {},
     getSpots: async () => ({ booth: { capacity: 20 }, truck: { capacity: 8 } }),
-    reviewSlotFor: () => ({ open: true }),
+    /* Both fields. The route asks about offered before it asks about open,
+       because a type an event does not sell and a type that sold out are
+       different refusals with different wording, and a fake that answered only
+       the second one made every event booking read as not offered.
+
+       offeredSpots is what the not-offered case below flips. */
+    reviewSlotFor: (_spots, spotType) => ({
+      open: true,
+      remaining: null,
+      offered: offeredSpots.includes(spotType),
+    }),
   },
   '@/lib/days': {
     getDayStatus: async (day) => ({
@@ -345,6 +355,11 @@ const BASE = {
   permits_confirmed: 'true',
 };
 
+/* Which spot types the event under test sells. Mutated by the not-offered
+   case, which is the whole point of it: the policy that home games are food
+   trucks only has to be refused at the route, not only hidden in the form. */
+let offeredSpots = ['booth', 'truck', 'free'];
+
 const CASES = [
   {
     label: 'Event date + Vendor Booth',
@@ -488,6 +503,49 @@ const failures = [];
     console.log(`  ok  ${'Single day on an event date'.padEnd(32)} refused: ${clash.__json && clash.__json.error}`);
   }
 
+  /* ------------------------------------- a type the event does not sell */
+
+  /* Home games became food trucks only: truck_capacity 5, booth_capacity 0.
+     The form no longer offers a booth on those nights, but a form is not a
+     gate. A stale tab, a back button, or a hand made post all reach the route,
+     and the route has to refuse and has to say why: not offered is a different
+     fact from sold out, and the vendor needs the one that tells them to come
+     to a different night rather than to try again faster. */
+  for (const spot of ['booth', 'free']) {
+    inserted.length = 0;
+    offeredSpots = ['truck'];
+
+    const res = await route.POST(
+      buildRequest({
+        ...BASE,
+        booking_kind: 'event',
+        event_slug: EVENT_SLUG,
+        spot_type: spot,
+        serves_food: 'false',
+      })
+    );
+
+    offeredSpots = ['booth', 'truck', 'free'];
+
+    const body = res.__json || {};
+    const refused = res.status === 409 && !body.ok;
+    const explains = /does not offer/i.test(String(body.error || ''));
+
+    if (!refused) {
+      failures.push(
+        'A ' + spot + ' was accepted on a food truck only event. That books a spot the lot does not have.'
+      );
+    } else if (!explains) {
+      failures.push(
+        'A ' + spot + ' on a food truck only event was refused with the wrong reason: ' + body.error
+      );
+    } else if (inserted.length) {
+      failures.push('A ' + spot + ' on a food truck only event was refused but a row was still written.');
+    } else {
+      console.log('  ok  ' + (spot + ' on a truck only event').padEnd(32) + ' refused: ' + body.error);
+    }
+  }
+
   /* ------------------------------------------------ the card can still load */
 
   /* A monthly application is refused without a card token, which is correct and
@@ -573,7 +631,10 @@ const failures = [];
 
   console.log(
     `check-booking-shape: ${CASES.length} booking combinations insert the right shape, an event date is refused as a single day, ` +
-      'a monthly without a card is refused, and the CSP still lets Square load in both environments.'
+      'a monthly without a card is refused, a booth and a free organization spot are ' +
+      'both refused on a food truck only event with the reason naming what is not ' +
+      'offered rather than what is full, and the CSP still lets Square load in both ' +
+      'environments.'
   );
 })().catch((err) => {
   console.error('check-booking-shape: threw');

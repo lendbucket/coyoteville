@@ -46,7 +46,7 @@ import StringLights from './StringLights';
 import Fireworks from './Fireworks';
 import NextSteps from './NextSteps';
 import EventPicker from './EventPicker';
-import type { EventOption } from '@/lib/event-options';
+import { isOfferedForSpot, notOfferedNote, type EventOption } from '@/lib/event-options';
 import { PRICING, SITE } from '@/lib/seo';
 
 /** Kept in step with ALLOWED_LABEL in lib/uploads.ts. */
@@ -391,6 +391,27 @@ export default function VendorForm({
         : spot === 'free'
           ? 'Free. Alice organizations set up at no charge.'
           : null;
+
+  /**
+   * What this event sells, and the line explaining what it does not.
+   *
+   * Only meaningful for an event booking. A day or a monthly is not tied to an
+   * event row and has no per event capacity to read, so both types stay on
+   * offer there exactly as before.
+   */
+  const chosenEvent = kind === 'event' ? events?.find((e) => e.slug === eventSlug) : undefined;
+  const offersBooth = chosenEvent ? isOfferedForSpot(chosenEvent, 'booth') : true;
+  const offersTruck = chosenEvent ? isOfferedForSpot(chosenEvent, 'truck') : true;
+  const notOffered = chosenEvent ? notOfferedNote(chosenEvent) : null;
+
+  /* A type that was picked before the date changed, on a date that does not
+     sell it. Cleared rather than submitted: the server refuses it, and being
+     refused after filling in a whole form is the worst way to find out. */
+  useEffect(() => {
+    if (kind !== 'event') return;
+    if (spot === 'truck' && !offersTruck) setSpot('');
+    if ((spot === 'booth' || spot === 'free') && !offersBooth) setSpot('');
+  }, [kind, spot, offersBooth, offersTruck, setSpot]);
 
   const heading = prepaid ? 'Register your spot' : 'Get your spot';
 
@@ -823,19 +844,34 @@ export default function VendorForm({
                   </>
                 ) : (
                   <>
-                    <option value="booth">
-                      {PRICING.booth.label}, {PRICING.booth.price}
-                    </option>
-                    <option value="truck">
-                      {PRICING.truck.label}, {PRICING.truck.price}
-                    </option>
+                    {/* Only what this night sells. Gone rather than disabled:
+                        a greyed option still reads as something you nearly had,
+                        and a booth on a home game is not a near miss, it is a
+                        different night. offersBooth covers the free
+                        organisation table too, because that is a booth. */}
+                    {offersBooth ? (
+                      <option value="booth">
+                        {PRICING.booth.label}, {PRICING.booth.price}
+                      </option>
+                    ) : null}
+                    {offersTruck ? (
+                      <option value="truck">
+                        {PRICING.truck.label}, {PRICING.truck.price}
+                      </option>
+                    ) : null}
                     {/* No free option on a permanent spot: a space held every
                         day of the month is not something given away, and the
                         server refuses it either way. */}
-                    <option value="free">{PRICING.free.label}, free</option>
+                    {offersBooth ? (
+                      <option value="free">{PRICING.free.label}, free</option>
+                    ) : null}
                   </>
                 )}
               </select>
+
+              {/* Where the missing types were. One line, saying what this night
+                  is and where the other nights will be announced. */}
+              {notOffered ? <p className="fieldnote">{notOffered}</p> : null}
 
               {spotError ? (
                 <span className="fielderror" id={`${uid}-spot-error`} role="alert">
