@@ -54,7 +54,7 @@ const HEALTHCHECK_NAME = '__healthcheck__';
  * minute it is down is money that is not collected and half of which belonged
  * to somebody else. The other steps can wait for an email.
  */
-const SMS_STEPS = new Set(['signup', 'admin-login', 'parking']);
+const SMS_STEPS = new Set(['signup', 'admin-login', 'parking', 'square-live']);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -320,6 +320,88 @@ async function stepSquareSdk(ctx) {
   );
 
   return `window.Square is an object and the card iframe mounted from ${state.frames.find((h) => /squarecdn/.test(h))}`;
+}
+
+/**
+ * 4b. Is the live site talking to real Square, or to sandbox?
+ *
+ * The one that would have caught the outage. coyoteville.com ran for an evening
+ * creating sandbox payment links against a real account: drivers scanned the QR,
+ * were bounced to the thank you page, and were charged nothing. Every gate in
+ * the build passed, because separately every variable was valid; the site simply
+ * pointed at the wrong Square.
+ *
+ * Three independent reads, because any one of them alone can be explained away:
+ *
+ *   The CSP header names the SDK host and the tokenise host, and next.config.js
+ *   picks that pair off NEXT_PUBLIC_SQUARE_ENVIRONMENT. Sandbox hosts in the
+ *   header mean the public variable is not production.
+ *
+ *   The card iframe that actually mounted, which is what the browser really
+ *   loaded rather than what a header permitted.
+ *
+ *   The checkout link the server hands back for a real parking payment. This is
+ *   the one that decides whether money moves, it is driven by the other
+ *   variable, SQUARE_ENVIRONMENT, and it is the half a CSP check cannot see.
+ *   Sandbox hosted checkout lives on sandbox.square.link.
+ *
+ * Skipped when BASE is not the production site, so a run against a preview does
+ * not fail for being on sandbox, which is where a preview belongs.
+ */
+async function stepSquareLive(ctx) {
+  if (!/coyoteville\.com/.test(BASE)) {
+    return `skipped: ${BASE} is not production, and only production has to be on live Square`;
+  }
+
+  const res = await fetch(`${BASE}/`, { redirect: 'manual' });
+  const csp = res.headers.get('content-security-policy') || '';
+  assert(csp, 'no Content-Security-Policy header on the homepage');
+
+  const sandboxHosts = [
+    'sandbox.web.squarecdn.com',
+    'pci-connect.squareupsandbox.com',
+    'sandbox.square.link',
+  ].filter((h) => csp.includes(h) && h !== 'sandbox.square.link');
+
+  assert(
+    sandboxHosts.length === 0,
+    `the live site's CSP names Square SANDBOX hosts (${sandboxHosts.join(', ')}), so ` +
+      'NEXT_PUBLIC_SQUARE_ENVIRONMENT is not production and the card field loads the ' +
+      'sandbox SDK'
+  );
+
+  assert(
+    csp.includes('https://web.squarecdn.com'),
+    'the CSP does not allow https://web.squarecdn.com, so the production card SDK cannot load'
+  );
+  assert(
+    csp.includes('https://pci-connect.squareup.com'),
+    'the CSP does not allow https://pci-connect.squareup.com, so a card cannot be tokenised against live Square'
+  );
+
+  /* The half the header cannot answer: which Square made the payment link. */
+  const park = await fetch(`${BASE}/park`, { redirect: 'follow' });
+  const html = await park.text();
+  const links = [...html.matchAll(/https:\/\/(sandbox\.)?square\.link\/[^"'<\\s]+/g)].map(
+    (m) => m[0]
+  );
+
+  assert(
+    links.length > 0,
+    'no Square checkout link on /park at all, so parking cannot be paid for'
+  );
+
+  const sandboxLinks = links.filter((l) => l.includes('sandbox.square.link'));
+  assert(
+    sandboxLinks.length === 0,
+    `/park is handing out SANDBOX checkout links (${sandboxLinks[0]}), so SQUARE_ENVIRONMENT ` +
+      'is not production and nobody scanning the QR is being charged'
+  );
+
+  return (
+    `CSP names web.squarecdn.com and pci-connect.squareup.com, and /park hands out ` +
+    `a live checkout link (${links[0].slice(0, 48)}...)`
+  );
 }
 
 /**
@@ -874,6 +956,7 @@ const STEPS = [
   ['next-event', stepNextEvent],
   ['capacity', stepCapacity],
   ['square-sdk', stepSquareSdk],
+  ['square-live', stepSquareLive],
   ['signup', stepSignup],
   ['admin-login', stepAdminLogin],
   ['agreement-pdf', stepAgreementPdf],

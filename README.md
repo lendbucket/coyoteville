@@ -208,8 +208,28 @@ The repo is already linked. Add the environment variables under
 | `SUPABASE_SERVICE_ROLE_KEY` | yes | yes | secret |
 | `SQUARE_ACCESS_TOKEN` | production token | sandbox token | secret |
 | `SQUARE_LOCATION_ID` | production location | sandbox location | |
-| `SQUARE_ENVIRONMENT` | `production` | `sandbox` | |
+| `SQUARE_ENVIRONMENT` | `production` | `sandbox` | decides whether money moves |
+| `NEXT_PUBLIC_SQUARE_ENVIRONMENT` | `production` | `sandbox` | must match the line above |
+| `NEXT_PUBLIC_SQUARE_APPLICATION_ID` | `sq0idp-...` | `sandbox-sq0idb-...` | the card field needs it |
+| `NEXT_PUBLIC_SQUARE_LOCATION_ID` | same as `SQUARE_LOCATION_ID` | same as `SQUARE_LOCATION_ID` | |
 | `SQUARE_WEBHOOK_SIGNATURE_KEY` | production subscription key | sandbox subscription key | secret |
+
+**The environment is set in two places and they have to agree.** `SQUARE_ENVIRONMENT`
+decides which Square the server creates payment links against, so it decides whether a
+card is charged. `NEXT_PUBLIC_SQUARE_ENVIRONMENT` decides which card SDK the browser
+loads and which hosts the CSP allows. Neither knows about the other.
+
+Getting this wrong is silent and expensive. On 2026-09-11 both were sandbox on
+coyoteville.com: the QR code worked, the checkout looked real, drivers landed on the
+thank you page, and nothing was charged all evening. Nothing in the build could see it,
+because separately every variable was valid.
+
+Two checks now cover it. `npm run check:square-env` runs before every build and fails a
+Vercel production deploy that is not on production Square, or any deploy where the two
+variables disagree or the application id belongs to the other account. The `square-live`
+step in `scripts/healthcheck.js` runs against coyoteville.com after every deploy and
+every six hours, and fails if the live CSP names sandbox hosts or `/park` hands out a
+`sandbox.square.link` checkout. That one texts.
 
 With the CLI:
 
