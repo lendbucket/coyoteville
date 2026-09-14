@@ -47,6 +47,9 @@ const SQUARE_API = squareProduction
   ? 'https://pci-connect.squareup.com'
   : 'https://pci-connect.squareupsandbox.com';
 
+/** The sandbox checkout host, on sandbox builds only. Empty in production. */
+const SQUARE_CHECKOUT_SANDBOX = squareProduction ? '' : ' https://sandbox.square.link';
+
 // Next needs inline script for its bootstrap payload, and React refresh needs
 // eval in development only.
 const csp = [
@@ -59,10 +62,18 @@ const csp = [
   `script-src 'self' 'unsafe-inline' ${SQUARE_SDK}${isProd ? '' : " 'unsafe-eval'"}`,
   "font-src 'self' data:",
   `connect-src 'self' ${SQUARE_API}`,
-  // Square hosted checkout lives on square.link and checkout.square.site.
-  // Sandbox links come from sandbox.square.link.
-  "form-action 'self' https://square.link https://sandbox.square.link https://checkout.square.site",
-  `frame-src https://square.link https://sandbox.square.link https://checkout.square.site ${SQUARE_SDK}`,
+  /* Square hosted checkout lives on square.link and checkout.square.site.
+     Sandbox links come from sandbox.square.link, and that host is allowed only
+     on a sandbox build.
+
+     It used to be allowed in both, which was harmless and turned out not to be
+     free: it left a Square sandbox host in the live site's policy, so the one
+     check worth writing after Friday, "the production CSP names no sandbox
+     host", could not be written as that sentence. It needed a carve out for
+     this line, and a check with a carve out for the thing it is looking for is
+     a check nobody should trust. */
+  `form-action 'self' https://square.link${SQUARE_CHECKOUT_SANDBOX} https://checkout.square.site`,
+  `frame-src https://square.link${SQUARE_CHECKOUT_SANDBOX} https://checkout.square.site ${SQUARE_SDK}`,
   'upgrade-insecure-requests',
 ].join('; ');
 

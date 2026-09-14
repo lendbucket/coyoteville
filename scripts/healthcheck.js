@@ -353,21 +353,30 @@ async function stepSquareLive(ctx) {
     return `skipped: ${BASE} is not production, and only production has to be on live Square`;
   }
 
-  const res = await fetch(`${BASE}/`, { redirect: 'manual' });
+  /* /park rather than the homepage. It is the page a driver actually opens
+     from the QR code, it carries the checkout button, and it is the one whose
+     policy decides whether the card SDK can load at the gate. */
+  const res = await fetch(`${BASE}/park`, { redirect: 'manual' });
   const csp = res.headers.get('content-security-policy') || '';
   assert(csp, 'no Content-Security-Policy header on the homepage');
 
+  /* Any Square sandbox host at all, with no exceptions. sandbox.square.link
+     used to be allowed on both builds, which forced a carve out here; the CSP
+     now drops it in production so this can be the plain sentence it should be.
+     A check that excuses one instance of the thing it hunts is not a check. */
   const sandboxHosts = [
     'sandbox.web.squarecdn.com',
     'pci-connect.squareupsandbox.com',
     'sandbox.square.link',
-  ].filter((h) => csp.includes(h) && h !== 'sandbox.square.link');
+    'squareupsandbox.com',
+  ].filter((h) => csp.includes(h));
 
   assert(
     sandboxHosts.length === 0,
-    `the live site's CSP names Square SANDBOX hosts (${sandboxHosts.join(', ')}), so ` +
-      'NEXT_PUBLIC_SQUARE_ENVIRONMENT is not production and the card field loads the ' +
-      'sandbox SDK'
+    `/park names Square SANDBOX hosts in its CSP (${sandboxHosts.join(', ')}), so ` +
+      'NEXT_PUBLIC_SQUARE_ENVIRONMENT is not production on the deployed build. ' +
+      'Set it and redeploy: it is inlined at build time, so changing it in Vercel ' +
+      'alone does nothing.'
   );
 
   assert(

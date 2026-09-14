@@ -222,7 +222,34 @@ export async function POST(request: Request) {
   const rawBody = await request.text();
 
   if (!verify(rawBody, providedSignature, signatureKey)) {
-    console.error('square webhook signature verification failed');
+    /**
+     * Say which of the two it probably is, because from the outside a rejected
+     * signature looks exactly like the sandbox outage: Square keeps delivering,
+     * we keep answering 400, and no row is ever written.
+     *
+     * Only two things go into the HMAC, and both are ours to get wrong:
+     *
+     *   The signature key, which is per environment and per subscription. A
+     *   production webhook signed with the sandbox key fails every time.
+     *
+     *   The notification URL, which has to match what is registered in Square
+     *   byte for byte and is derived from NEXT_PUBLIC_SITE_URL here. A trailing
+     *   slash or a preview domain fails every time.
+     *
+     * Both are named. Never the key itself, and never the body: the first is a
+     * secret and the second is somebody's payment.
+     */
+    console.error('square webhook signature verification failed', {
+      notificationUrl: NOTIFICATION_URL,
+      squareEnvironment: process.env.SQUARE_ENVIRONMENT ?? '(unset, resolves to sandbox)',
+      signatureKeyLength: signatureKey.length,
+      bodyBytes: rawBody.length,
+      hint:
+        'The HMAC is over NOTIFICATION_URL + body, keyed by ' +
+        'SQUARE_WEBHOOK_SIGNATURE_KEY. Check that the key is the one from the ' +
+        'PRODUCTION webhook subscription for exactly this URL, and that ' +
+        'NEXT_PUBLIC_SITE_URL matches the URL registered in Square.',
+    });
     return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 });
   }
 

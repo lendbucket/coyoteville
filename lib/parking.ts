@@ -1,6 +1,11 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { getSquare, getSquareLocationId, isSquareConfigured } from './square';
+import {
+  getSquare,
+  getSquareEnvironment,
+  getSquareLocationId,
+  isSquareConfigured,
+} from './square';
 import { getSupabaseAdmin, isSupabaseConfigured } from './supabase';
 import { getEvents, endsAtMs } from './events-source';
 import { PARKING_PRICE_CENTS, PAYOUT_RATE } from './parking-fundraiser';
@@ -511,7 +516,22 @@ function linkDescription(eventSlug: string, amountCents?: number): string {
     : `Coyoteville gift ${amountCents}, ${eventSlug}`;
 }
 
+/**
+ * Links found or created, for the life of the instance.
+ *
+ * Keyed by the Square environment as well as the event, so a link made under
+ * one Square can never be handed out under the other. The lookup itself cannot
+ * cross: paymentLinks.list runs against connect.squareup.com or
+ * connect.squareupsandbox.com depending on the token, and those are separate
+ * accounts with separate data, so a sandbox link is not in the production
+ * account to be found. This map was the one path that did not have that
+ * guarantee, because it is ours and it is keyed by a string we chose.
+ */
 const linkCache = new Map<string, string>();
+
+function cacheKeyFor(key: string): string {
+  return `${getSquareEnvironment()}:${key}`;
+}
 
 /**
  * One stored Square link, found or created.
@@ -532,7 +552,8 @@ async function storedLink(args: {
 }): Promise<string | null> {
   if (!isSquareConfigured()) return null;
 
-  const cached = linkCache.get(args.cacheKey);
+  const key = cacheKeyFor(args.cacheKey);
+  const cached = linkCache.get(key);
   if (cached) return cached;
 
   try {
@@ -543,7 +564,7 @@ async function storedLink(args: {
       scanned += 1;
       if (link.description === args.description && (link.url || link.longUrl)) {
         const url = (link.url || link.longUrl) as string;
-        linkCache.set(args.cacheKey, url);
+        linkCache.set(key, url);
         return url;
       }
       if (scanned >= 200) break;
@@ -577,7 +598,7 @@ async function storedLink(args: {
 
     const link = created.paymentLink;
     const url = link?.url || link?.longUrl || null;
-    if (url) linkCache.set(args.cacheKey, url);
+    if (url) linkCache.set(key, url);
     return url;
   } catch (err) {
     console.error('could not get a Square link', args.description, err);
@@ -617,7 +638,8 @@ export async function getDonationCheckoutUrls(
 export async function getParkingCheckoutUrl(eventSlug: string): Promise<string | null> {
   if (!isSquareConfigured()) return null;
 
-  const cached = linkCache.get(eventSlug);
+  const key = cacheKeyFor(eventSlug);
+  const cached = linkCache.get(key);
   if (cached) return cached;
 
   const wanted = linkDescription(eventSlug);
@@ -633,7 +655,7 @@ export async function getParkingCheckoutUrl(eventSlug: string): Promise<string |
       scanned += 1;
       if (link.description === wanted && (link.url || link.longUrl)) {
         const url = (link.url || link.longUrl) as string;
-        linkCache.set(eventSlug, url);
+        linkCache.set(key, url);
         return url;
       }
       if (scanned >= 200) break;
@@ -669,7 +691,7 @@ export async function getParkingCheckoutUrl(eventSlug: string): Promise<string |
 
     const link = created.paymentLink;
     const url = link?.url || link?.longUrl || null;
-    if (url) linkCache.set(eventSlug, url);
+    if (url) linkCache.set(key, url);
     return url;
   } catch (err) {
     /* No link is a page that still says what parking costs and still shows the
