@@ -12,6 +12,7 @@ import {
 } from '@/lib/parking';
 import { notifyPaymentReceived } from '@/lib/notify';
 import { sendParkingAlert } from '@/lib/parking-alert';
+import { sendApplicationAlert, spotLabelFor } from '@/lib/application-alert';
 import {
   handleInvoiceFailed,
   handleInvoicePaid,
@@ -523,6 +524,37 @@ export async function POST(request: Request) {
     }
 
     invalidateSpots(updated.event_slug);
+
+    /* The money landed, which is a different thing to do about than an
+       application that is merely open. Same three rules as the parking alert
+       above: only on a real settle, never awaited, and it cannot throw into
+       this response. The row is already updated by this point.
+
+       This is the half that never arrived for 361 Sweets and Treats. The
+       webhook was pointed at the wrong Square environment, so no delivery ever
+       verified, so nothing ran here at all. */
+    try {
+      void sendApplicationAlert({
+        stage: 'paid',
+        businessName: updated.business_name,
+        contactName: updated.contact_name,
+        phone: updated.phone,
+        email: updated.email,
+        spotLabel: spotLabelFor(updated.spot_type),
+        eventName: await eventNameFor(updated.event_slug),
+        sells: updated.sells,
+        notes: updated.notes,
+        servesFood: Boolean(updated.serves_food),
+        permitUploaded: Boolean(updated.permit_path),
+        /* Not on the row. The tracker has it; this line is about whether one
+           was uploaded at all, which is the thing that stops a truck. */
+        permitExpiresAt: null,
+        amountCents: updated.amount_cents ?? 0,
+        paymentStatus: 'paid',
+      }).catch((err) => console.error('application alert failed', err));
+    } catch (err) {
+      console.error('application alert could not be started', err);
+    }
 
     // The payment has settled, so this is the point the application joins the
     // review queue. Email goes out here rather than at form submission, which

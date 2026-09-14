@@ -159,6 +159,18 @@ const FAKES = {
       truck: { label: 'Permanent truck', cents: 30000 },
     },
   },
+  /* The owner alert on creation. Records every call, and can be made to fail
+     the two ways it can: a synchronous throw and a rejected promise. Only one
+     of those is caught by a try around the call. */
+  '@/lib/application-alert': {
+    spotLabelFor: (s) => (s === 'truck' ? 'Food Truck Spot' : s === 'booth' ? 'Vendor Booth' : 'Alice Organization'),
+    sendApplicationAlert: (input) => {
+      alerts.push(input);
+      if (alertMode === 'sync') throw new Error('Resend is down');
+      if (alertMode === 'reject') return Promise.reject(new Error('Resend refused it'));
+      return Promise.resolve(true);
+    },
+  },
   '@/lib/notify': {
     notifyRegistrationStarted: async () => {},
     notifyPaymentReceived: async () => {},
@@ -358,6 +370,9 @@ const BASE = {
 /* Which spot types the event under test sells. Mutated by the not-offered
    case, which is the whole point of it: the policy that home games are food
    trucks only has to be refused at the route, not only hidden in the form. */
+const alerts = [];
+let alertMode = 'ok';
+
 let offeredSpots = ['booth', 'truck', 'free'];
 
 const CASES = [
@@ -570,6 +585,55 @@ const failures = [];
     console.log(`  ok  ${'Monthly with no card token'.padEnd(32)} refused: ${noCard.__json && noCard.__json.error}`);
   }
 
+  /* ------------------------------- a mailer on fire, and a saved application */
+
+  /* 361 Sweets and Treats applied and sat pending for two days because nothing
+     told Robert. The fix is an email on creation and another when the money
+     settles, which means the save path now touches a mailer, which means the
+     save path can now be broken by one.
+
+     So the alert is driven in both of the ways it can fail and the same three
+     things are checked each time: the row was written, the response is the
+     ordinary 200 with a checkout URL, and the vendor is never told their
+     application failed because Resend is down. */
+  for (const mode of ['sync', 'reject']) {
+    inserted.length = 0;
+    alerts.length = 0;
+    alertMode = mode;
+
+    const res = await route.POST(
+      buildRequest({
+        ...BASE,
+        booking_kind: 'event',
+        event_slug: EVENT_SLUG,
+        spot_type: 'truck',
+        serves_food: 'true',
+      }, true)
+    );
+
+    alertMode = 'ok';
+
+    const body = res.__json || {};
+    const label = 'alert ' + mode;
+
+    if (!alerts.length) {
+      failures.push(label + ': the alert was never reached, so this proves nothing');
+    } else if (res.status !== 200 || !body.ok) {
+      failures.push(
+        label + ': a throwing email sender failed the application: ' +
+          res.status + ' ' + (body.error || '')
+      );
+    } else if (!inserted.length) {
+      failures.push(label + ': the application row was not written');
+    } else if (inserted[0].business_name !== BASE.business_name) {
+      failures.push(label + ': the row written is not the one submitted');
+    } else {
+      console.log(
+        '  ok  ' + (label + ', row still saved').padEnd(32) + ' 200, id=' + (body.id || '?')
+      );
+    }
+  }
+
   /* The Content Security Policy still lets Square's card SDK load.
      
      This is the other half of the same bug and the half nothing could see. The
@@ -631,7 +695,8 @@ const failures = [];
 
   console.log(
     `check-booking-shape: ${CASES.length} booking combinations insert the right shape, an event date is refused as a single day, ` +
-      'a monthly without a card is refused, a booth and a free organization spot are ' +
+      'a monthly without a card is refused, an owner alert that throws or rejects still ' +
+      'leaves the application saved and answered with a 200, a booth and a free organization spot are ' +
       'both refused on a food truck only event with the reason naming what is not ' +
       'offered rather than what is full, and the CSP still lets Square load in both ' +
       'environments.'

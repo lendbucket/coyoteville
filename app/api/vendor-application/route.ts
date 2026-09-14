@@ -35,6 +35,7 @@ import {
 } from '@/lib/uploads';
 import { getSpots, invalidateSpots, reviewSlotFor } from '@/lib/spots';
 import { notifyPaymentReceived, notifyRegistrationStarted } from '@/lib/notify';
+import { sendApplicationAlert, spotLabelFor } from '@/lib/application-alert';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -904,11 +905,59 @@ export async function POST(request: Request) {
           : undefined,
   };
 
+  /**
+   * Tell Robert, and never at the cost of the application.
+   *
+   * Same three rules as the parking alert in the Square webhook, for the same
+   * reason: the row is already written, and a mailer that is down must not
+   * turn a saved application into an error the vendor sees.
+   *
+   *   Fired after the insert, so there is nothing left to lose.
+   *   Not awaited, so the response does not wait on Resend.
+   *   Wrapped twice, because a synchronous throw and a rejection fail in
+   *   different places and only one is caught by a try.
+   *
+   * This used to be an awaited notifyRegistrationStarted, which meant a slow
+   * Resend slowed every signup and a throwing one failed it.
+   */
+  const alertShape = {
+    businessName: value.business_name,
+    contactName: value.contact_name,
+    phone: value.phone,
+    email: value.email,
+    spotLabel: spotLabelFor(value.spot_type),
+    eventName: bookingLabel,
+    sells: value.sells,
+    notes: value.notes,
+    servesFood: value.serves_food,
+    permitUploaded: Boolean(paths.permit_path),
+    permitExpiresAt: value.permit_expires_at || null,
+  };
+
+  /* Narrowed once here: the null case returned long before this point, but a
+     closure cannot see that. */
+  const fee = amountCents;
+
+  function alertOwner(stage: 'created' | 'paid', paymentStatus: string) {
+    if (healthcheck) return;
+    try {
+      void sendApplicationAlert({
+        ...alertShape,
+        stage,
+        amountCents: fee,
+        paymentStatus,
+      }).catch((err) => console.error('application alert failed', err));
+    } catch (err) {
+      console.error('application alert could not be started', err);
+    }
+  }
+
   /* A permanent spot takes no payment now. The card is on file, the
      subscription starts on approval, and until then this is an application like
      any other sitting in the queue. */
   if (isMonthly) {
     if (healthcheck) return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl: null, healthcheck: true });
+    alertOwner('created', 'card on file, billed on approval');
     await notifyPaymentReceived({
       ...emailShape,
       payment_status: 'unpaid',
@@ -925,6 +974,7 @@ export async function POST(request: Request) {
   // actually settles.
   if (isFree) {
     if (healthcheck) return NextResponse.json({ ok: true, id: inserted.id, checkoutUrl: null, healthcheck: true });
+    alertOwner('paid', 'no charge');
     await notifyPaymentReceived({
       ...emailShape,
       payment_status: 'not_required',
@@ -944,6 +994,11 @@ export async function POST(request: Request) {
   // deliberately gets nothing here; their confirmation waits for the payment to
   // actually land, because telling someone their spot is confirmed before they
   // have paid would be wrong.
+  alertOwner('created', 'unpaid, in checkout');
+
+  /* The vendor facing half of the old notification. Still awaited, because it
+     is the message the vendor is waiting on and there is no row at risk here:
+     nothing after this point can fail the application. */
   if (!healthcheck) {
     await notifyRegistrationStarted({
       ...emailShape,

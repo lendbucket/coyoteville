@@ -413,6 +413,35 @@ export default function VendorForm({
     if ((spot === 'booth' || spot === 'free') && !offersBooth) setSpot('');
   }, [kind, spot, offersBooth, offersTruck, setSpot]);
 
+  /**
+   * What this booking actually costs, naming only what it can buy.
+   *
+   * It read "Booths are $25 per event and truck spots are $65. Alice
+   * organizations set up at no charge" on every booking, while the dropdown
+   * three fields below offered trucks and nothing else. Quoting a price for a
+   * spot the selected night does not sell is how somebody arrives expecting a
+   * booth.
+   *
+   * Only an event booking narrows. A day and a monthly are not tied to an event
+   * row, have no per event capacity, and still sell both.
+   */
+  const priceSentence = (() => {
+    const booth = `Booths are ${PRICING.booth.price} per event`;
+    const truck = `truck spots are ${PRICING.truck.price}`;
+    const orgs = 'Alice organizations set up at no charge.';
+
+    if (kind !== 'event' || (offersBooth && offersTruck)) {
+      return `${booth} and ${truck}. ${orgs}`;
+    }
+    if (offersTruck) {
+      return `${chosenEvent?.name ?? 'This event'} is food trucks only, at ${PRICING.truck.price} per event.`;
+    }
+    if (offersBooth) {
+      return `${chosenEvent?.name ?? 'This event'} is vendor booths only, at ${PRICING.booth.price} per event. ${orgs}`;
+    }
+    return `${chosenEvent?.name ?? 'This event'} is not selling vendor spots.`;
+  })();
+
   const heading = prepaid ? 'Register your spot' : 'Get your spot';
 
   /** True for the whole submission, including the resize before the upload. */
@@ -665,9 +694,8 @@ export default function VendorForm({
             </>
           ) : (
             <>
-              Booths are {PRICING.booth.price} per event and truck spots are {PRICING.truck.price}.
-              Alice organizations set up at no charge. Fill this out, upload your DSHS health
-              permit if you are bringing a food truck, sign the agreement and pay.
+              {priceSentence} Fill this out, upload your DSHS health permit if you are bringing a
+              food truck, sign the agreement and pay.
             </>
           )}
         </p>
