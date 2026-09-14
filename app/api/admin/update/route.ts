@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 const APPROVALS = ['pending', 'approved', 'waitlist', 'denied', 'cancelled'];
 
-/** A hundred thousand dollars. A spot costs fifty; this catches a slipped key. */
+/** A hundred thousand dollars. A spot costs tens; this catches a slipped key. */
 const MAX_RECEIVED_CENTS = 10_000_000;
 
 /**

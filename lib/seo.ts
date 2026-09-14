@@ -81,7 +81,12 @@ export const MAPS_URL =
 /** Flat rate per event. We take no percentage of what a vendor earns. */
 export const PRICING = {
   booth: { id: 'booth', label: 'Vendor Booth', cents: 2500, price: '$25' },
-  truck: { id: 'truck', label: 'Food Truck Spot', cents: 5000, price: '$50' },
+  /* $65 from 2026-09-14, up from $50. One number, read by the cards, the form,
+     the FAQ, the ticker, the emails and the JSON-LD offers, so the price a
+     vendor is quoted and the price Square charges cannot disagree. Rows already
+     written keep the amount_cents they were charged; nothing here is
+     retroactive. */
+  truck: { id: 'truck', label: 'Food Truck Spot', cents: 6500, price: '$65' },
   free: {
     id: 'free',
     label: 'Alice Organization',
@@ -93,6 +98,18 @@ export const PRICING = {
 export type SpotType = keyof typeof PRICING;
 
 export const SPOT_TYPES: SpotType[] = ['booth', 'truck', 'free'];
+
+/**
+ * A price as schema.org wants it: "65.00", no currency symbol.
+ *
+ * Derived rather than written out. These two were hardcoded, so raising the
+ * truck fee moved every price on the site except the one search engines and
+ * AI answers read, which is the copy most likely to be quoted back at us and
+ * the one nobody would think to check.
+ */
+function offerPrice(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
 
 export function priceForSpot(spot: string): number | null {
   if (spot === 'booth') return PRICING.booth.cents;
@@ -316,7 +333,7 @@ export function faqItems(
     },
     {
       q: 'What does it cost to vend?',
-      a: 'A vendor booth is $25 per event. A food truck spot is $50 per event. That is the whole fee. We do not take a percentage of your sales.',
+      a: `A vendor booth is ${PRICING.booth.price} per event. A food truck spot is ${PRICING.truck.price} per event. That is the whole fee. We do not take a percentage of your sales.`,
     },
     {
       q: 'Do Alice organizations pay?',
@@ -516,7 +533,7 @@ export function eventSchema(e: EventConfig) {
       {
         '@type': 'Offer',
         name: PRICING.booth.label,
-        price: '25.00',
+        price: offerPrice(PRICING.booth.cents),
         priceCurrency: 'USD',
         availability: 'https://schema.org/InStock',
         url: `${SITE_URL}/#apply`,
@@ -525,7 +542,7 @@ export function eventSchema(e: EventConfig) {
       {
         '@type': 'Offer',
         name: PRICING.truck.label,
-        price: '50.00',
+        price: offerPrice(PRICING.truck.cents),
         priceCurrency: 'USD',
         availability: 'https://schema.org/InStock',
         url: `${SITE_URL}/#apply`,

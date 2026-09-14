@@ -207,7 +207,7 @@ function feeFrom(fees: { amount_money?: { amount?: number } }[] | undefined): nu
 /**
  * The amount fallback, temporary. See the comment where it is used.
  *
- * Exactly one price, because the two vendor prices are 2500 and 5000 and a
+ * Exactly one price, because the two vendor prices are 2500 and 6500 and a
  * width that reached either would book a spot fee as parking money.
  */
 const FALLBACK_CENTS = 1000;
@@ -328,7 +328,7 @@ export async function POST(request: Request) {
        * not:
        *
        *   The amount is exactly 1000 cents. Not a range and not a ceiling: a
-       *   booth is 2500 and a truck is 5000, and a range that reached either
+       *   booth is 2500 and a truck is 6500, and a range that reached either
        *   would book a vendor's spot fee as parking money and pay half of it
        *   away. Exact is the only width that cannot do that.
        *

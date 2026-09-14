@@ -450,7 +450,7 @@ so this cannot ship broken twice.
 | Spot | Fee |
 | --- | --- |
 | Vendor booth | $25 per event |
-| Food truck spot | $50 per event |
+| Food truck spot | $65 per event |
 | Coyote groups, booster clubs, nonprofits | Free |
 
 Flat rate. No commission on sales.
