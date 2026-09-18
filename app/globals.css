@@ -8780,3 +8780,134 @@ p {
 .cmp__rehearsalFiles {
   font-size: 12px;
 }
+
+/* ============================================================
+   The gate lookup
+   ============================================================
+
+   Top of the Orgs panel, because it is the one thing somebody opens the
+   tracker at a gate to do: a driver says they paid, their confirmation has not
+   come through, and there is a car behind them.
+
+   Read in the dark, at arm's length, one handed. The amount is the largest
+   thing on a row because it is what gets matched against the receipt on the
+   driver's phone, and the verdict is a full width line rather than a chip so
+   it cannot be missed at a glance. */
+
+.gate {
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(243, 238, 229, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.gate__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.gate__title {
+  margin: 0;
+  font-family: var(--font-condensed);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+/* Never lets stale look live. */
+.gate__age {
+  margin: 0;
+  font-size: 12px;
+  color: var(--dust);
+  text-align: right;
+}
+
+.gate__input {
+  width: 100%;
+  /* 16px or iOS zooms the whole page on focus, which on a phone held at a gate
+     is the difference between one tap and a pinch. */
+  font-size: 16px;
+}
+
+.gate__warn {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ember);
+}
+
+.gate__hint,
+.gate__none {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--dust);
+}
+
+.gate__list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gate__row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(243, 238, 229, 0.12);
+}
+
+.gate__amount {
+  font-family: var(--font-condensed);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+}
+
+.gate__meta {
+  min-width: 0;
+}
+
+.gate__meta b {
+  display: block;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--cream);
+}
+
+.gate__meta i {
+  display: block;
+  font-style: normal;
+  font-size: 12px;
+  color: var(--dust);
+}
+
+/* The verdict, across both columns so it reads as the answer rather than as
+   another detail. */
+.gate__state {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.gate__row.is-recorded .gate__state {
+  color: var(--dust);
+}
+
+/* Paid, and we have not written it down yet. Not a failure and not a miss:
+   the money is taken and the webhook is late. Amber because it is the row
+   somebody has to make a decision about. */
+.gate__row.is-pending .gate__state {
+  color: var(--ember);
+  font-weight: 700;
+}

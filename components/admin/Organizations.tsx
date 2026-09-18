@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import GateLookup from './GateLookup';
 
 export type OrgRow = {
   id: string;
@@ -278,6 +279,10 @@ export default function Organizations({
       ) : null}
 
       {/* ------------------------------------------------------- games */}
+      {/* First thing in the panel, because it is the one thing somebody opens
+          the tracker at a gate to do. One tap from the tab bar. */}
+      <GateLookup />
+
       <p className="orgs__head">Home games</p>
 
       {/* One sheet, not one per game. The QR points at /park, which resolves
