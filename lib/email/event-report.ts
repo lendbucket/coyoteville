@@ -37,6 +37,14 @@ function longDate(iso: string): string {
   });
 }
 
+/** The column value, in words. Three letters is not a report line. */
+function sourceLabel(source: string): string {
+  if (source === 'qr') return 'QR code';
+  if (source === 'pos') return 'POS, card reader';
+  if (source === 'cash') return 'Cash';
+  return source;
+}
+
 function heading(text: string): string {
   return `<p style="margin:26px 0 8px;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#6B6B72;">${esc(text)}</p>`;
 }
@@ -124,6 +132,9 @@ export function renderEventReport(report: EventReport): {
     '',
     `  Square actually charged ${money(m.actualFeeCents)}. ${feeSentence}`,
     '',
+    'HOW IT WAS TAKEN',
+    ...m.bySource.map((b) => `  ${sourceLabel(b.source)}: ${b.payments} for ${money(b.cents)}`),
+    '',
     'WHEN THE LOT WAS BUSY',
     ...report.timeline.map((b) => `  ${b.label}  ${b.payments} for ${money(b.cents)}`),
     '',
@@ -173,6 +184,13 @@ export function renderEventReport(report: EventReport): {
       ['Paid by', longDate(m.payByISO)],
     ])}
     <p style="margin:12px 0 0;color:#444448;font-size:14px;">Square actually charged <b>${esc(money(m.actualFeeCents))}</b>. ${esc(feeSentence)}</p>
+
+    ${heading('How it was taken')}
+    ${rows(
+      m.bySource.map(
+        (b) => [sourceLabel(b.source), `${b.payments} for ${money(b.cents)}`] as [string, string]
+      )
+    )}
 
     ${heading('When the lot was busy')}
     ${timeline(report)}

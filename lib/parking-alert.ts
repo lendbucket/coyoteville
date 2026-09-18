@@ -23,6 +23,9 @@ export async function sendParkingAlert(input: {
   eventSlug: string;
   kind: 'parking' | 'donation';
   amountCents: number;
+  /** How it was taken, straight off the row we just wrote. */
+  source: string;
+  squarePaymentId: string | null;
   /** Overridable for tests. Defaults to now. */
   at?: Date;
 }): Promise<boolean> {
@@ -44,6 +47,8 @@ export async function sendParkingAlert(input: {
     const message = renderParkingAlert({
       kind: input.kind,
       amountCents: input.amountCents,
+      source: input.source,
+      squarePaymentId: input.squarePaymentId,
       at,
       orgName: org?.name ?? null,
       eventName,

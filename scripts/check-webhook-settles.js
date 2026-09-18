@@ -99,6 +99,8 @@ let parkingRows = [];
 let alerts = [];
 let applicationAlerts = [];
 let alertMode = 'ok';
+/** How long the deliberately slow sender is held open. */
+const SLOW_ALERT_MS = 2000;
 
 function reset() {
   writes = [];
@@ -280,6 +282,10 @@ const FAKES = {
       alerts.push(input);
       if (alertMode === 'sync') throw new Error('Resend is down');
       if (alertMode === 'reject') return Promise.reject(new Error('Resend refused it'));
+      /* A mailer that takes its time. Square gives the webhook a few seconds
+         and retries a slow one, and a retry is a second delivery of the same
+         ten dollars: the response must not wait on this. */
+      if (alertMode === 'slow') return new Promise((r) => setTimeout(() => r(true), SLOW_ALERT_MS));
       return Promise.resolve(true);
     },
   },
@@ -696,12 +702,57 @@ async function noPaymentIdCase() {
   check('no payment id: the amount is intact', row.amount_cents === PARKING_CENTS, String(row.amount_cents));
 }
 
+/**
+ * A mailer that is slow, and a webhook that answers anyway.
+ *
+ * Square allows a webhook a few seconds and retries one that takes longer, and
+ * a retry is a second delivery of the same ten dollars. The row's unique index
+ * stops that becoming a duplicate, but a response that waits on Resend turns a
+ * slow mail provider into a retry storm on the busiest night of the year.
+ *
+ * So the response time is measured against a sender deliberately held open for
+ * two seconds. Not awaited means not awaited, and the only way to state that is
+ * with a clock.
+ */
+async function slowAlertCase() {
+  reset();
+  parkingRows = [];
+  alertMode = 'slow';
+
+  const started = Date.now();
+
+  const response = await deliver({
+    id: 'sqpay_slow_alert',
+    status: 'COMPLETED',
+    order_id: PARKING_ORDER_ID,
+    amount_money: { amount: PARKING_CENTS, currency: 'USD' },
+  });
+
+  const elapsed = Date.now() - started;
+  alertMode = 'ok';
+
+  check('slow alert: the alert was reached', alerts.length === 1, `${alerts.length} calls`);
+  check('slow alert: Square still got a 200', response.status === 200, `got ${response.status}`);
+  check('slow alert: the row was written', parkingRows.length === 1, `${parkingRows.length} rows`);
+
+  /* The whole point. The sender is held for SLOW_ALERT_MS; the response has to
+     come back in a fraction of that or it is being awaited somewhere. */
+  check(
+    'slow alert: the response did not wait for the mailer',
+    elapsed < SLOW_ALERT_MS / 2,
+    `${elapsed}ms elapsed against a ${SLOW_ALERT_MS}ms sender`
+  );
+
+  console.log(`  ok  ${'slow alert, response time'.padEnd(32)} ${elapsed}ms vs a ${SLOW_ALERT_MS}ms mailer`);
+}
+
 (async () => {
   await vendorCase();
   await parkingCase();
   await donationCase();
   await alertFailureCase();
   await noPaymentIdCase();
+  await slowAlertCase();
 
   fs.rmSync(outDir, { recursive: true, force: true });
 
@@ -721,7 +772,8 @@ async function noPaymentIdCase() {
       'A payment alert that throws, or rejects, changes none of it: the row is ' +
       'still written and Square still gets a 200, and only a real insert sends one. ' +
       'A delivery carrying no payment id at all is deduped on the order instead, so ' +
-      'three deliveries of it write one row rather than three.'
+      'three deliveries of it write one row rather than three. A mailer held open ' +
+      'for two seconds delays the response by none of them.'
   );
 })().catch((err) => {
   console.error('check-webhook-settles: threw');

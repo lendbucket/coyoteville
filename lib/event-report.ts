@@ -43,6 +43,8 @@ export type EventReport = {
     /** What Square actually charged, summed from the rows that have settled. */
     actualFeeCents: number;
     actualFeesPending: number;
+    /** The night by how it was taken: qr, pos, cash. */
+    bySource: { source: string; payments: number; cents: number }[];
     payByISO: string;
   };
   timeline: ReportBucket[];
@@ -108,6 +110,28 @@ function buildTimeline(rows: ParkingRow[], startsAt: number, endsAt: number): Re
   }
 
   return buckets;
+}
+
+/**
+ * The night by how it was taken.
+ *
+ * Everything is qr today. It is counted rather than assumed, because the one
+ * thing worth knowing from this line is the day it stops being true: a reader
+ * at the gate, or a row somebody added by hand, shows up here as its own line
+ * instead of disappearing into a total.
+ */
+function splitBySource(rows: ParkingRow[]): { source: string; payments: number; cents: number }[] {
+  const byKey = new Map<string, { source: string; payments: number; cents: number }>();
+
+  for (const row of rows) {
+    const source = (row.source ?? 'qr').trim() || 'qr';
+    const entry = byKey.get(source) ?? { source, payments: 0, cents: 0 };
+    entry.payments += 1;
+    entry.cents += Math.max(0, row.amount_cents ?? 0);
+    byKey.set(source, entry);
+  }
+
+  return [...byKey.values()].sort((x, y) => y.cents - x.cents);
 }
 
 type VendorRow = {
@@ -265,6 +289,7 @@ export async function buildEventReport(
       owedCents: totals.owedCents,
       actualFeeCents: totals.actualFeeCents,
       actualFeesPending: totals.actualFeesPending,
+      bySource: splitBySource(rows),
       payByISO: new Date(endsAt + 7 * 86400000).toISOString(),
     },
     timeline: buildTimeline(rows, startsAt, endsAt),

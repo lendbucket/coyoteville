@@ -394,6 +394,11 @@ export async function POST(request: Request) {
             eventSlug,
             kind,
             amountCents: amount,
+            /* Every parking payment comes through the QR today. Passed rather
+               than assumed, so the day a reader is used at the gate the email
+               says so instead of quietly saying QR. */
+            source: 'qr',
+            squarePaymentId: payment.id ?? null,
           }).catch((err) => console.error('parking alert failed', err));
         } catch (err) {
           console.error('parking alert could not be started', err);

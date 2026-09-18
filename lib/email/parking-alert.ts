@@ -28,6 +28,10 @@ function money(cents: number): string {
 export type ParkingAlert = {
   kind: 'parking' | 'donation';
   amountCents: number;
+  /** How it was taken. 'qr' is the /park code, 'pos' a reader at the gate. */
+  source: string;
+  /** Square's own id, so the payment can be found in the dashboard from here. */
+  squarePaymentId: string | null;
   /** Already formatted in Central by the caller, which owns the clock. */
   at: string;
   orgName: string | null;
@@ -55,22 +59,39 @@ export function renderParkingAlert(a: ParkingAlert): {
   const n = gift ? a.totals.donations : a.totals.vehicles;
   const noun = gift ? (n === 1 ? 'gift' : 'gifts') : n === 1 ? 'vehicle' : 'vehicles';
 
-  const subject = gift
-    ? `Gift: ${money(a.amountCents)}${a.orgName ? ` to ${a.orgName}` : ''} (${n} tonight)`
-    : `Parking: ${money(a.amountCents)} (${n} tonight)`;
+  /* Amount, then the count, then where the night stands. That is the order the
+     three are wanted in at a gate, and all three fit on a lock screen without
+     the mail being opened. */
+  const runningTotal = gift ? a.totals.donationCents : a.totals.cents;
 
+  const subject = gift
+    ? `Gift ${money(a.amountCents)}, ${n} tonight, ${money(runningTotal)}`
+    : `Parking ${money(a.amountCents)}, ${n} tonight, ${money(runningTotal)}`;
+
+  /* 'qr' is somebody scanning the code on the sign. 'pos' is a reader at the
+     gate. Spelled out rather than printed raw: the column is three letters and
+     the difference decides whether a missing payment is looked for in the
+     Square dashboard or in somebody's pocket. */
+  const how =
+    a.source === 'pos' ? 'POS, card reader at the gate' : a.source === 'cash' ? 'Cash' : 'QR code';
+
+  /* This payment first, then the night. The top two lines are the ones being
+     checked against a driver standing there; the rest is context. */
   const rows: [string, string][] = [
-    ['Collected', money(a.totals.cents)],
+    ['This payment', `${money(a.amountCents)}, ${gift ? 'gift' : '1 vehicle'}`],
+    ['Taken by', how],
+    ['Time', a.at],
+    ['Square payment', a.squarePaymentId ?? 'not given'],
+    ['Collected so far', money(a.totals.cents)],
     ['Vehicles', String(a.totals.vehicles)],
     ['Gifts', `${money(a.totals.donationCents)} from ${a.totals.donations}`],
     ['Coming to the org', money(a.totals.owedCents)],
   ];
 
   const text = [
-    `${gift ? 'Gift' : 'Parking'} ${money(a.amountCents)} at ${a.at}.`,
+    `${gift ? 'Gift' : 'Parking'} ${money(a.amountCents)} at ${a.at}, by ${how}.`,
     `${a.eventName}${a.orgName ? `, working for ${a.orgName}` : ''}.`,
     '',
-    'Tonight so far',
     ...rows.map(([k, v]) => `  ${k}: ${v}`),
     '',
     a.trackerUrl,
