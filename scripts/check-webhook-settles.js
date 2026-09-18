@@ -97,6 +97,7 @@ let parkingRows = [];
    rejects. Those fail in different places, and only one of them is caught by a
    try/catch around the call, which is why both are driven. */
 let alerts = [];
+let applicationAlerts = [];
 let alertMode = 'ok';
 
 function reset() {
@@ -152,8 +153,13 @@ function supabaseFake() {
           if (table === 'parking_payments') {
             /* The dedupe read. Answer from what has been inserted, so the
                second delivery of one payment finds the first. */
-            const seen = parkingRows.find(
-              (x) => x.square_payment_id === state.filters.square_payment_id
+            /* Matched on whichever column was actually filtered rather than on
+               square_payment_id by name. The handler falls back to the order id
+               when a delivery carries no payment id, and a fake that only ever
+               compared one column reported no match every time, which made a
+               fixed duplicate still look like a duplicate. */
+            const seen = parkingRows.find((x) =>
+              Object.entries(state.filters).every(([col, want]) => x[col] === want)
             );
             /* Both columns the handler selects. Returning only the id made the
                handler see an undefined fee and rewrite one it already had. */
@@ -258,6 +264,17 @@ const FAKES = {
   },
   /* The alert after a payment lands. Never awaited by the route and never
      allowed to reach it, which is what the sabotage below proves. */
+  /* The owner alert when a vendor payment settles. Faked for the same reason
+     as the parking one: this gate is about the row and the 200, and a mailer
+     has no business in either. Its absence is what broke the build at
+     ba75d68, which is the failure this gate exists to catch and did catch. */
+  '@/lib/application-alert': {
+    spotLabelFor: (spot) => (spot === 'truck' ? 'Food Truck Spot' : 'Vendor Booth'),
+    sendApplicationAlert: async (input) => {
+      applicationAlerts.push(input);
+      return true;
+    },
+  },
   '@/lib/parking-alert': {
     sendParkingAlert: (input) => {
       alerts.push(input);
@@ -629,11 +646,62 @@ async function alertFailureCase() {
   check('alert: the fee still landed', parkingRows[0].square_fee_cents === 33, String(parkingRows[0].square_fee_cents));
 }
 
+/**
+ * A delivery with no payment id, redelivered.
+ *
+ * square_payment_id is nullable and Postgres does not constrain NULLs in a
+ * unique index, so a row written with a null id was deduped by nothing: the
+ * read that finds a previous delivery was skipped outright, and Square
+ * redelivers until it gets a 2xx. That is not one duplicate, it is as many as
+ * it takes, each one ten dollars added to an organization's payout that nobody
+ * took at the gate.
+ *
+ * Square has always set payment.id, so this never fired. It is driven here
+ * because "it has not happened" is not a property of our code.
+ */
+async function noPaymentIdCase() {
+  reset();
+  parkingRows = [];
+
+  const delivery = {
+    status: 'COMPLETED',
+    order_id: PARKING_ORDER_ID,
+    amount_money: { amount: PARKING_CENTS, currency: 'USD' },
+  };
+
+  const first = await deliver(delivery);
+  const second = await deliver(delivery);
+  const third = await deliver(delivery);
+
+  check('no payment id: first delivery returned 200', first.status === 200, `got ${first.status}`);
+  check(
+    'no payment id: the money was still recorded',
+    (first.__json || {}).inserted === true,
+    JSON.stringify(first.__json)
+  );
+  check(
+    'no payment id: three deliveries wrote one row',
+    parkingRows.length === 1,
+    `${parkingRows.length} rows`
+  );
+  check('no payment id: redelivery returned 200', second.status === 200 && third.status === 200);
+  check(
+    'no payment id: redelivery reported no insert',
+    (second.__json || {}).inserted === false && (third.__json || {}).inserted === false,
+    JSON.stringify([second.__json, third.__json])
+  );
+
+  const row = parkingRows[0] || {};
+  check('no payment id: the order id was kept', row.square_order_id === PARKING_ORDER_ID, String(row.square_order_id));
+  check('no payment id: the amount is intact', row.amount_cents === PARKING_CENTS, String(row.amount_cents));
+}
+
 (async () => {
   await vendorCase();
   await parkingCase();
   await donationCase();
   await alertFailureCase();
+  await noPaymentIdCase();
 
   fs.rmSync(outDir, { recursive: true, force: true });
 
@@ -651,7 +719,9 @@ async function alertFailureCase() {
       "neither touches a vendor row, both are no-ops on redelivery, and Square's " +
       'own fee is written when the later delivery brings it and never overwritten. ' +
       'A payment alert that throws, or rejects, changes none of it: the row is ' +
-      'still written and Square still gets a 200, and only a real insert sends one.'
+      'still written and Square still gets a 200, and only a real insert sends one. ' +
+      'A delivery carrying no payment id at all is deduped on the order instead, so ' +
+      'three deliveries of it write one row rather than three.'
   );
 })().catch((err) => {
   console.error('check-webhook-settles: threw');

@@ -423,11 +423,53 @@ export async function recordParkingPayment(input: {
       ? null
       : Math.max(0, Math.round(input.feeCents));
 
-  if (input.squarePaymentId) {
+  /**
+   * What makes this delivery the same money as a previous one.
+   *
+   * square_payment_id normally, and it is unique in the database, so the read
+   * below and the 23505 handler further down are two guards on one rule.
+   *
+   * Falling back to the order when there is no payment id closes a real hole.
+   * The column is nullable, `payment.id ?? null` is what the webhook passes,
+   * and Postgres does not constrain NULLs in a unique index: a delivery with no
+   * payment id skipped the read entirely, inserted, and would have inserted
+   * again on every redelivery. Square redelivers until it gets a 2xx, so that
+   * is not one duplicate but as many as it takes, each one ten dollars added to
+   * an organization's payout that nobody took at the gate.
+   *
+   * Square has always set payment.id, so this has never fired. It costs one
+   * equality on a column that is already there, and the alternative is trusting
+   * a field we do not control to never be absent.
+   *
+   * The order id is a safe second key here: the webhook refuses a payment with
+   * no order_id before this is ever called, and one hosted checkout order
+   * carries one payment.
+   */
+  const identity: { column: 'square_payment_id' | 'square_order_id'; value: string } | null =
+    input.squarePaymentId
+      ? { column: 'square_payment_id', value: input.squarePaymentId }
+      : input.squareOrderId
+        ? { column: 'square_order_id', value: input.squareOrderId }
+        : null;
+
+  if (!identity) {
+    /* Neither id. Nothing could dedupe this row, reconcile it against Square,
+       or refund it, and a redelivery would duplicate it. Refused loudly rather
+       than written: an unattributable row is worse than a gap somebody can see
+       in the Square dashboard and add by hand. */
+    console.error('refusing a parking payment with no Square payment or order id', {
+      eventSlug: input.eventSlug,
+      amountCents: input.amountCents,
+      kind: input.kind,
+    });
+    return { ok: false, inserted: false, feeRecorded: false, id: null };
+  }
+
+  {
     const { data: seen } = await supabase
       .from('parking_payments')
       .select('id, square_fee_cents')
-      .eq('square_payment_id', input.squarePaymentId)
+      .eq(identity.column, identity.value)
       .maybeSingle();
 
     if (seen) {
