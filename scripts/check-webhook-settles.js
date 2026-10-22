@@ -98,6 +98,12 @@ let parkingRows = [];
    try/catch around the call, which is why both are driven. */
 let alerts = [];
 let applicationAlerts = [];
+
+/* The race tables, and the order the Square fake answers with. */
+let raceRows = { race_registrations: [], race_groups: [], race_sponsors: [] };
+let raceUpdates = [];
+let raceOrder = null;
+const RACE_TABLES = ['race_registrations', 'race_groups', 'race_sponsors'];
 let alertMode = 'ok';
 /** How long the deliberately slow sender is held open. */
 const SLOW_ALERT_MS = 2000;
@@ -107,7 +113,14 @@ function reset() {
   emails = [];
   invalidated = [];
   alerts = [];
+  applicationAlerts = [];
   alertMode = 'ok';
+  /* Every table the handler can write, cleared together. These were being
+     reset by hand at each call site, which is how a case ends up asserting
+     against a row the previous case wrote. */
+  parkingRows = [];
+  raceUpdates = [];
+  raceOrder = null;
 }
 
 function supabaseFake() {
@@ -135,6 +148,14 @@ function supabaseFake() {
            maybeSingle or single runs the statement. The fee backfill does
            exactly that, so the fake has to be awaitable too. */
         then(resolve) {
+          /* A race settle awaits the builder rather than calling maybeSingle,
+             so the update lands here. Recorded, not applied: this gate asserts
+             what the handler tried to write. */
+          if (RACE_TABLES.includes(table) && state.payload) {
+            raceUpdates.push({ table, payload: state.payload, filters: { ...state.filters } });
+            resolve({ data: null, error: null });
+            return;
+          }
           if (table === 'parking_payments' && state.payload) {
             const row = parkingRows.find((x) => x.id === state.filters.id);
             if (row) Object.assign(row, state.payload);
@@ -152,6 +173,34 @@ function supabaseFake() {
           return { data: null, error: { message: 'unexpected single() on ' + table } };
         },
         async maybeSingle() {
+          if (RACE_TABLES.includes(table)) {
+            /* The idempotency read: has this payment already been recorded?
+               Answered from what the handler has written in this run. */
+            if (state.filters.square_payment_id !== undefined) {
+              const seen = raceUpdates.find(
+                (u) => u.payload.square_payment_id === state.filters.square_payment_id
+              );
+              return { data: seen ? { id: seen.filters.id } : null, error: null };
+            }
+
+            /* The row being settled. Priced, so the underpaid case has
+               something to be short of. */
+            const amounts = {
+              race_registrations: RACE_ENTRY_CENTS,
+              race_groups: RACE_GROUP_CENTS,
+              race_sponsors: RACE_SPONSOR_CENTS,
+            };
+
+            return {
+              data: {
+                id: state.filters.id,
+                amount_cents: amounts[table],
+                payment_status: raceUpdates.some((u) => u.table === table) ? 'paid' : 'unpaid',
+              },
+              error: null,
+            };
+          }
+
           if (table === 'parking_payments') {
             /* The dedupe read. Answer from what has been inserted, so the
                second delivery of one payment finds the first. */
@@ -241,6 +290,16 @@ const FAKES = {
               },
             };
           }
+          if (raceOrder && orderId === raceOrder.orderId) {
+            return {
+              order: {
+                id: orderId,
+                referenceId: raceOrder.reference,
+                totalMoney: { amount: raceOrder.amount },
+                netAmountDueMoney: { amount: 0 },
+              },
+            };
+          }
           throw new Error('unexpected order ' + orderId);
         },
       },
@@ -276,6 +335,13 @@ const FAKES = {
       applicationAlerts.push(input);
       return true;
     },
+  },
+  /* Reads a row back and mails it. Faked: this gate is about the row and the
+     200, and a mailer has no business in either. */
+  '@/lib/race-alert': {
+    sendRaceSettledAlert: async () => true,
+    sendRaceAlert: async () => true,
+    sendRaceConfirmation: async () => true,
   },
   '@/lib/parking-alert': {
     sendParkingAlert: (input) => {
@@ -367,6 +433,29 @@ fs.writeFileSync(
   }).outputText
 );
 FAKES['@/lib/parking'] = require(parkingFile);
+
+/* The race halves, compiled for real for the same reason parking is: the
+   reference parser and the settle rules are the thing under test, and a fake
+   of either would be the gate reading its own answer back. Their edges, the
+   Square client and the Supabase client, are already in FAKES above. */
+for (const [name, specifier] of [
+  ['race-payment-link', '@/lib/race-payment-link'],
+  ['race-settle', '@/lib/race-settle'],
+]) {
+  const file = path.join(outDir, name + '.js');
+  fs.writeFileSync(
+    file,
+    ts.transpileModule(fs.readFileSync(path.join(ROOT, 'lib/' + name + '.ts'), 'utf8'), {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+        esModuleInterop: true,
+      },
+      fileName: name + '.ts',
+    }).outputText
+  );
+  FAKES[specifier] = require(file);
+}
 
 const route = require(outFile);
 
@@ -746,6 +835,155 @@ async function slowAlertCase() {
   console.log(`  ok  ${'slow alert, response time'.padEnd(32)} ${elapsed}ms vs a ${SLOW_ALERT_MS}ms mailer`);
 }
 
+/* ------------------------------------------------------------- the race */
+
+/**
+ * Three reference shapes, three tables, one branch each.
+ *
+ * race:, racegroup: and sponsor: each settle a different row, and the webhook
+ * decides which from the referenceId alone. A branch quietly removed would not
+ * break a build or a type: the payment would fall through to the parking check,
+ * fail that, fall through to the vendor path, be looked up as an application
+ * UUID, miss, and be answered with a cheerful 200. Somebody's entry fee taken
+ * and nothing recorded, which is exactly what happened to a night of parking in
+ * September.
+ *
+ * So each one is driven, and each case fails if its branch goes.
+ */
+const RACE_SLUG_FIXTURE = 'turkey-trot-2026';
+const RACE_REG_ID = '33333333-4444-4555-8666-777777777777';
+const RACE_GROUP_ID = '44444444-5555-4666-8777-888888888888';
+const RACE_SPONSOR_ID = '55555555-6666-4777-8888-999999999999';
+const RACE_ENTRY_CENTS = 2500;
+const RACE_GROUP_CENTS = 7500;
+const RACE_SPONSOR_CENTS = 50000;
+
+async function raceCase(label, orderId, reference, amount, expect) {
+  reset();
+  raceRows = { race_registrations: [], race_groups: [], race_sponsors: [] };
+  raceOrder = { orderId, reference, amount };
+
+  const response = await deliver({
+    id: 'sqpay_' + label.replace(/\W/g, '_'),
+    status: 'COMPLETED',
+    order_id: orderId,
+    amount_money: { amount, currency: 'USD' },
+  });
+
+  const body = response.__json || {};
+
+  check(label + ': handler returned 200', response.status === 200, 'got ' + response.status);
+  check(label + ': took the race branch', body.race === true, JSON.stringify(body));
+  check(label + ': named the right kind', body.kind === expect.kind, String(body.kind));
+  check(
+    label + ': named the race',
+    body.raceSlug === RACE_SLUG_FIXTURE,
+    String(body.raceSlug)
+  );
+  check(label + ': settled', body.settled === expect.settled, String(body.settled));
+  check(
+    label + ': vendor_applications was never written',
+    writes.length === 0,
+    writes.length + ' writes'
+  );
+  check(
+    label + ': parking_payments was never written',
+    parkingRows.length === 0,
+    parkingRows.length + ' parking rows'
+  );
+
+  /* The row itself, so this is about what was recorded rather than about what
+     the response said. */
+  const updated = raceUpdates.find((u) => u.table === expect.table);
+  check(label + ': the right table was updated', Boolean(updated), expect.table);
+  if (updated) {
+    check(label + ': marked paid', updated.payload.payment_status === 'paid', String(updated.payload.payment_status));
+    check(
+      label + ': captured the payment id',
+      typeof updated.payload.square_payment_id === 'string',
+      String(updated.payload.square_payment_id)
+    );
+  }
+}
+
+async function raceCases() {
+  await raceCase(
+    'race registration',
+    'ORDER_RACE_REG',
+    'race:' + RACE_SLUG_FIXTURE + ':' + RACE_REG_ID,
+    RACE_ENTRY_CENTS,
+    { kind: 'registration', table: 'race_registrations', settled: true }
+  );
+
+  await raceCase(
+    'race group',
+    'ORDER_RACE_GROUP',
+    'racegroup:' + RACE_SLUG_FIXTURE + ':' + RACE_GROUP_ID,
+    RACE_GROUP_CENTS,
+    { kind: 'group', table: 'race_groups', settled: true }
+  );
+
+  await raceCase(
+    'race sponsor',
+    'ORDER_RACE_SPONSOR',
+    'sponsor:' + RACE_SLUG_FIXTURE + ':' + RACE_SPONSOR_ID,
+    RACE_SPONSOR_CENTS,
+    { kind: 'sponsor', table: 'race_sponsors', settled: true }
+  );
+
+  /* A redelivery of a settled payment is a no op. Square redelivers until it
+     gets a 2xx, so this is the ordinary case rather than the rare one. */
+  reset();
+  raceRows = { race_registrations: [], race_groups: [], race_sponsors: [] };
+  raceOrder = {
+    orderId: 'ORDER_RACE_REG',
+    reference: 'race:' + RACE_SLUG_FIXTURE + ':' + RACE_REG_ID,
+    amount: RACE_ENTRY_CENTS,
+  };
+
+  const payment = {
+    id: 'sqpay_race_redeliver',
+    status: 'COMPLETED',
+    order_id: 'ORDER_RACE_REG',
+    amount_money: { amount: RACE_ENTRY_CENTS, currency: 'USD' },
+  };
+
+  const first = await deliver(payment);
+  const second = await deliver(payment);
+
+  check('race redelivery: first settled', (first.__json || {}).settled === true);
+  check(
+    'race redelivery: second did not',
+    (second.__json || {}).settled === false,
+    JSON.stringify(second.__json)
+  );
+  check('race redelivery: one update', raceUpdates.length === 1, raceUpdates.length + ' updates');
+
+  /* An entry fee that does not cover the entry is not a place in the field. */
+  reset();
+  raceRows = { race_registrations: [], race_groups: [], race_sponsors: [] };
+  raceOrder = {
+    orderId: 'ORDER_RACE_REG',
+    reference: 'race:' + RACE_SLUG_FIXTURE + ':' + RACE_REG_ID,
+    amount: 500,
+  };
+
+  const short = await deliver({
+    id: 'sqpay_race_underpaid',
+    status: 'COMPLETED',
+    order_id: 'ORDER_RACE_REG',
+    amount_money: { amount: 500, currency: 'USD' },
+  });
+
+  check('race underpaid: still a 200', short.status === 200, 'got ' + short.status);
+  check(
+    'race underpaid: not settled',
+    (short.__json || {}).settled === false,
+    JSON.stringify(short.__json)
+  );
+  check('race underpaid: nothing was written', raceUpdates.length === 0, raceUpdates.length + ' updates');
+}
+
 (async () => {
   await vendorCase();
   await parkingCase();
@@ -753,6 +991,7 @@ async function slowAlertCase() {
   await alertFailureCase();
   await noPaymentIdCase();
   await slowAlertCase();
+  await raceCases();
 
   fs.rmSync(outDir, { recursive: true, force: true });
 
@@ -773,7 +1012,9 @@ async function slowAlertCase() {
       'still written and Square still gets a 200, and only a real insert sends one. ' +
       'A delivery carrying no payment id at all is deduped on the order instead, so ' +
       'three deliveries of it write one row rather than three. A mailer held open ' +
-      'for two seconds delays the response by none of them.'
+      'for two seconds delays the response by none of them. The three race reference ' +
+      'shapes each settle their own table and nothing else, a redelivery settles ' +
+      'nothing twice, and an underpaid entry is refused.'
   );
 })().catch((err) => {
   console.error('check-webhook-settles: threw');

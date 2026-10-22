@@ -78,6 +78,36 @@ volunteer_waivers
   emergency_contact_phone, waiver_version, signature_name, signed_at,
   signer_ip, signer_user_agent, created_at
 
+races
+  slug, name, starts_at, display_date, display_time, distance_label,
+  course_certified, chip_timed, location_name, location_address,
+  registration_opens_at, registration_closes_at, shirt_deadline_at,
+  packet_pickup, runner_capacity, is_published, waiver_version,
+  created_at, updated_at
+
+race_groups
+  id, race_slug, group_type, group_name, captain_name, captain_email,
+  captain_phone, runner_count, amount_cents, payment_status,
+  square_order_id, square_payment_id, paid_at, created_at, updated_at
+
+race_registrations
+  id, race_slug, group_id, first_name, last_name, email, phone,
+  date_of_birth, age_on_race_day, gender, city, state,
+  emergency_contact_name, emergency_contact_phone, medical_notes,
+  tier, estimated_pace, heard_about, team_name, shirt_size, bib_name,
+  extra_medals, parking_pass, food_voucher, entry_cents, shirt_cents,
+  addon_cents, donation_cents, amount_cents, payment_status,
+  square_order_id, square_payment_id, paid_at, bib_number, checked_in_at,
+  shirt_collected, is_minor, guardian_name, guardian_signature_name,
+  waiver_accepted, waiver_version, signature_name, signed_at, signer_ip,
+  signer_user_agent, admin_notes, created_at, updated_at
+
+race_sponsors
+  id, race_slug, level, business_name, contact_name, email, phone,
+  website, logo_path, amount_cents, payment_status, square_order_id,
+  square_payment_id, paid_at, placement_notes, published_at,
+  created_at, updated_at
+
 subscribers
   id, email, source, signup_ip, confirmed_at, unsubscribed_at,
   created_at, updated_at
@@ -166,6 +196,21 @@ parking_payments.source
 
 parking_payments.kind
   parking, donation
+
+race_groups.group_type
+  family, team, org
+
+race_groups.payment_status
+  unpaid, paid, refunded, not_required
+
+race_registrations.tier
+  adult, kid, family, team, virtual
+
+race_registrations.payment_status
+  unpaid, paid, refunded, not_required
+
+race_sponsors.payment_status
+  unpaid, paid, refunded, not_required
 ```
 
 `denied` and `cancelled` are both on `approval_status` and are not
@@ -495,3 +540,62 @@ which two footprints are theirs. Spot numbers are assigned by hand in the
 tracker, so this works as long as whoever lays out the lot knows the monthly
 vendors are there. The meter can only stop the lot being oversold; it cannot
 stop two vendors being sent to the same square of gravel.
+
+## The Turkey Trot
+
+Four tables, because a race is not an event with extra columns. `events` is a
+night the lot is open and vendors book a space at it; a race is a start time, a
+course, a field with a capacity, and a signed waiver per runner. The two are
+related only in that the Turkey Trot has two food truck nights around it, and
+those are ordinary rows in `events`.
+
+`races` is one row per race, keyed by `slug`. Everything the page says about
+the race reads off it: the date, the start time, the capacity, when
+registration closes, when shirts close. Nothing about a race is a constant in
+the code, for the same reason `events.starts_at` is not: the one time a date
+was hardcoded it was wrong within a week.
+
+`course_certified` and `chip_timed` are both **false** for
+`turkey-trot-2026` and the copy is written against that. The course is
+approximately 3.1 miles and is NOT USATF certified, so nothing on the site may
+call it a certified 5K. Nothing may promise results, splits, or awards by
+finish time until `chip_timed` is true. The age group export exists for the day
+it is.
+
+`race_registrations` is one row per runner, whether they signed up alone or as
+one of five in a family. `group_id` is null for an individual and points at a
+`race_groups` row otherwise, which is what makes a family one payment and five
+waivers.
+
+`age_on_race_day` is computed from `date_of_birth` against `races.starts_at`
+and stored, rather than computed on read. A runner's age group is a fact about
+one race on one date; computing it later from today's date would quietly move
+somebody between brackets after the fact.
+
+`is_minor` is `age_on_race_day < 18`, computed and never asked. The check
+constraint `race_registrations_minor_guardian` refuses a minor row without both
+`guardian_name` and `guardian_signature_name`, so the form validates it with a
+message rather than letting the insert fail with 23514.
+
+`race_registrations_bib_unique (race_slug, bib_number)` is what makes bib
+assignment rerunnable: numbering again cannot hand the same number to two
+runners.
+
+### medical_notes never leaves the tracker
+
+**`medical_notes` is admin only. It must never appear in the check-in export,
+the age group export, or any other file.**
+
+That export is printed and carried around a parking lot, left on a table at a
+packet pickup table, and handed between volunteers. It carries a runner's name,
+emergency contact and bib, which is what it is for. A medical condition on the
+same sheet is a different thing entirely, and the fact that it would be useful
+to a volunteer is exactly why it has to be refused: the sheet is not controlled
+and the field is not something a runner consented to publish to whoever picks
+it up.
+
+It is visible on the runner's row in the tracker, behind the admin cookie, for
+the person who needs it.
+
+RLS is enabled on all four tables with no policies, so only the service role
+reaches any of them.

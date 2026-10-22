@@ -8911,3 +8911,183 @@ p {
   color: var(--ember);
   font-weight: 700;
 }
+
+/* ============================================================
+   The Turkey Trot
+   ============================================================ */
+
+.race__hero { position: relative; text-align: center; }
+.race__heroin { position: relative; z-index: 1; }
+.race__logo { width: clamp(120px, 28vw, 200px); height: auto; margin: 0 auto 12px; display: block; }
+
+.race__h1 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 9vw, 4rem);
+  line-height: 1.02;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.race__sub { margin: 0 0 12px; font-size: 1rem; color: var(--ember); }
+.race__when {
+  margin: 0 0 14px;
+  font-family: var(--font-condensed);
+  font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+  font-weight: 700;
+  color: var(--cream);
+}
+.race__lede { max-width: 46rem; margin-left: auto; margin-right: auto; }
+
+.race__cta { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 20px 0 0; }
+
+/* The ad, in a phone. Never stretched across a desktop. */
+.racead { display: flex; justify-content: center; }
+.racead__phone {
+  width: min(100%, 420px);
+  aspect-ratio: 9 / 16;
+  border-radius: 28px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+}
+.racead__video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.race__coursemap {
+  margin: 20px 0;
+  padding: 32px 20px;
+  border: 1px dashed rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+.race__coursesoon { margin: 0; color: var(--ink-70); }
+
+.race__prices { list-style: none; margin: 20px 0 0; padding: 0; }
+.race__prices li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 16px;
+  padding: 12px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+.race__prices b { font-size: 1.05rem; }
+.race__prices span { font-family: var(--font-condensed); font-size: 1.3rem; font-weight: 700; }
+.race__prices i { grid-column: 1 / -1; font-style: normal; font-size: 0.85rem; color: var(--ink-70); }
+
+.race__addons { margin: 18px 0 0; color: var(--ink-70); }
+.race__includes { margin: 16px 0 0; padding-left: 20px; }
+.race__includes li { margin: 0 0 6px; }
+
+.race__hard {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--ember);
+  background: rgba(240, 169, 75, 0.1);
+  font-weight: 600;
+}
+
+.race__sponsors { list-style: none; display: flex; flex-wrap: wrap; gap: 12px 24px; margin: 18px 0; padding: 0; }
+.race__sponsors li { font-weight: 600; }
+
+.race__faq { margin: 18px 0 0; }
+.race__faq dt { margin: 16px 0 4px; font-weight: 700; }
+.race__faq dd { margin: 0; color: var(--ink-70); }
+
+/* ------------------------------------------------------- registration */
+
+.racereg { max-width: 48rem; margin: 20px auto 0; text-align: left; }
+.racereg--shut { text-align: center; }
+.racereg__left { margin: 0 0 12px; color: var(--ember); font-weight: 700; }
+
+.racereg__block {
+  margin: 0 0 22px;
+  padding: 16px;
+  border: 1px solid rgba(243, 238, 229, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.18);
+}
+.racereg__block legend {
+  padding: 0 8px;
+  font-family: var(--font-condensed);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cream);
+}
+
+.racereg__runner {
+  padding: 12px 0;
+  border-top: 1px solid rgba(243, 238, 229, 0.12);
+}
+.racereg__runner:first-of-type { border-top: 0; }
+.racereg__runnerhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: var(--cream);
+}
+.racereg__age { font-weight: 400; font-size: 0.85rem; color: var(--dust); }
+
+.racereg__guardian {
+  padding: 10px;
+  border-left: 3px solid var(--ember);
+  background: rgba(240, 169, 75, 0.08);
+}
+
+.racereg__quote { margin: 0 0 22px; padding: 14px 16px; border: 1px solid rgba(243, 238, 229, 0.2); border-radius: var(--radius-sm); }
+.racereg__quote dl { margin: 0; }
+.racereg__quote dl > div { display: flex; justify-content: space-between; gap: 16px; padding: 5px 0; }
+.racereg__quote dt { color: var(--dust); }
+.racereg__quote dd { margin: 0; font-variant-numeric: tabular-nums; color: var(--cream); }
+.racereg__total { border-top: 1px solid rgba(243, 238, 229, 0.2); margin-top: 6px; padding-top: 10px !important; }
+.racereg__total dt { font-weight: 700; color: var(--cream); }
+.racereg__total dd { font-family: var(--font-condensed); font-size: 1.4rem; font-weight: 700; color: var(--ember); }
+
+/* The waiver, scrollable so the form is not twenty screens long, and never
+   collapsed: somebody signing it should be able to read it where they sign. */
+.racereg__waivertext {
+  max-height: 22rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px;
+  margin: 0 0 14px;
+  border: 1px solid rgba(243, 238, 229, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--cream-70);
+}
+.racereg__waivertext h4 { margin: 14px 0 6px; color: var(--cream); font-size: 0.95rem; }
+.racereg__waivertext p { margin: 0 0 10px; }
+.racereg__waivertext ul { margin: 0 0 10px; padding-left: 20px; }
+
+.racereg__conspicuous {
+  padding: 10px 12px;
+  border: 1px solid var(--ember);
+  border-radius: var(--radius-sm);
+  background: rgba(240, 169, 75, 0.12);
+  color: var(--cream);
+  font-weight: 700;
+}
+
+/* ------------------------------------------------- the homepage block */
+
+.tt { background: var(--char); color: var(--cream); }
+.tt__in { display: flex; align-items: center; gap: clamp(16px, 4vw, 40px); flex-wrap: wrap; }
+.tt__logo { width: clamp(90px, 18vw, 160px); height: auto; flex: none; }
+.tt__words { flex: 1; min-width: 16rem; }
+.tt__when {
+  margin: 0 0 10px;
+  font-family: var(--font-condensed);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--ember);
+}
+.tt__cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 0; }
+.tt__nights { margin: 16px 0 0; font-size: 0.9rem; color: var(--cream-70); }

@@ -32,6 +32,9 @@ export default function Nav({
           <a className="nav__hide-sm" href="/#vendors">
             Vendors
           </a>
+          <a className="nav__hide-sm" href="/turkey-trot">
+            Turkey Trot
+          </a>
           <a className="nav__hide-sm" href="/parking-fundraiser">
             Fundraiser
           </a>

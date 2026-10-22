@@ -13,6 +13,9 @@ import {
 import { notifyPaymentReceived } from '@/lib/notify';
 import { sendParkingAlert } from '@/lib/parking-alert';
 import { sendApplicationAlert, spotLabelFor } from '@/lib/application-alert';
+import { raceFromReference } from '@/lib/race-payment-link';
+import { settleRacePayment } from '@/lib/race-settle';
+import { sendRaceSettledAlert } from '@/lib/race-alert';
 import {
   handleInvoiceFailed,
   handleInvoicePaid,
@@ -321,6 +324,55 @@ export async function POST(request: Request) {
        vendor path reads anything, so a parking referenceId can never be looked
        up as an application UUID, and so nothing about the vendor path changes
        shape to accommodate it. */
+    /* The race, branched before parking and before the vendor path.
+     *
+     * Three shapes, all prefixed: race:, racegroup: and sponsor:. None of them
+     * can collide with a vendor's bare application UUID, which has no colon in
+     * it, or with parking's own prefixes.
+     *
+     * Settled through one function in lib/race-settle rather than three blocks
+     * here, because the rules are identical and three near copies is how one of
+     * them quietly stops being idempotent. */
+    const raceReference = raceFromReference(reference);
+
+    if (raceReference) {
+      const amount = Number(payment.amount_money?.amount ?? 0);
+
+      const result = await settleRacePayment({
+        reference: raceReference,
+        amountCents: Number.isFinite(amount) ? amount : 0,
+        squarePaymentId: payment.id ?? null,
+        squareOrderId: orderId,
+      });
+
+      if (!result.ok) {
+        /* Somebody's entry fee. A non 2xx makes Square redeliver, which is what
+           should happen when the write failed. */
+        return NextResponse.json({ error: 'Could not record the race payment.' }, { status: 500 });
+      }
+
+      /* Only on a real settle, never awaited, wrapped twice. Same three rules
+         as every other alert on this site. */
+      if (result.settled) {
+        try {
+          void sendRaceSettledAlert(raceReference).catch((err) =>
+            console.error('race alert failed', err)
+          );
+        } catch (err) {
+          console.error('race alert could not be started', err);
+        }
+      }
+
+      return NextResponse.json({
+        received: true,
+        race: true,
+        kind: raceReference.kind,
+        raceSlug: raceReference.raceSlug,
+        settled: result.settled,
+        ...(result.reason ? { reason: result.reason } : {}),
+      });
+    }
+
     const parkingEventSlug = eventSlugFromReference(reference);
     const donation = donationFromReference(reference);
 

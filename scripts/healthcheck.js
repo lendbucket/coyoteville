@@ -414,6 +414,46 @@ async function stepSquareLive(ctx) {
 }
 
 /**
+ * The Turkey Trot page renders, and the form is on it.
+ *
+ * Deliberately a fetch and not a submit. Every other step on this page writes a
+ * real row marked __healthcheck__ and cleans it up afterwards; a race
+ * registration cannot be written that way, because it is a signed waiver
+ * against a real person's name and a place in a field of four hundred. A fake
+ * runner in the field is a place a real one cannot have.
+ *
+ * So this asserts the two things a fetch can honestly prove: the page is up,
+ * and the thing somebody came to do is on it.
+ */
+async function stepTurkeyTrot() {
+  const res = await fetch(`${BASE}/turkey-trot`);
+  assert(res.status === 200, `the Turkey Trot page answered ${res.status}`);
+
+  const html = await res.text();
+
+  assert(
+    html.includes('name="race_slug"') || html.includes('Who is running'),
+    'the registration form is not on the Turkey Trot page'
+  );
+
+  /* The phrase the page is written to be found by. If this is missing, the SEO
+     work has been edited out of the one place it has to be. */
+  assert(
+    /Alice TX Turkey Trot/i.test(html),
+    'the target phrase is missing from the Turkey Trot page'
+  );
+
+  /* The course is not certified and the race is not chip timed. Both are
+     promises the site must not make, and both are one careless edit away. */
+  assert(
+    !/certified\s+5K/i.test(html),
+    'the page calls the course a certified 5K, which it is not'
+  );
+
+  return `the page is up, the form is on it, and nothing calls the course certified`;
+}
+
+/**
  * 5. A real signup, all six combinations, through the real route and database.
  *
  * Posted rather than typed into the form. The form is walked by step 4 and by
@@ -966,6 +1006,7 @@ const STEPS = [
   ['capacity', stepCapacity],
   ['square-sdk', stepSquareSdk],
   ['square-live', stepSquareLive],
+  ['turkey-trot', stepTurkeyTrot],
   ['signup', stepSignup],
   ['admin-login', stepAdminLogin],
   ['agreement-pdf', stepAgreementPdf],
