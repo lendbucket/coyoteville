@@ -17,7 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  *   on people who scrolled to it and on nobody else. The homepage is the page
  *   that collects the bounces and a bounce should cost nothing.
  *
- *   Reduced motion gets the poster and a play button. A silent looping video is
+ *   Reduced motion gets the logo and a play button. A silent looping video is
  *   the exact content that setting exists for, so this is a requirement rather
  *   than a courtesy, and the video is still there for anybody who taps.
  *
@@ -53,7 +53,7 @@ function shouldHoldBack(): boolean {
   return false;
 }
 
-export default function RaceAdLoop({ src, poster }: { src: string; poster: string }) {
+export default function RaceAdLoop({ src, logo }: { src: string; logo?: string | null }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
 
@@ -153,9 +153,14 @@ export default function RaceAdLoop({ src, poster }: { src: string; poster: strin
           ref={videoRef}
           className="racead__video"
           /* Attached only when armed. Before that the element holds no source
-             and the browser fetches nothing but the poster. */
+             and the browser fetches nothing at all.
+
+             No poster attribute, and deliberately no substitute for one. A
+             media fragment like #t=0.1, or preload="metadata", would paint a
+             first frame by starting the download, which is the one thing this
+             deferral exists to prevent. What fills the frame instead is the
+             logo behind this element. */
           src={armed ? src : undefined}
-          poster={poster}
           preload="none"
           controls
           playsInline

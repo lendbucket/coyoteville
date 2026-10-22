@@ -28,8 +28,8 @@ import {
   registrationOpenAt,
   shirtsAvailableAt,
 } from '@/lib/race';
-import { HAS_LOGO, HAS_POSTER, HAS_VIDEO, POSTER_SIZE, RACE_ASSETS } from '@/lib/race-assets';
-import { COURSE_MAP, COURSE_PNG, HAS_COURSE_PNG } from '@/lib/race-course';
+import { HAS_LOGO, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
+import { COURSE_MAP, COURSE_PNG, COURSE_PNG_SIZE, HAS_COURSE_PNG } from '@/lib/race-course';
 import { getRaceNights } from '@/lib/race-events';
 import { PRICING } from '@/lib/seo';
 import { clockFor, getPublishedSponsors, getRace, getRaceCounts } from '@/lib/races';
@@ -74,29 +74,17 @@ export async function generateMetadata(): Promise<Metadata> {
       description: description,
       url: CANONICAL,
       type: 'website',
-      /* The poster frame first: a still of somebody running reads as an event
-         in a feed. The course map second, because a route anybody can
-         recognise is still better than a generic site card. The site card
-         last, so this is never a 404. */
-      /* The poster frame first: it is the strongest single image we have and
-         it is what shows when somebody shares this. The course map second,
-         because a route people recognise still beats a generic card. The site
-         card last, so this is never a 404.
+      /* The course map first: it is a route people in Alice recognise, and it
+         is the strongest image in the repo. The site card last, so this is
+         never a 404.
 
-         The dimensions come off the file. They were written out as 1080x1920,
-         which was the vertical cut, and went wrong the moment the video was
-         replaced with a 16:9 one. Nothing would have caught it: the card would
-         just have been laid out to the wrong shape. */
-      images: HAS_POSTER
-        ? [
-            {
-              url: `${SITE_URL}${RACE_OG_IMAGE}`,
-              ...(POSTER_SIZE ?? {}),
-            },
-          ]
-        : HAS_COURSE_PNG
-          ? [{ url: `${SITE_URL}${COURSE_PNG}` }]
-          : [OG_IMAGE],
+         There is no poster frame to prefer any more. The dimensions are parsed
+         out of the file rather than written down, because they were hand typed
+         once already and went silently wrong when the asset behind them
+         changed. */
+      images: HAS_COURSE_PNG
+        ? [{ url: `${SITE_URL}${COURSE_PNG}`, ...(COURSE_PNG_SIZE ?? {}) }]
+        : [OG_IMAGE],
     },
     twitter: {
       card: 'summary_large_image',
@@ -190,10 +178,10 @@ export default async function TurkeyTrotPage() {
         </section>
 
         {/* ------------------------------------------------------------- ad */}
-        {HAS_VIDEO && HAS_POSTER ? (
+        {HAS_VIDEO ? (
           <section className="section section--cream">
             <div className="shell">
-              <RaceAdLoop src={RACE_ASSETS.video} poster={RACE_ASSETS.poster} />
+              <RaceAdLoop src={RACE_ASSETS.video} logo={HAS_LOGO ? RACE_ASSETS.logo : null} />
             </div>
           </section>
         ) : null}

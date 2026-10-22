@@ -1,7 +1,7 @@
 import { RACE_SLUG } from '@/lib/race';
 import { PRICING } from '@/lib/seo';
 import { getRaceNights } from '@/lib/race-events';
-import { HAS_LOGO, HAS_POSTER, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
+import { HAS_LOGO, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
 import { raceDates } from '@/lib/race-dates';
 import { getRace } from '@/lib/races';
 import RaceAdLoop from '@/components/race/RaceAdLoop';
@@ -66,8 +66,8 @@ export default async function TurkeyTrotBlock() {
 
         {/* The loop. Downloads nothing until somebody scrolls to it, which on
             the homepage is most of the point. */}
-        {HAS_VIDEO && HAS_POSTER ? (
-          <RaceAdLoop src={RACE_ASSETS.video} poster={RACE_ASSETS.poster} />
+        {HAS_VIDEO ? (
+          <RaceAdLoop src={RACE_ASSETS.video} logo={HAS_LOGO ? RACE_ASSETS.logo : null} />
         ) : null}
       </div>
     </section>

@@ -765,10 +765,11 @@ async function main() {
       await page.setViewport({ width: 390, height: 900 });
       await page.setCacheEnabled(false);
 
-      /* Every request the page makes, so this is measured rather than
-         reasoned about. The mp4 is 2.8MB and must not be fetched until the
-         frame is in view; the poster is a few tens of kilobytes and should
-         be. */
+      /* Every request the page makes, so this is measured rather than reasoned
+         about. The mp4 is 4.8MB and must not be fetched until the frame is in
+         view. There is no poster: what fills the frame before the video is the
+         logo, an ordinary image on the page rather than part of the player's
+         loading behaviour. */
       const asked = [];
       page.on('request', (r) => asked.push(r.url()));
 
@@ -786,24 +787,27 @@ async function main() {
       const hasBlock = await page.evaluate(() => !!document.querySelector('.racead'));
       if (!hasBlock) {
         skip(
-          'ad loop, before the frame is in view: poster requested, mp4 not',
-          'the mp4 and poster are not in the repo, so no player renders'
+          'ad loop, before the frame is in view: no mp4 request',
+          'the mp4 is not in the repo, so no player renders'
         );
         skip(
           'ad loop, after the frame enters view: mp4 requested and actually playing',
-          'the mp4 and poster are not in the repo, so no player renders'
+          'the mp4 is not in the repo, so no player renders'
         );
       } else {
         const wanted = (list) => list.filter((u) => u.includes('turkey-trot-ad.mp4')).length;
-        const posterAsked = asked.filter((u) => u.includes('turkey-trot-ad-poster')).length;
         const beforeScroll = wanted(asked);
 
-        /* ---- question one: is the download actually deferred ---- */
+        /* ---- question one: is the download actually deferred ----
+
+           The logo fills the frame before the video, so there is no poster
+           request to pair this with. What matters is unchanged: 4.8MB must not
+           move until somebody scrolls to it. */
 
         record(
-          'ad loop, before the frame is in view: poster requested, mp4 not',
-          beforeScroll === 0 && posterAsked > 0,
-          `mp4 requests ${beforeScroll}, poster requests ${posterAsked}`
+          'ad loop, before the frame is in view: no mp4 request',
+          beforeScroll === 0,
+          `mp4 requests ${beforeScroll}`
         );
 
         /* ---- question two: and does it then play ----

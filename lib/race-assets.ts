@@ -5,7 +5,7 @@ import path from 'node:path';
 /**
  * Which Turkey Trot assets are actually in the repo.
  *
- * The video, its poster and the logo are dropped in by hand rather than
+ * The video, the logo and the course map are dropped in by hand rather than
  * generated, so there is a window where the page exists and the files do not.
  * A missing file is not a reason to hold the page back, but it is every reason
  * not to render a broken image into a hero or an og:image tag: a social card
@@ -28,19 +28,17 @@ function present(relative: string): boolean {
 
 export const RACE_ASSETS = {
   video: '/video/turkey-trot-ad.mp4',
-  poster: '/video/turkey-trot-ad-poster.jpg',
   logo: '/photos/turkey-trot-logo.png',
   /** The GPX the course map is drawn from. Commit 4 reads this. */
   course: '/course/turkey-trot-2026.gpx',
 } as const;
 
 export const HAS_VIDEO = present('video/turkey-trot-ad.mp4');
-export const HAS_POSTER = present('video/turkey-trot-ad-poster.jpg');
 export const HAS_LOGO = present('photos/turkey-trot-logo.png');
 export const HAS_COURSE = present('course/turkey-trot-2026.gpx');
 
 /**
- * The poster's real pixel size, read out of the file.
+ * A file's real pixel size, read out of its header.
  *
  * The og:image width and height were written out by hand as 1080x1920, which
  * was true of the vertical cut and became wrong the moment the video was
@@ -87,7 +85,16 @@ function imageSize(absolute: string): { width: number; height: number } | null {
   return null;
 }
 
-/** Null until the poster is in the repo, or if it cannot be parsed. */
-export const POSTER_SIZE = HAS_POSTER
-  ? imageSize(path.join(PUBLIC, 'video', 'turkey-trot-ad-poster.jpg'))
-  : null;
+/**
+ * A file's real pixel size, for whatever ends up being the social card.
+ *
+ * The og:image width and height used to be written out by hand as 1080x1920,
+ * which was true of the vertical video cut and became wrong the moment it was
+ * replaced. Nothing would have noticed: cards would simply have been laid out
+ * to the wrong shape. It is parsed now, and anything unparseable returns null,
+ * in which case the metadata omits the dimensions rather than claiming a shape.
+ *
+ * Exported because the card is the course map PNG, which lives in
+ * lib/race-course rather than here.
+ */
+export { imageSize };

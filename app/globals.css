@@ -9596,3 +9596,31 @@ p {
     flex-direction: row;
   }
 }
+
+/* The still behind the video.
+
+   There is no poster frame and there never will be: generating one needs
+   ffmpeg, and the substitutes for one (#t=0.1, preload="metadata") paint a
+   first frame by starting the 4.8MB download, which is the thing the deferral
+   exists to prevent. So the frame is filled with the logo on navy instead.
+
+   contain, not cover: it is a logo, and cropping a logo looks like a mistake
+   rather than a crop. */
+.racead__still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 14%;
+  box-sizing: border-box;
+  background: var(--tt-navy, #17222e);
+  display: block;
+}
+
+/* No rule is needed to hide it. The still comes first in the DOM and the video
+   comes after, so once the video has a source and paints, it covers the still
+   by stacking order. Before that the video element is transparent and the logo
+   shows through. An earlier attempt used video[src] + .racead__still, which
+   cannot work: the still is the previous sibling, and CSS has no selector for
+   that direction. */

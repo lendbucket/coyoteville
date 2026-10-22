@@ -1,6 +1,7 @@
 import 'server-only';
 import fs from 'node:fs';
 import path from 'node:path';
+import { imageSize } from '@/lib/race-assets';
 
 /**
  * The course map, read off disk and inlined.
@@ -50,6 +51,21 @@ function read(): string | null {
 export const COURSE_MAP: string | null = read();
 
 export const HAS_COURSE_MAP = COURSE_MAP !== null;
+
+/**
+ * The PNG's real size, for the social card.
+ *
+ * Parsed rather than written down. The og:image dimensions were hand typed
+ * once already and went wrong silently when the asset behind them changed.
+ */
+export const COURSE_PNG_SIZE = (() => {
+  try {
+    const abs = path.join(process.cwd(), 'public', 'course', 'turkey-trot-course.png');
+    return fs.existsSync(abs) ? imageSize(abs) : null;
+  } catch {
+    return null;
+  }
+})();
 
 /** True when the PNG is there to be used as a social card. */
 export const HAS_COURSE_PNG = (() => {
