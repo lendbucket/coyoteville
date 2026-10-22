@@ -1,4 +1,6 @@
 import { RACE_SLUG } from '@/lib/race';
+import { PRICING } from '@/lib/seo';
+import { getRaceNights } from '@/lib/race-events';
 import { HAS_LOGO, HAS_POSTER, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
 import { raceDates } from '@/lib/race-dates';
 import { getRace } from '@/lib/races';
@@ -14,6 +16,7 @@ import RaceAdLoop from '@/components/race/RaceAdLoop';
  */
 export default async function TurkeyTrotBlock() {
   const race = await getRace(RACE_SLUG);
+  const nights = await getRaceNights();
   /* The date comes off the row, like every other date on this site. */
   const when = race ? raceDates(race).startWeekday : null;
 
@@ -43,10 +46,20 @@ export default async function TurkeyTrotBlock() {
             </a>
           </p>
 
+          {/* Both nights off their event rows, same as the race page. */}
           <p className="tt__nights">
-            Two nights for vendors around it. Friday November 13 is packet pickup with trucks
-            and vendors open at 5:30 PM, and Saturday November 14 they open at 6:00 AM for
-            breakfast before the start. Food truck $65, vendor booth $35.{' '}
+            {nights.pickup && nights.morning ? (
+              <>
+                Two nights for vendors around it. {nights.pickup.weekday} is packet pickup with
+                trucks and vendors open at {nights.pickup.opens}, and {nights.morning.weekday}{' '}
+                they open at {nights.morning.opens} for breakfast before the start.
+              </>
+            ) : (
+              <>
+                Two nights for vendors around it, the evening before the race and race morning.
+              </>
+            )}{' '}
+            Food truck {PRICING.truck.price}, vendor booth {PRICING.booth.price}.{' '}
             <a href="/#apply">Book a spot</a>.
           </p>
         </div>

@@ -169,7 +169,16 @@ export function raceSchema(race: Race) {
  * array, so the structured data cannot describe a question the page does not
  * ask. Google penalises exactly that mismatch and it is invisible to look at.
  */
-export function raceFaq(race: Race): { q: string; a: string }[] {
+/**
+ * The FAQ, and the answers the structured data repeats word for word.
+ *
+ * morningOpens is the race morning event row, passed in rather than read
+ * here, because this module is imported by the client bundle and events-source
+ * is server only. Null means the row could not be read, and the answer then
+ * says the lot opens early without naming a time, which is better than
+ * naming one nobody checked.
+ */
+export function raceFaq(race: Race, morningOpens?: string | null): { q: string; a: string }[] {
   const starts = Date.parse(race.startsAtISO);
   const closes = Date.parse(race.registrationClosesAtISO);
 
@@ -194,7 +203,7 @@ export function raceFaq(race: Race): { q: string; a: string }[] {
     },
     {
       q: 'What time do I need to be there?',
-      a: `Every runner has to be checked in by ${clockTime(closes)} for a ${clockTime(starts)} start. Packet pickup is the Friday evening before, and again from 6:00 AM on race morning.`,
+      a: `Every runner has to be checked in by ${clockTime(closes)} for a ${clockTime(starts)} start. Packet pickup is the evening before, and again from ${morningOpens ?? 'early'} on race morning.`,
     },
     {
       q: 'Can I pick up a packet for somebody else?',
@@ -215,7 +224,7 @@ export function raceFaq(race: Race): { q: string; a: string }[] {
   ];
 }
 
-export function raceFaqSchema(race: Race) {
+export function raceFaqSchema(race: Race, morningOpens?: string | null) {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',

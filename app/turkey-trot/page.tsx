@@ -30,6 +30,8 @@ import {
 } from '@/lib/race';
 import { HAS_LOGO, HAS_POSTER, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
 import { COURSE_MAP, COURSE_PNG, HAS_COURSE_PNG } from '@/lib/race-course';
+import { getRaceNights } from '@/lib/race-events';
+import { PRICING } from '@/lib/seo';
 import { clockFor, getPublishedSponsors, getRace, getRaceCounts } from '@/lib/races';
 import { raceDates } from '@/lib/race-dates';
 import { OG_IMAGE, SITE_URL } from '@/lib/seo';
@@ -115,6 +117,8 @@ export default async function TurkeyTrotPage() {
   const now = Date.now();
   const counts = await getRaceCounts(race);
   const sponsors = await getPublishedSponsors(race.slug);
+  /* The two vendor nights, off their own rows in events. */
+  const nights = await getRaceNights();
 
   /* Every human date on this page, derived from the columns. Nothing here
      prints one by hand. */
@@ -123,7 +127,7 @@ export default async function TurkeyTrotPage() {
   const window = priceWindowAt(clock, now);
   const shirtsOpen = shirtsAvailableAt(clock, now);
   const registrationOpen = registrationOpenAt(clock, now);
-  const faq = raceFaq(race);
+  const faq = raceFaq(race, nights.morning?.opens);
 
   const adultNow =
     window === 'early'
@@ -134,7 +138,7 @@ export default async function TurkeyTrotPage() {
 
   return (
     <>
-      <JsonLd schemas={[raceSchema(race), raceFaqSchema(race)]} />
+      <JsonLd schemas={[raceSchema(race), raceFaqSchema(race, nights.morning?.opens)]} />
       <Nav />
 
       <main id="main">
@@ -324,15 +328,38 @@ export default async function TurkeyTrotPage() {
             <p className="eyebrow">Two nights for vendors</p>
             <h2 id="nights-title">Food trucks and booths, both days</h2>
 
+            {/* Both nights come off their event rows. They were typed out here
+                while the rows were unpublished and getEvents could not see
+                them; they published on 2026-10-22. If a row goes missing the
+                copy names no date rather than guessing at one, because a
+                sentence naming the wrong Friday sends somebody to a closed
+                lot. */}
             <p className="lede">
-              Friday November 13 is packet pickup from 4 to 7 PM, with trucks and vendors open
-              at 5:30 PM. Saturday November 14 trucks and vendors open at 6:00 AM, breakfast
-              before the start and a full lot when runners come back in.
+              {nights.pickup && nights.morning ? (
+                <>
+                  {nights.pickup.weekday} is packet pickup, with trucks and vendors open at{' '}
+                  {nights.pickup.opens}. {nights.morning.weekday} they open at{' '}
+                  {nights.morning.opens}, breakfast before the start and a full lot when
+                  runners come back in.
+                </>
+              ) : (
+                <>
+                  Trucks and vendors are open the evening before the race and again on race
+                  morning. Dates and times are on the event page.
+                </>
+              )}
             </p>
 
             <p className="race__cta">
+              {/* Both prices off PRICING, which is the number Square charges.
+                  They were typed out as $65 and $35; the $65 matched and the
+                  $35 did not match anything, because the booth price is $25
+                  site wide and there is no event specific price to read. A
+                  page quoting a price checkout will not honour is worse than
+                  a page quoting a lower one. */}
               <a className="btn btn--primary" href="/#apply">
-                Book a spot, food truck $65, vendor booth $35
+                Book a spot, food truck {PRICING.truck.price}, vendor booth{' '}
+                {PRICING.booth.price}
               </a>
             </p>
           </div>
@@ -402,6 +429,7 @@ export default async function TurkeyTrotPage() {
               full={counts.full}
               remaining={counts.remaining}
               closed={!registrationOpen}
+              morningOpens={nights.morning?.opens}
             />
           </div>
         </section>

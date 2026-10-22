@@ -54,6 +54,27 @@ const COLUMNS = {
 };
 
 /**
+ * The two food truck events either side of the race, live in `events`.
+ *
+ * Both published on 2026-10-22, which is what let the six hand written lines
+ * come off the allowlist. They are checked here for the same reason the race
+ * is: the page prints these two times, and a sentence naming the wrong Friday
+ * sends a vendor to a closed lot.
+ */
+const EVENTS = {
+  'turkey-trot-packet-pickup-2026-11-13': {
+    starts_at: '2026-11-13T23:30:00Z',
+    weekday: 'Friday, November 13',
+    opens: '5:30 PM',
+  },
+  'turkey-trot-race-morning-2026-11-14': {
+    starts_at: '2026-11-14T12:00:00Z',
+    weekday: 'Saturday, November 14',
+    opens: '6:00 AM',
+  },
+};
+
+/**
  * What those instants are in Alice, written out.
  *
  * Independent of the code under test. If somebody changes a column these stop
@@ -101,32 +122,21 @@ const SOURCES = [
  * exact strings, not the files. When those two events are published, read them
  * and delete these.
  */
-const ALLOWED = [
-  {
-    text: 'Friday November 13 is packet pickup from 4 to 7 PM, with trucks and vendors open',
-    why: 'the packet pickup event row is unpublished, so getEvents cannot see it',
-  },
-  {
-    text: 'at 5:30 PM. Saturday November 14 trucks and vendors open at 6:00 AM, breakfast',
-    why: 'the race morning event row is unpublished, so getEvents cannot see it',
-  },
-  {
-    text: 'Two nights for vendors around it. Friday November 13 is packet pickup with trucks',
-    why: 'the same two unpublished event rows, on the homepage block',
-  },
-  {
-    text: 'and vendors open at 5:30 PM, and Saturday November 14 they open at 6:00 AM for',
-    why: 'the same two unpublished event rows, on the homepage block',
-  },
-  {
-    text: 'Entries for this year have closed. Come down anyway: the park is open from 6:00 AM',
-    why: 'the race morning event opening, same unpublished row',
-  },
-  {
-    text: 'Packet pickup is the Friday evening before, and again from 6:00 AM on race morning.',
-    why: 'the same two unpublished event rows, in the FAQ answer',
-  },
-];
+/**
+ * Nothing. Deliberately nothing.
+ *
+ * This held six lines about the two food truck nights either side of the
+ * race, because those are rows in `events` rather than `races`, getEvents
+ * filters on is_published, and both were false while they were being got
+ * ready. The note said to delete them when the rows published. Both
+ * published on 2026-10-22 and lib/race-events derives them now, so the
+ * entries are gone rather than updated: an allowlist that keeps entries for
+ * things that have been fixed is how a carve out outlives its reason.
+ *
+ * An empty list is the correct state. Adding to it needs a reason that
+ * survives being written down next to the entry.
+ */
+const ALLOWED = [];
 
 const MONTHS =
   'January|February|March|April|May|June|July|August|September|October|November|December';
@@ -181,6 +191,32 @@ function describeColumn(key) {
   if (key.startsWith('shirt')) return `shirt_deadline_at ${COLUMNS.shirt_deadline_at}`;
   if (key === 'checkInTime') return `registration_closes_at ${COLUMNS.registration_closes_at}`;
   return `starts_at ${COLUMNS.starts_at}`;
+}
+
+/* ---- 1b. the two event rows, same contract as the race ---- */
+
+const { weekdayAndDate, clockTime } = load('lib/race-dates.ts');
+
+for (const [slug, want] of Object.entries(EVENTS)) {
+  const ms = Date.parse(want.starts_at);
+
+  const gotWeekday = weekdayAndDate(ms);
+  if (gotWeekday !== want.weekday) {
+    failures.push(
+      `${slug} weekday is "${gotWeekday}", expected "${want.weekday}".` +
+        `
+    From starts_at ${want.starts_at}, resolved in America/Chicago.`
+    );
+  }
+
+  const gotOpens = clockTime(ms);
+  if (gotOpens !== want.opens) {
+    failures.push(
+      `${slug} opening time is "${gotOpens}", expected "${want.opens}".` +
+        `
+    From starts_at ${want.starts_at}, resolved in America/Chicago.`
+    );
+  }
 }
 
 /* ---- 2. the frozen agreement against the column ---- */

@@ -629,3 +629,11 @@ the person who needs it.
 
 RLS is enabled on all four tables with no policies, so only the service role
 reaches any of them.
+
+`npm run check:race-export` enforces this. It compiles `lib/race-admin`,
+builds all three CSVs from a fixture runner carrying a distinctive medical
+note, and fails the build if that note appears in any of them. It checks the
+bytes rather than the source, so a renamed column, an alias, or the note
+concatenated into the emergency contact cell is caught too. It also asserts
+the runner sheet still carries the bib, the name and the emergency contact,
+because a gate that passed by exporting nothing would be no use.

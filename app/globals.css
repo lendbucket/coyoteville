@@ -5680,7 +5680,13 @@ p {
   flex: none;
   z-index: 50;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* One column per tab, counted from the markup rather than hardcoded. It was
+     repeat(5, 1fr), and adding the Race tab wrapped the sixth button onto a row
+     of its own: 125px of tab bar on an 844px phone, with More stranded alone.
+     Measured, not guessed. Six at 390 is 65px each, over the 44px target in
+     both directions, and the next tab added will not do it again. */
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   background: rgba(12, 12, 13, 0.97);
   border-top: 1px solid rgba(243, 238, 229, 0.14);
   /* Clear of the iOS home indicator. */
@@ -9292,4 +9298,272 @@ p {
   border: 1px dashed rgba(0, 0, 0, 0.2);
   border-radius: var(--radius-sm);
   text-align: center;
+}
+
+/* The Race tab.
+
+   Run from a phone at a folding table, so the taps are big, the rows are tall
+   enough to hit without looking, and nothing depends on hovering. */
+.race-tr {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.race-tr__block {
+  background: var(--card, #fff);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+
+.race-tr__block h3 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.race-tr__sub {
+  margin: 18px 0 8px;
+  font-size: 0.95rem;
+}
+
+.race-tr__note {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted, #6b6b72);
+}
+
+.race-tr__error {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(196, 85, 43, 0.12);
+  color: #8d3417;
+}
+
+/* The four figures at the top. Two columns on a phone, four on a desktop. */
+.race-tr__figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.race-tr__figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.race-tr__num {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.race-tr__cap {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #6b6b72);
+}
+
+/* The two count tables. The shirt table has eleven columns and will not fit a
+   phone, so it scrolls inside its own box rather than pushing the page sideways.
+   That is the one place a horizontal scroll is the right answer. */
+.race-tr__tablewrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.race-tr__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.race-tr__table th,
+.race-tr__table td {
+  padding: 8px 10px;
+  text-align: right;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+}
+
+.race-tr__table thead th,
+.race-tr__table tbody th[scope='row'],
+.race-tr__table tfoot th {
+  text-align: left;
+}
+
+.race-tr__table tfoot th,
+.race-tr__table tfoot td {
+  font-weight: 700;
+  border-bottom: 0;
+}
+
+.race-tr__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+}
+
+.race-tr__search {
+  display: block;
+  margin: 14px 0 0;
+}
+
+.race-tr__searchlabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  color: var(--muted, #6b6b72);
+}
+
+.race-tr__search input {
+  width: 100%;
+  /* 16px, so iOS does not zoom the page when it is focused. */
+  font-size: 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-sm);
+}
+
+/* Runners, groups and sponsors are all lists of rows with taps on the right. */
+.race-tr__runners,
+.race-tr__groups,
+.race-tr__sponsors,
+.race-tr__levels,
+.race-tr__groupruns {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.race-tr__levels li,
+.race-tr__groupruns li {
+  padding: 5px 0;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.race-tr__runner,
+.race-tr__sponsor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* Checked in is the state somebody scans a list for, so it reads at a glance
+   rather than needing the button to be read. */
+.race-tr__runner[data-in='yes'] {
+  background: rgba(45, 122, 74, 0.07);
+}
+
+.race-tr__who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 60%;
+}
+
+.race-tr__bib {
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  color: var(--muted, #6b6b72);
+  font-variant-numeric: tabular-nums;
+}
+
+.race-tr__name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.race-tr__meta {
+  font-size: 0.85rem;
+  color: var(--muted, #6b6b72);
+  overflow-wrap: anywhere;
+}
+
+.race-tr__minor {
+  font-size: 0.85rem;
+  color: #8d3417;
+}
+
+/* Medical notes. On screen only, never in an export. Marked so it is obvious
+   on the row that this is the sensitive line. */
+.race-tr__medical {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  margin-top: 4px;
+  border-radius: 4px;
+  background: rgba(196, 85, 43, 0.1);
+  color: #8d3417;
+  overflow-wrap: anywhere;
+}
+
+.race-tr__taps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.race-tr__taps .btn {
+  /* 44px minimum, because this is tapped with a thumb while holding a clipboard. */
+  min-height: 44px;
+  min-width: 112px;
+}
+
+.race-tr__group {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.race-tr__grouphead {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.race-tr__groupname {
+  font-weight: 700;
+}
+
+.race-tr__groupkind {
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--muted, #6b6b72);
+}
+
+.race-tr__groupmeta {
+  font-size: 0.85rem;
+  color: var(--muted, #6b6b72);
+}
+
+.race-tr__groupbody {
+  padding: 0 0 12px;
+}
+
+@media (min-width: 760px) {
+  .race-tr__figures {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .race-tr__taps {
+    flex-direction: row;
+  }
 }

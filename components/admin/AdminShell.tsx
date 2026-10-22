@@ -15,6 +15,7 @@ import { useLiveRefresh } from './useLiveRefresh';
 import VendorCard from './VendorCard';
 import VendorSheet from './VendorSheet';
 import Composer from './Composer';
+import RaceTracker from './RaceTracker';
 import {
   FILTERS,
   isReturning,
@@ -60,6 +61,7 @@ const PANELS = [
   { key: 'waitlist', label: 'Waitlist', in: 'bar' },
   { key: 'money', label: 'Money', in: 'bar' },
   { key: 'orgs', label: 'Orgs', in: 'bar' },
+  { key: 'race', label: 'Race', in: 'bar' },
   { key: 'calendar', label: 'Calendar', in: 'more', blurb: 'Every day booking this month' },
   {
     key: 'compose',
@@ -87,6 +89,7 @@ function TabIcon({ tab }: { tab: TabKey }) {
     money: 'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm.9 15.3v1.4h-1.6v-1.4a4 4 0 0 1-2.9-1.7l1.3-1.1a2.7 2.7 0 0 0 2.3 1.2c1 0 1.7-.4 1.7-1.2s-.6-1-2-1.4c-1.7-.5-3-1.1-3-2.9a2.9 2.9 0 0 1 2.6-2.8V6h1.6v1.4a3.6 3.6 0 0 1 2.5 1.5l-1.3 1.1a2.3 2.3 0 0 0-1.9-1c-1 0-1.5.5-1.5 1.1s.6 1 2 1.4c1.8.5 3 1.2 3 3a3 3 0 0 1-2.8 2.8Z',
     orgs: 'M12 2 3 7v2h18V7Zm-7 9v7H3v2h18v-2h-2v-7h-2v7h-3v-7h-2v7H7v-7Z',
     compose: 'M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25ZM20.7 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z',
+    race: 'M15 1H9v2h6V1Zm-4 12h2V8h-2v5Zm8.03-6.61 1.42-1.42a11 11 0 0 0-1.42-1.39l-1.4 1.41A9 9 0 1 0 12 21a9 9 0 0 0 7.03-14.61ZM12 19a7 7 0 1 1 7-7 7 7 0 0 1-7 7Z',
     more: 'M6 10a2 2 0 1 0 2 2 2 2 0 0 0-2-2Zm6 0a2 2 0 1 0 2 2 2 2 0 0 0-2-2Zm6 0a2 2 0 1 0 2 2 2 2 0 0 0-2-2Z',
   };
 
@@ -626,6 +629,11 @@ export default function AdminShell({
       {/* ------------------------------------------------------------ orgs */}
       <section className="ash__panel" data-panel="orgs" data-active={tab === "orgs"} aria-label="Organizations">
         <Organizations applications={orgApplications} games={orgGames} />
+      </section>
+
+      {/* ------------------------------------------------------------ race */}
+      <section className="ash__panel" data-panel="race" data-active={tab === "race"} aria-label="Race">
+        <RaceTracker />
       </section>
 
       {/* -------------------------------------------------------- compose */}

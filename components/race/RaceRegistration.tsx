@@ -69,6 +69,7 @@ export default function RaceRegistration({
   full,
   remaining,
   closed,
+  morningOpens,
 }: {
   raceSlug: string;
   clock: RaceClock;
@@ -77,6 +78,8 @@ export default function RaceRegistration({
   full: boolean;
   remaining: number;
   closed: boolean;
+  /** The race morning lot opening, off its event row. Null if unreadable. */
+  morningOpens?: string | null;
 }) {
   const uid = useId();
 
@@ -318,7 +321,8 @@ export default function RaceRegistration({
       <div className="racereg racereg--shut">
         <h3>Registration is closed</h3>
         <p className="lede">
-          Entries for this year have closed. Come down anyway: the park is open from 6:00 AM
+          Entries for this year have closed. Come down anyway: the park is open from{' '}
+          {morningOpens ?? 'early'}
           and the trucks will be running.
         </p>
       </div>

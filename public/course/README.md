@@ -21,15 +21,23 @@ deliberate state and not a failure.
 
 ## Legibility
 
-The map is capped at 1100px and fills the content column, so at a 390px
-viewport it renders at **0.295 scale**. Measured, not estimated. That means:
+Settled. The artwork carries two type scales, switched by a media query below
+760px, which works only because the SVG is inlined: inside an `img` tag the
+file's own media queries never see the page's width.
 
-- a label of 41 viewBox units reads as 12px
-- a label of 55 viewBox units reads as 16px
+Measured on screen: street labels come out at **13.2px at 390** and **15.2px at
+1100**.
 
-Anything around 22 units comes out at 6.5px, which is not readable on a phone.
+That closes the finding this section used to record. For history, because it is
+the constraint any replacement artwork still has to meet: the container is
+capped at 1100px and fills the content column, so at 390px the map renders at
+0.295 scale. A single fixed type scale would need 41 viewBox units to reach
+12px and 55 to reach 16px, and the 22 unit labels the first draft used came out
+at 6.5px. The two scale approach is what avoids that, rather than one large
+scale that looks wrong on a desktop.
+
 People screenshot this map and send it to each other, so it has to survive
-being looked at on a phone with no zooming.
+being looked at on a phone with no zooming. It does.
 
 No distance is drawn on the map, by design. The course is not USATF certified
 and the page says approximately 3.1 miles in words instead.
