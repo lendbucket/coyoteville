@@ -47,17 +47,21 @@ export const RACE_PRICING = {
   family: 7500,
   /** Each, ten runner minimum, the captain pays once for all of them. */
   team: 2000,
-  /** Shirt and medal, no course. Costs us the goods and none of the road. */
-  virtual: 3500,
 } as const;
 
-/** Add ons, in cents. Everything here is optional. */
+/**
+ * Add ons, in cents. Everything here is optional.
+ *
+ * Two were retired on 2026-10-22 and the database now refuses them:
+ * race_registrations_no_bib_name requires bib_name to be null and
+ * race_registrations_no_food_voucher requires food_voucher to be false.
+ * Both columns remain so rows written before that date still mean what they
+ * meant. Nothing may write either again.
+ */
 export const RACE_ADDONS = {
   shirt: 2500,
-  bibName: 500,
   extraMedal: 1000,
   parkingPass: 1000,
-  foodVoucher: 1000,
 } as const;
 
 /** The number of runners a family entry covers. */
@@ -88,7 +92,15 @@ export function dollars(cents: number): string {
 
 /* -------------------------------------------------------------- the tiers */
 
-export const RACE_TIERS = ['adult', 'kid', 'family', 'team', 'virtual'] as const;
+/**
+ * The tiers the database accepts.
+ *
+ * 'virtual' was retired on 2026-10-22 and race_registrations_tier_check no
+ * longer allows it, so a row using it is refused by Postgres rather than
+ * written and ignored. Rows that already carry it keep their meaning; this
+ * list is what may be written from now on.
+ */
+export const RACE_TIERS = ['adult', 'kid', 'family', 'team'] as const;
 export type RaceTier = (typeof RACE_TIERS)[number];
 
 export function isRaceTier(value: unknown): value is RaceTier {

@@ -4,7 +4,8 @@ import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import { getRaceWaiverVersion, RACE_WAIVER_VERSIONS } from '@/lib/race-waiver/registry';
 import { waiverParts } from '@/lib/race-waiver/types';
-import { SITE_URL } from '@/lib/seo';
+import { OG_IMAGE, SITE_URL } from '@/lib/seo';
+import { HAS_OG, OG_SIZE, RACE_ASSETS } from '@/lib/race-assets';
 
 /**
  * One permanent page per waiver version.
@@ -40,6 +41,22 @@ export async function generateMetadata({
     title: { absolute: title },
     description: `The full Participant Agreement, Media Release and Parent or Legal Guardian Addendum for the Coyoteville 1st Annual Turkey Trot, version ${doc.version}.`,
     alternates: { canonical: `${SITE_URL}/turkey-trot/waiver/${doc.version}` },
+    /* The same share card as the rest of the race. A document page shared
+       without one shows whatever the platform guesses, which for a wall of
+       legal text is nothing. */
+    openGraph: {
+      title,
+      url: `${SITE_URL}/turkey-trot/waiver/${doc.version}`,
+      type: 'article',
+      images: HAS_OG
+        ? [{ url: `${SITE_URL}${RACE_ASSETS.og}`, ...(OG_SIZE ?? {}) }]
+        : [OG_IMAGE],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      images: HAS_OG ? [`${SITE_URL}${RACE_ASSETS.og}`] : [OG_IMAGE],
+    },
     /* Indexable: a participant looking for what they signed should be able to
        find it, and a draft should be findable as a draft. */
     robots: { index: true, follow: true },

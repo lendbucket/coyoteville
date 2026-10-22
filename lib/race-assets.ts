@@ -29,12 +29,25 @@ function present(relative: string): boolean {
 export const RACE_ASSETS = {
   video: '/video/turkey-trot-ad.mp4',
   logo: '/photos/turkey-trot-logo.png',
+  /** The share card. 1200x630, made for this and nothing else. */
+  og: '/photos/turkey-trot-og.png',
   /** The GPX the course map is drawn from. Commit 4 reads this. */
   course: '/course/turkey-trot-2026.gpx',
 } as const;
 
 export const HAS_VIDEO = present('video/turkey-trot-ad.mp4');
 export const HAS_LOGO = present('photos/turkey-trot-logo.png');
+export const HAS_OG = present('photos/turkey-trot-og.png');
+
+/**
+ * The share card's real size, read off the file like every other one.
+ *
+ * Hand written dimensions went stale once already when the asset behind
+ * them changed, which is why nothing here is typed.
+ */
+export const OG_SIZE = HAS_OG
+  ? imageSize(path.join(PUBLIC, 'photos', 'turkey-trot-og.png'))
+  : null;
 export const HAS_COURSE = present('course/turkey-trot-2026.gpx');
 
 /**

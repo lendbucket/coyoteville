@@ -120,10 +120,8 @@ export default function RaceRegistration({
   const [runners, setRunners] = useState<Runner[]>([blankRunner()]);
 
   /* Add ons. Shirts are per runner; the rest are per registration. */
-  const [bibName, setBibName] = useState(false);
   const [extraMedals, setExtraMedals] = useState(0);
   const [parkingPass, setParkingPass] = useState(false);
-  const [foodVoucher, setFoodVoucher] = useState(false);
   const [donation, setDonation] = useState('');
 
   const [waiverAccepted, setWaiverAccepted] = useState(false);
@@ -177,10 +175,8 @@ export default function RaceRegistration({
       : 0;
 
     const addons =
-      (bibName ? RACE_ADDONS.bibName : 0) +
       Math.max(0, extraMedals) * RACE_ADDONS.extraMedal +
-      (parkingPass ? RACE_ADDONS.parkingPass : 0) +
-      (foodVoucher ? RACE_ADDONS.foodVoucher : 0);
+      (parkingPass ? RACE_ADDONS.parkingPass : 0);
 
     const gift = Math.max(0, Math.round(Number(donation.replace(/[^0-9.]/g, '')) * 100) || 0);
 
@@ -191,12 +187,8 @@ export default function RaceRegistration({
     ages,
     clock,
     nowMs,
-    shirtsOpen,
-    bibName,
     extraMedals,
-    parkingPass,
-    foodVoucher,
-    donation,
+    parkingPass,    donation,
   ]);
 
   /** Everything wrong with the form right now, in the order it appears. */
@@ -331,10 +323,8 @@ export default function RaceRegistration({
             guardian_email: r.guardianEmail,
             minor_accompanied_by: r.minorAccompaniedBy,
           })),
-          bib_name: bibName,
           extra_medals: Math.max(0, extraMedals),
           parking_pass: parkingPass,
-          food_voucher: foodVoucher,
           donation: donation,
           /* All three documents, in one submit. A half signed registration
              is worse than none, because it reads as signed in the tracker. */
@@ -817,11 +807,12 @@ export default function RaceRegistration({
           </p>
         ) : null}
 
-        <label className="check">
-          <input type="checkbox" checked={bibName} onChange={(e) => setBibName(e.target.checked)} />
-          <span>Put my name on the bib, {dollars(RACE_ADDONS.bibName)}</span>
-        </label>
-
+        {/* The name on the bib and the food truck voucher were retired on
+            2026-10-22, and the database refuses both now:
+            race_registrations_no_bib_name requires bib_name to be null and
+            race_registrations_no_food_voucher requires food_voucher to be
+            false. Offering either here would take money for something that
+            cannot be recorded. */}
         <label className="check">
           <input
             type="checkbox"
@@ -829,15 +820,6 @@ export default function RaceRegistration({
             onChange={(e) => setParkingPass(e.target.checked)}
           />
           <span>Reserved parking pass, {dollars(RACE_ADDONS.parkingPass)}</span>
-        </label>
-
-        <label className="check">
-          <input
-            type="checkbox"
-            checked={foodVoucher}
-            onChange={(e) => setFoodVoucher(e.target.checked)}
-          />
-          <span>Food truck voucher, {dollars(RACE_ADDONS.foodVoucher)}</span>
         </label>
 
         <div className="grid2">

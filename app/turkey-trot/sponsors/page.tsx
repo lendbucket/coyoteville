@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Nav from '@/components/Nav';
 import StripeBand from '@/components/race/StripeBand';
 import StringLights from '@/components/StringLights';
-import { HAS_LOGO, RACE_ASSETS } from '@/lib/race-assets';
+import { HAS_LOGO, HAS_OG, OG_SIZE, RACE_ASSETS } from '@/lib/race-assets';
 import Footer from '@/components/Footer';
 import JsonLd from '@/components/JsonLd';
 import SponsorForm from '@/components/race/SponsorForm';
@@ -43,7 +43,17 @@ export async function generateMetadata(): Promise<Metadata> {
       description: description,
       url: CANONICAL,
       type: 'website',
-      images: [OG_IMAGE],
+      /* The share card made for this, 1200x630, with its size read off the
+         file. Falls back to the site card so this is never a 404. */
+      images: HAS_OG
+        ? [{ url: `${SITE_URL}${RACE_ASSETS.og}`, ...(OG_SIZE ?? {}) }]
+        : [OG_IMAGE],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: SPONSOR_TITLE,
+      description: description,
+      images: HAS_OG ? [`${SITE_URL}${RACE_ASSETS.og}`] : [OG_IMAGE],
     },
   };
 }

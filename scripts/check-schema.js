@@ -463,6 +463,101 @@ function readRequiredTogether() {
  * reason: what this catches is the write somebody typed out, which is where
  * this constraint actually gets broken.
  */
+/* ------------------------------------------- retired values ------------
+
+   Columns that may no longer hold a value they once held.
+
+   Different shape from the requires block. That one says "if this column is
+   X, these others must be present". This one says "this column may not be X
+   at all", which is what a retirement looks like: the column stays so old
+   rows keep their meaning, and nothing may write the old value again.
+
+   Read out of the ```forbidden block in SCHEMA.md, so the rule lives with
+   the schema rather than in here. */
+function readForbidden() {
+  const text = fs.readFileSync(SCHEMA_FILE, 'utf8');
+  const FENCE = BACKTICK + BACKTICK + BACKTICK;
+  const after = text.split(FENCE + 'forbidden')[1];
+  if (!after) return null;
+
+  const body = after.split(FENCE)[0];
+  const rules = [];
+  let current = null;
+
+  for (const line of body.split(NEWLINE)) {
+    const row = line.replace(/\r$/, '');
+    if (!row.trim()) continue;
+
+    if (!row.startsWith('  ')) {
+      const m = /^([a-z_]+)\.([a-z_]+)$/.exec(row.trim());
+      if (!m) continue;
+      current = { table: m[1], column: m[2], values: [] };
+      rules.push(current);
+      continue;
+    }
+
+    if (current) current.values.push(row.trim());
+  }
+
+  return rules;
+}
+
+/** Every write that sets a retired value. */
+function checkForbidden(files, rules) {
+  const problems = [];
+
+  for (const file of files) {
+    const source = fs.readFileSync(file, 'utf8');
+    const relative = path.relative(root, file).split(path.sep).join('/');
+
+    /* Which tables this file writes to. Scoped by file for the same reason
+       the conditional constraints are: the row is often built as a variable
+       and handed to insert(), which an insert-site parser cannot see. */
+    const tables = new Set([...source.matchAll(/\.from\(\s*'([a-z_]+)'/g)].map((m) => m[1]));
+
+    for (const rule of rules) {
+      if (!tables.has(rule.table)) continue;
+
+      const written = new RegExp(
+        '(?:^|[{,\\s])' + rule.column + '\\s*:\\s*([^,}\\n]+)',
+        'g'
+      );
+
+      for (const hit of source.matchAll(written)) {
+        const value = hit[1].trim().replace(/,$/, '');
+        const line = source.slice(0, hit.index).split(NEWLINE).length;
+
+        for (const forbidden of rule.values) {
+          if (forbidden === 'anything but null') {
+            if (value !== 'null') {
+              problems.push({
+                file: relative,
+                line,
+                what: rule.table + '.' + rule.column + ' is written as ' + value,
+                why: 'it may only be null',
+              });
+            }
+            continue;
+          }
+
+          /* A quoted literal or a bare one. */
+          const bare = value.replace(/^['\"]|['\"]$/g, '');
+          if (bare === forbidden) {
+            problems.push({
+              file: relative,
+              line,
+              what: rule.table + '.' + rule.column + ' is written as ' + value,
+              why: 'that value is retired',
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return problems;
+}
+
 function checkRequiredTogether(files, rules) {
   const problems = [];
 
@@ -666,6 +761,32 @@ if (!unique.length) {
   const rules = readRequiredTogether();
   if (!rules) {
     console.error(NEWLINE + 'check-schema: SCHEMA.md has no requires block, so conditional constraints cannot be checked.' + NEWLINE);
+    process.exit(1);
+  }
+
+  const forbidden = readForbidden();
+  if (!forbidden) {
+    console.error(NEWLINE + 'check-schema: SCHEMA.md has no forbidden block, so retired values cannot be checked.' + NEWLINE);
+    process.exit(1);
+  }
+
+  const retired = checkForbidden(walk(root), forbidden);
+  if (retired.length) {
+    console.error(
+      NEWLINE + 'check-schema: ' + retired.length + ' write(s) of a retired value.' + NEWLINE
+    );
+    for (const r of retired) {
+      console.error('  ' + r.file + ':' + r.line + '  ' + r.what + ', and ' + r.why);
+    }
+    console.error(
+      [
+        '',
+        'These columns still exist so rows written before the retirement keep',
+        'their meaning. Postgres refuses a new write of the old value with 23514',
+        'at the last step of a registration. Nothing may write them again.',
+        '',
+      ].join(NEWLINE)
+    );
     process.exit(1);
   }
 

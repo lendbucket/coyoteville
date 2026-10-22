@@ -103,6 +103,8 @@ let applicationAlerts = [];
 let raceRows = { race_registrations: [], race_groups: [], race_sponsors: [] };
 let raceUpdates = [];
 let raceOrder = null;
+/** Ids the fake answers null for, so a reference can point at nothing. */
+let raceMissingIds = new Set();
 const RACE_TABLES = ['race_registrations', 'race_groups', 'race_sponsors'];
 let alertMode = 'ok';
 /** How long the deliberately slow sender is held open. */
@@ -119,6 +121,7 @@ function reset() {
      reset by hand at each call site, which is how a case ends up asserting
      against a row the previous case wrote. */
   parkingRows = [];
+  raceRows = { race_registrations: [], race_groups: [], race_sponsors: [] };
   raceUpdates = [];
   raceOrder = null;
 }
@@ -181,6 +184,13 @@ function supabaseFake() {
                 (u) => u.payload.square_payment_id === state.filters.square_payment_id
               );
               return { data: seen ? { id: seen.filters.id } : null, error: null };
+            }
+
+            /* A reference pointing at nothing, for the unknown reference
+               case. Checked before the synthesis below, which otherwise
+               answers every id with a row. */
+            if (raceMissingIds.has(state.filters.id)) {
+              return { data: null, error: null };
             }
 
             /* The row being settled. Priced, so the underpaid case has
@@ -984,6 +994,136 @@ async function raceCases() {
   check('race underpaid: nothing was written', raceUpdates.length === 0, raceUpdates.length + ' updates');
 }
 
+/**
+ * A referenceId that names a row which does not exist.
+ *
+ * Two things must both be true. It must not throw, because Square retries a
+ * 500 and a retry loop on a payment is worse than the lost reference. And it
+ * must not answer a bare success either, because a 200 that means "settled
+ * nothing" is indistinguishable from a 200 that means "settled the payment",
+ * and the difference is whether somebody has been charged for a registration
+ * that is not marked paid. It has to say it ignored it, and say why.
+ */
+async function unknownReferenceCase() {
+  reset();
+
+  /* An order whose referenceId names a race registration that does not
+     exist. Resolved through the order the same way every real delivery is. */
+  const missingId = '00000000-0000-4000-8000-000000000000';
+  raceMissingIds.add(missingId);
+
+  raceOrder = {
+    orderId: 'order-unknown-ref',
+    reference: 'race:turkey-trot-2026:' + missingId,
+    amount: 3000,
+  };
+
+  let thrown = null;
+  let response = null;
+
+  try {
+    response = await deliver({
+      id: 'pay-unknown-ref',
+      status: 'COMPLETED',
+      order_id: 'order-unknown-ref',
+      amount_money: { amount: 3000, currency: 'USD' },
+    });
+  } catch (err) {
+    thrown = err;
+  }
+
+  check(
+    'unknown reference: did not throw',
+    !thrown,
+    thrown ? String(thrown.message || thrown) : ''
+  );
+
+  if (thrown) return;
+
+  const status = response.status;
+  const body = response.__json || {};
+
+  /* Square has to get a 2xx so it stops retrying a payment it cannot place. */
+  check(
+    'unknown reference: Square gets a 2xx',
+    status >= 200 && status < 300,
+    'status ' + status
+  );
+
+  /* And the body must name what happened. A bare success is
+     indistinguishable from a settled payment, and the difference is whether
+     somebody has been charged for a registration nothing marked paid. */
+  const said = JSON.stringify(body);
+  check(
+    'unknown reference: the response says it settled nothing',
+    /ignored|unknown|not ?found|no ?row|missing/i.test(said),
+    'body ' + said
+  );
+
+  const wrote =
+    raceRows.race_registrations.length +
+    raceRows.race_groups.length +
+    raceRows.race_sponsors.length;
+
+  check('unknown reference: wrote no row', wrote === 0, wrote + ' row(s)');
+}
+async function badSignatureCase() {
+  const payload = JSON.stringify({
+    type: 'payment.updated',
+    data: {
+      object: {
+        payment: {
+          id: 'pay-bad-sig',
+          status: 'COMPLETED',
+          amount_money: { amount: 3000, currency: 'USD' },
+          order_id: 'order-bad-sig',
+          reference_id: 'race:turkey-trot-2026:' + RACE_REG_ID,
+        },
+      },
+    },
+  });
+
+  const post = (signature) =>
+    route.POST({
+      headers: { get: (h) => (h === 'x-square-hmacsha256-signature' ? signature : null) },
+      text: async () => payload,
+    });
+
+  const good = createHmac('sha256', process.env.SQUARE_WEBHOOK_SIGNATURE_KEY)
+    .update(`${SITE_URL}/api/square-webhook` + payload, 'utf8')
+    .digest('base64');
+
+  for (const [label, signature] of [['tampered', good.replace(/.$/, good.endsWith('A') ? 'B' : 'A')], ['missing', null]]) {
+    reset();
+
+    let status = null;
+    let thrown = null;
+    try {
+      const response = await post(signature);
+      status = response.status;
+    } catch (err) {
+      thrown = err;
+    }
+
+    check(
+      'signature ' + label + ', rejected',
+      !thrown && status >= 400,
+      thrown ? String(thrown.message || thrown) : 'status ' + status
+    );
+
+    const wrote =
+      raceRows.race_registrations.length +
+      raceRows.race_groups.length +
+      raceRows.race_sponsors.length;
+
+    check(
+      'signature ' + label + ', wrote no row',
+      wrote === 0,
+      wrote + ' row(s) written'
+    );
+  }
+}
+
 (async () => {
   await vendorCase();
   await parkingCase();
@@ -992,6 +1132,8 @@ async function raceCases() {
   await noPaymentIdCase();
   await slowAlertCase();
   await raceCases();
+  await unknownReferenceCase();
+  await badSignatureCase();
 
   fs.rmSync(outDir, { recursive: true, force: true });
 

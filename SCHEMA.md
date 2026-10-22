@@ -208,7 +208,7 @@ race_groups.payment_status
   unpaid, paid, refunded, not_required
 
 race_registrations.tier
-  adult, kid, family, team, virtual
+  adult, kid, family, team
 
 race_registrations.payment_status
   unpaid, paid, refunded, not_required
@@ -262,6 +262,49 @@ whole reason the record exists.
 most important instance of it. A registration that reads as signed in the
 tracker but carries no name, no timestamp and no version is worse than an
 unsigned one, because nobody looks at it twice.
+
+## Columns that may no longer be written
+
+**Three things were retired on 2026-10-22 and the database now refuses them.**
+The columns stay, because rows written before that date still mean what they
+meant, and dropping a column rewrites history. What changed is that nothing
+may write them again.
+
+```
+race_registrations_tier_check
+  tier in (adult, kid, family, team)
+  virtual is no longer legal
+
+race_registrations_no_food_voucher
+  food_voucher = false
+
+race_registrations_no_bib_name
+  bib_name IS NULL
+```
+
+Postgres refuses each of these with 23514, the same as any other check
+constraint, and the row is lost at the last step of a registration. The point
+of listing them here is that the build refuses first.
+
+`npm run check:schema` reads the block below and fails on any insert or update
+that writes a forbidden value. `anything but null` means exactly that: a write
+of a literal null is fine and a write of anything else is not.
+
+```forbidden
+race_registrations.tier
+  virtual
+
+race_registrations.food_voucher
+  true
+
+race_registrations.bib_name
+  anything but null
+```
+
+A value arriving from a variable is invisible to this, which is the same limit
+the allowed values check has and is worth stating rather than implying: what
+it catches is the literal somebody typed, which is where a retired add-on gets
+reintroduced.
 
 ### One constraint this block cannot express
 

@@ -85,7 +85,6 @@ const TIER_LABELS: Record<string, string> = {
   kid: 'Kid, 12 and under',
   family: 'Family',
   team: 'Team',
-  virtual: 'Virtual',
 };
 
 export default function RaceTracker() {

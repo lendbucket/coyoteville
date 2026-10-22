@@ -246,16 +246,12 @@ export async function POST(request: Request) {
   const shirtCount = runners.filter((r) => r.shirtSize).length;
   const shirtCents = shirtCount * RACE_ADDONS.shirt;
 
-  const bibName = body.bib_name === true;
   const extraMedals = Math.max(0, Math.min(20, Number(body.extra_medals) || 0));
   const parkingPass = body.parking_pass === true;
-  const foodVoucher = body.food_voucher === true;
 
   const addonCents =
-    (bibName ? RACE_ADDONS.bibName : 0) +
     extraMedals * RACE_ADDONS.extraMedal +
-    (parkingPass ? RACE_ADDONS.parkingPass : 0) +
-    (foodVoucher ? RACE_ADDONS.foodVoucher : 0);
+    (parkingPass ? RACE_ADDONS.parkingPass : 0);
 
   const donationCents = Math.max(
     0,
@@ -326,10 +322,12 @@ export async function POST(request: Request) {
     heard_about: str(body.heard_about, 120) || null,
     team_name: path === 'team' ? teamName : null,
     shirt_size: runner.shirtSize || null,
-    bib_name: bibName ? `${runner.firstName}` : null,
+    /* Retired 2026-10-22. race_registrations_no_bib_name requires null. */
+    bib_name: null,
     extra_medals: i === 0 ? extraMedals : 0,
     parking_pass: i === 0 ? parkingPass : false,
-    food_voucher: i === 0 ? foodVoucher : false,
+    /* Retired 2026-10-22. race_registrations_no_food_voucher requires false. */
+    food_voucher: false,
     entry_cents: isGroup ? 0 : entryCents,
     shirt_cents: isGroup ? 0 : shirtCents,
     addon_cents: isGroup ? 0 : addonCents,

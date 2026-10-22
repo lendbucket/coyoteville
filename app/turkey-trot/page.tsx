@@ -31,7 +31,7 @@ import {
   registrationOpenAt,
   shirtsAvailableAt,
 } from '@/lib/race';
-import { HAS_LOGO, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
+import { HAS_LOGO, HAS_OG, HAS_VIDEO, OG_SIZE, RACE_ASSETS } from '@/lib/race-assets';
 import { COURSE_MAP, COURSE_PNG, COURSE_PNG_SIZE, HAS_COURSE_PNG } from '@/lib/race-course';
 import { getRaceNights } from '@/lib/race-events';
 import { SPONSOR_LEVELS } from '@/lib/race-sponsorship';
@@ -88,17 +88,21 @@ export async function generateMetadata(): Promise<Metadata> {
       description: description,
       url: CANONICAL,
       type: 'website',
-      /* The course map first: it is a route people in Alice recognise, and it
-         is the strongest image in the repo. The site card last, so this is
-         never a 404.
+      /* The share card first.
 
-         There is no poster frame to prefer any more. The dimensions are parsed
-         out of the file rather than written down, because they were hand typed
-         once already and went silently wrong when the asset behind them
-         changed. */
-      images: HAS_COURSE_PNG
-        ? [{ url: `${SITE_URL}${COURSE_PNG}`, ...(COURSE_PNG_SIZE ?? {}) }]
-        : [OG_IMAGE],
+         A 1200x630 image made for this, which is what a feed wants. The course
+         map was the fallback and looked wrong as a card: it is a wide dark
+         diagram, legible on a page and unreadable as a thumbnail. The poster
+         frame is next, then the map, then the site card, so this is never a
+         404.
+
+         Dimensions are parsed off whichever file wins rather than written
+         down, because they were typed once and went silently wrong. */
+      images: HAS_OG
+        ? [{ url: `${SITE_URL}${RACE_ASSETS.og}`, ...(OG_SIZE ?? {}) }]
+        : HAS_COURSE_PNG
+          ? [{ url: `${SITE_URL}${COURSE_PNG}`, ...(COURSE_PNG_SIZE ?? {}) }]
+          : [OG_IMAGE],
     },
     twitter: {
       card: 'summary_large_image',
@@ -371,19 +375,16 @@ export default async function TurkeyTrotPage() {
                   Each. {TEAM_MIN_RUNNERS} runner minimum, the captain pays once.
                 </p>
               </div>
-              <div className="tier">
-                <span className="tier__price">{dollars(RACE_PRICING.virtual)}</span>
-                <h3 className="tier__name">Virtual</h3>
-                <p className="tier__note">Run it anywhere. Shirt and medal included.</p>
-              </div>
             </div>
 
+            {/* Three add ons and the donation. The name on the bib and the food
+                truck voucher were retired on 2026-10-22 and the database
+                refuses both, so they are not offered and not priced. */}
             <p className="race__addons">
               Add ons: shirt {dollars(RACE_ADDONS.shirt)}
-              {shirtsOpen ? '' : ', closed for this year'}, name on your bib{' '}
-              {dollars(RACE_ADDONS.bibName)}, extra medal {dollars(RACE_ADDONS.extraMedal)},
-              reserved parking {dollars(RACE_ADDONS.parkingPass)}, food truck voucher{' '}
-              {dollars(RACE_ADDONS.foodVoucher)}.
+              {shirtsOpen ? '' : ', closed for this year'}, extra medal{' '}
+              {dollars(RACE_ADDONS.extraMedal)}, reserved parking{' '}
+              {dollars(RACE_ADDONS.parkingPass)}. A donation of any amount is optional.
             </p>
 
             {!shirtsOpen ? (

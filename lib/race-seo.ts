@@ -163,7 +163,6 @@ export function raceSchema(race: Race) {
       offer('Kids 12 and under', RACE_PRICING.kid),
       offer('Family, up to five runners', RACE_PRICING.family),
       offer('Team, per runner', RACE_PRICING.team),
-      offer('Virtual entry', RACE_PRICING.virtual),
     ],
   };
 }
