@@ -80,6 +80,24 @@ export const MAPS_URL =
 
 /** Flat rate per event. We take no percentage of what a vendor earns. */
 export const PRICING = {
+  /* $25, site wide, and that includes both Turkey Trot nights.
+
+     Asked on 2026-10-22 whether the two food truck nights either side of the
+     race should be $35. Robert's decision the same day: no. Three reasons,
+     recorded so this is not reopened in November.
+
+     A per event price touches the vendor payment path, 23 days out from the
+     race. The whole difference is $180 across both nights. And both events
+     are already published showing $25, with vendors looking at them now.
+
+     The Turkey Trot pages used to print $35 as a literal, matching no
+     constant, so they quoted a price Square would not charge. They render
+     this number now.
+
+     A per event booth price IS wanted, after November 14. It would be a
+     nullable booth_cents on events falling back to this constant, with the
+     booking route, the cards, the FAQ, the emails and the JSON-LD offers all
+     reading the event price rather than this one. Not before the race. */
   booth: { id: 'booth', label: 'Vendor Booth', cents: 2500, price: '$25' },
   /* $65 from 2026-09-14, up from $50. One number, read by the cards, the form,
      the FAQ, the ticker, the emails and the JSON-LD offers, so the price a

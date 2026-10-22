@@ -9003,6 +9003,16 @@ p {
 .racereg__block {
   margin: 0 0 22px;
   padding: 16px;
+  /* A fieldset gets min-inline-size: min-content from the UA sheet and ignores
+     width: 100%, so it refuses to shrink below the widest thing inside it and
+     pushes the page sideways instead. On this form that was 388px of fieldset
+     in a 353px column at 390 viewport, 16px of horizontal page scroll on the
+     page most likely to be opened on a phone.
+
+     It only showed up once the race assets were in the repo, which is worth
+     knowing: with the ad block and the logo absent the form sat at 353 and the
+     check passed. Every check that runs against a missing file has not run. */
+  min-inline-size: 0;
   border: 1px solid rgba(243, 238, 229, 0.16);
   border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, 0.18);

@@ -196,6 +196,16 @@ const CLAIM_FN = `(phrase) => {
 const results = [];
 const record = (name, ok, detail) => results.push({ name, ok, detail });
 
+/**
+ * A check that could not run, because what it checks is not in the repo.
+ *
+ * Not a pass: nothing was verified. Not a fail: nothing is wrong. Recording
+ * it as a pass is how a suite reports green on three checks that never
+ * executed, which is exactly what happened here while the course map and the
+ * video were missing.
+ */
+const skip = (name, why) => results.push({ name, skipped: true, detail: why });
+
 /* Prices that must come from a constant, read out of the real modules. */
 function constantPrices() {
   const ts = require('typescript');
@@ -342,6 +352,9 @@ async function main() {
 
     const prices = constantPrices();
 
+    /* The course map render at each width, compared once both are in. */
+    const mapByWidth = {};
+
     for (const route of ['/turkey-trot', '/turkey-trot/sponsors']) {
       for (const width of [390, 1440]) {
         const page = await browser.newPage();
@@ -396,7 +409,11 @@ async function main() {
           overflow.past.length ? overflow.past.join('; ') : 'none'
         );
 
-        record(`${label}: no page errors`, consoleErrors.length === 0, consoleErrors.join('; ') || 'none');
+        record(
+          `${label}: no page, console or request errors`,
+          consoleErrors.length === 0,
+          consoleErrors.slice(0, 3).join('; ') || 'none'
+        );
 
         /* ---- every price on the page is one of the constants ---- */
         const money = await page.evaluate(() =>
@@ -551,12 +568,38 @@ async function main() {
               }
             }
 
+            /* The label sizes in the SVG's OWN units, not on screen pixels.
+
+               The artwork carries two type scales switched by a media query
+               below 760px. On screen pixels cannot tell a switched scale from
+               a linearly scaled one, but user units can: under one scale
+               these values are identical at every width, and under two they
+               differ. That is the switch, measured. */
+            const labelUnits = map
+              ? [...new Set([...map.querySelectorAll('text')].map((t) =>
+                  Math.round(parseFloat(getComputedStyle(t).fontSize) * 100) / 100
+                ))].sort((a, b) => a - b)
+              : [];
+
+            /* Does the draw animation resolve, and does reduced motion turn it
+               off? Both read from the file's own CSS, which only reaches the
+               page because the SVG is inlined. */
+            const drawn = map ? map.querySelector('.route, path[class]') : null;
+            const motion = drawn
+              ? {
+                  animationName: getComputedStyle(drawn).animationName,
+                  dashoffset: getComputedStyle(drawn).strokeDashoffset,
+                }
+              : null;
+
             const text = document.body.innerText;
 
             return {
               mapInlined: !!map,
               placeholderShown: !!soon,
               smallestLabelPx: smallestLabel,
+              labelUnits,
+              motion,
               videoPresent: !!video,
               adFramePresent: !!frame,
               claimsCertified: claim('USATF certified|certified 5K|certified course'),
@@ -566,6 +609,9 @@ async function main() {
               saysNoResults: /no official results/i.test(text),
             };
           });
+
+          /* Kept so the 390 and 1440 renders can be compared to each other. */
+          mapByWidth[width] = bits;
 
           /* Exactly one of the two: the map, or the placeholder. Never both and
              never neither. */
@@ -615,6 +661,156 @@ async function main() {
         await page.close();
       }
     }
+    /* ---- the course map, across the two widths ---- */
+
+    const narrow = mapByWidth[390];
+    const wide = mapByWidth[1440];
+
+    if (narrow && wide && narrow.mapInlined && wide.mapInlined) {
+      /* The two type scales. Under one scale the user unit sizes are the same
+         at both widths; under two they differ. Nothing about on screen pixels
+         can tell those apart, which is why this reads the SVG's own units. */
+      const switched =
+        JSON.stringify(narrow.labelUnits) !== JSON.stringify(wide.labelUnits);
+
+      record(
+        'course map: the mobile type scale switches below 760px',
+        switched,
+        `390 units ${JSON.stringify(narrow.labelUnits)}, 1440 units ${JSON.stringify(wide.labelUnits)}`
+      );
+    } else if (narrow && !narrow.mapInlined) {
+      skip(
+        'course map: the mobile type scale switches below 760px',
+        'the SVG is not in the repo, so there is no artwork to switch'
+      );
+      skip(
+        'course map: reduced motion draws it complete with no animation',
+        'the SVG is not in the repo'
+      );
+    }
+
+    /* ---- reduced motion, which only works inlined ---- */
+
+    if (narrow && narrow.mapInlined) {
+      const page = await browser.newPage();
+      await page.setViewport({ width: 390, height: 1000 });
+      await page.emulateMediaFeatures([
+        { name: 'prefers-reduced-motion', value: 'reduce' },
+      ]);
+      await page.goto(BASE + '/turkey-trot', { waitUntil: 'networkidle0' });
+
+      const reduced = await page.evaluate(() => {
+        const el = document.querySelector('.race__coursemap svg .route, .race__coursemap svg path[class]');
+        if (!el) return null;
+        const cs = getComputedStyle(el);
+        return { animationName: cs.animationName, dashoffset: cs.strokeDashoffset };
+      });
+      await page.close();
+
+      record(
+        'course map: reduced motion draws it complete with no animation',
+        Boolean(reduced) &&
+          reduced.animationName === 'none' &&
+          parseFloat(reduced.dashoffset) === 0,
+        reduced
+          ? `animation ${reduced.animationName}, dashoffset ${reduced.dashoffset}`
+          : 'no drawn path found'
+      );
+
+      record(
+        'course map: without that preference it animates',
+        Boolean(narrow.motion) && narrow.motion.animationName !== 'none',
+        narrow.motion
+          ? `animation ${narrow.motion.animationName}, dashoffset ${narrow.motion.dashoffset}`
+          : 'no drawn path found'
+      );
+    }
+
+    /* ---- the ad loop defers the video download ---- */
+
+    {
+      const page = await browser.newPage();
+      await page.setViewport({ width: 390, height: 900 });
+      await page.setCacheEnabled(false);
+
+      /* Every request the page makes, so this is measured rather than
+         reasoned about. The mp4 is 2.8MB and must not be fetched until the
+         frame is in view; the poster is a few tens of kilobytes and should
+         be. */
+      const asked = [];
+      page.on('request', (r) => asked.push(r.url()));
+
+      /* If React never hydrates, the observer never attaches and the src stays
+         null while the server rendered markup still looks correct. So the
+         errors are captured rather than assumed away. */
+      const pageErrors = [];
+      page.on('pageerror', (e) => pageErrors.push(String(e.message).slice(0, 140)));
+      page.on('console', (m) => {
+        if (m.type() === 'error') pageErrors.push('console: ' + m.text().slice(0, 140));
+      });
+
+      await page.goto(BASE + '/', { waitUntil: 'networkidle0' });
+
+      const hasBlock = await page.evaluate(() => !!document.querySelector('.racead'));
+
+      if (!hasBlock) {
+        skip(
+          'ad loop: the video is not downloaded before the frame is in view',
+          'the mp4 and poster are not in the repo, so no player renders'
+        );
+      } else {
+        const wanted = (list) => list.filter((u) => u.includes('turkey-trot-ad.mp4')).length;
+        const posterAsked = asked.filter((u) => u.includes('turkey-trot-ad-poster')).length;
+        const beforeScroll = wanted(asked);
+
+        record(
+          'ad loop: the video is not downloaded before the frame is in view',
+          beforeScroll === 0,
+          `mp4 requests before scroll: ${beforeScroll}, poster requests: ${posterAsked}`
+        );
+
+        record(
+          'ad loop: the poster IS fetched, so the frame is not empty',
+          posterAsked > 0,
+          `poster requests: ${posterAsked}`
+        );
+
+        /* Scroll it into view and wait for the request, rather than sleeping a
+           fixed time. A fixed wait makes this pass on a fast machine and fail on
+           a slow one, which is worse than not having the check. */
+        await page.evaluate(() => {
+          document.querySelector('.racead').scrollIntoView({ block: 'center' });
+        });
+
+        for (let i = 0; i < 40 && wanted(asked) === 0; i += 1) {
+          await new Promise((r) => setTimeout(r, 250));
+        }
+
+        /* The element state as well as the request count, so a failure here
+           says why rather than just that. */
+        const videoState = await page.evaluate(() => {
+          const v = document.querySelector('.racead video');
+          if (!v) return null;
+          return {
+            src: v.getAttribute('src'),
+            paused: v.paused,
+            readyState: v.readyState,
+            networkState: v.networkState,
+            error: v.error ? v.error.code : null,
+          };
+        });
+
+        record(
+          'ad loop: the video IS downloaded once the frame is in view',
+          wanted(asked) > 0,
+          `mp4 requests after scroll: ${wanted(asked)}, video ${JSON.stringify(videoState)}` +
+            (pageErrors.length ? ', errors: ' + pageErrors.slice(0, 2).join(' | ') : '')
+        );
+      }
+
+      await page.close();
+    }
+
   } finally {
     if (browser) await browser.close();
     server.kill();
@@ -623,13 +819,29 @@ async function main() {
 
   /* -------------------------------------------------------------- report */
 
-  const failed = results.filter((r) => !r.ok);
+  const failed = results.filter((r) => !r.skipped && !r.ok);
+  const skipped = results.filter((r) => r.skipped);
 
   console.log('\ncheck-race-pages\n');
   for (const r of results) {
-    console.log(`  ${r.ok ? 'PASS' : 'FAIL'}  ${r.name}\n          ${r.detail}`);
+    const state = r.skipped ? 'SKIP' : r.ok ? 'PASS' : 'FAIL';
+    console.log(`  ${state}  ${r.name}\n          ${r.detail}`);
   }
-  console.log(`\n  ${results.length - failed.length} of ${results.length} passed.\n`);
+
+  const ran = results.length - skipped.length;
+  console.log(
+    `\n  ${ran - failed.length} of ${ran} passed` +
+      (skipped.length ? `, ${skipped.length} could not run` : '') +
+      '.\n'
+  );
+
+  /* Named again at the bottom, because a skip scrolls past in a list of fifty
+     and the whole point of the state is that it is not a pass. */
+  if (skipped.length) {
+    console.log('  Could not run, so nothing about these is known yet:');
+    for (const r of skipped) console.log(`    ${r.name}`);
+    console.log('');
+  }
 
   process.exit(failed.length ? 1 : 0);
 }

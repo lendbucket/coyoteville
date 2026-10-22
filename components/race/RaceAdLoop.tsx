@@ -61,6 +61,16 @@ export default function RaceAdLoop({ src, poster }: { src: string; poster: strin
   const [holdBack, setHoldBack] = useState<boolean | null>(null);
   /** True once the src is attached. Never goes back: the file is downloaded. */
   const [armed, setArmed] = useState(false);
+  /* Whether it should be playing, as opposed to whether it has a source.
+
+     These have to be two separate things. setArmed is what attaches the src,
+     and attaching it is a React render: calling play() in the same callback,
+     even deferred with queueMicrotask, runs before that render commits, so
+     play() lands on a video element with no source, rejects, and nothing
+     retries once the src arrives. That is exactly what it did. The video
+     stayed paused at readyState 0 and never fetched a byte, which looked
+     like a working lazy load and was a player that never played. */
+  const [wantsPlay, setWantsPlay] = useState(false);
   const [muted, setMuted] = useState(true);
 
   useEffect(() => {
@@ -84,13 +94,9 @@ export default function RaceAdLoop({ src, poster }: { src: string; poster: strin
 
           if (entry.isIntersecting) {
             setArmed(true);
-            /* play() is called after the src lands, so it is deferred a tick.
-               A rejected promise is fine and expected: the controls are right
-               there and a browser that refuses is a browser we do not argue
-               with. */
-            video.muted = true;
-            queueMicrotask(() => void video.play().catch(() => {}));
+            setWantsPlay(true);
           } else {
+            setWantsPlay(false);
             video.pause();
           }
         }
@@ -102,12 +108,30 @@ export default function RaceAdLoop({ src, poster }: { src: string; poster: strin
     return () => observer.disconnect();
   }, [holdBack]);
 
+  /* Play once the source is attached and it is wanted, not before.
+
+     Depending on armed means this runs after the render that set the src, so
+     the element has something to load. A rejected promise is fine and
+     expected: the controls are right there, and a browser that refuses to
+     autoplay is not one to argue with. */
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !armed) return;
+
+    if (wantsPlay) {
+      video.muted = true;
+      void video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [armed, wantsPlay]);
+
   /** The manual path: reduced motion, a slow connection, or a refused autoplay. */
   const start = useCallback(() => {
+    /* Same two steps, same reason: the effect above does the playing once the
+       src is on the element. */
     setArmed(true);
-    const video = videoRef.current;
-    if (!video) return;
-    queueMicrotask(() => void video.play().catch(() => {}));
+    setWantsPlay(true);
   }, []);
 
   const toggleMute = useCallback(() => {
