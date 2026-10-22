@@ -752,10 +752,13 @@ async function main() {
       await page.goto(BASE + '/', { waitUntil: 'networkidle0' });
 
       const hasBlock = await page.evaluate(() => !!document.querySelector('.racead'));
-
       if (!hasBlock) {
         skip(
-          'ad loop: the video is not downloaded before the frame is in view',
+          'ad loop, before the frame is in view: poster requested, mp4 not',
+          'the mp4 and poster are not in the repo, so no player renders'
+        );
+        skip(
+          'ad loop, after the frame enters view: mp4 requested and actually playing',
           'the mp4 and poster are not in the repo, so no player renders'
         );
       } else {
@@ -763,47 +766,69 @@ async function main() {
         const posterAsked = asked.filter((u) => u.includes('turkey-trot-ad-poster')).length;
         const beforeScroll = wanted(asked);
 
-        record(
-          'ad loop: the video is not downloaded before the frame is in view',
-          beforeScroll === 0,
-          `mp4 requests before scroll: ${beforeScroll}, poster requests: ${posterAsked}`
-        );
+        /* ---- question one: is the download actually deferred ---- */
 
         record(
-          'ad loop: the poster IS fetched, so the frame is not empty',
-          posterAsked > 0,
-          `poster requests: ${posterAsked}`
+          'ad loop, before the frame is in view: poster requested, mp4 not',
+          beforeScroll === 0 && posterAsked > 0,
+          `mp4 requests ${beforeScroll}, poster requests ${posterAsked}`
         );
 
-        /* Scroll it into view and wait for the request, rather than sleeping a
-           fixed time. A fixed wait makes this pass on a fast machine and fail on
-           a slow one, which is worse than not having the check. */
+        /* ---- question two: and does it then play ----
+
+           These are two questions and not one, and the reason is a bug this
+           suite already shipped. The observer attached the src and called
+           play() a microtask too early, so play() hit a source-less element and
+           nothing retried. The result: src set, zero bytes fetched, nothing
+           playing. Question one passed perfectly the whole time, because
+           "deferred" and "broken" look identical from the before side.
+
+           So this asserts the video reaches HAVE_FUTURE_DATA, is not paused,
+           and has a clock that has moved. A request alone is not playback: an
+           mp4 that 404s or fails to demux is also exactly one request. */
         await page.evaluate(() => {
           document.querySelector('.racead').scrollIntoView({ block: 'center' });
         });
 
-        for (let i = 0; i < 40 && wanted(asked) === 0; i += 1) {
+        /* Polled, not slept. A fixed wait passes on a fast machine and fails on
+           a slow one, which is worse than no check. */
+        let videoState = null;
+        for (let i = 0; i < 60; i += 1) {
+          videoState = await page.evaluate(() => {
+            const v = document.querySelector('.racead video');
+            if (!v) return null;
+            return {
+              src: v.getAttribute('src'),
+              paused: v.paused,
+              readyState: v.readyState,
+              networkState: v.networkState,
+              currentTime: Math.round(v.currentTime * 100) / 100,
+              error: v.error ? v.error.code : null,
+            };
+          });
+
+          if (
+            videoState &&
+            videoState.readyState >= 3 &&
+            !videoState.paused &&
+            videoState.currentTime > 0
+          ) {
+            break;
+          }
           await new Promise((r) => setTimeout(r, 250));
         }
 
-        /* The element state as well as the request count, so a failure here
-           says why rather than just that. */
-        const videoState = await page.evaluate(() => {
-          const v = document.querySelector('.racead video');
-          if (!v) return null;
-          return {
-            src: v.getAttribute('src'),
-            paused: v.paused,
-            readyState: v.readyState,
-            networkState: v.networkState,
-            error: v.error ? v.error.code : null,
-          };
-        });
+        const requested = wanted(asked);
+        const playing =
+          Boolean(videoState) &&
+          videoState.readyState >= 3 &&
+          !videoState.paused &&
+          videoState.currentTime > 0;
 
         record(
-          'ad loop: the video IS downloaded once the frame is in view',
-          wanted(asked) > 0,
-          `mp4 requests after scroll: ${wanted(asked)}, video ${JSON.stringify(videoState)}` +
+          'ad loop, after the frame enters view: mp4 requested and actually playing',
+          requested > 0 && playing,
+          `mp4 requests ${requested}, video ${JSON.stringify(videoState)}` +
             (pageErrors.length ? ', errors: ' + pageErrors.slice(0, 2).join(' | ') : '')
         );
       }
