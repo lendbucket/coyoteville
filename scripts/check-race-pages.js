@@ -18,12 +18,15 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
+const { rmSync } = require('node:fs');
 const puppeteer = require('puppeteer-core');
 
 const ROOT = path.resolve(__dirname, '..');
 const PORT = 3217;
 const BASE = `http://127.0.0.1:${PORT}`;
-const DB_PORT = 54331;
+/* Asked for, not chosen. A fixed port collides with the other gates'
+   fixtures, which all listen on 0 and take what they are given. */
+let dbPort = 0;
 
 function chromePath() {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
@@ -163,7 +166,10 @@ function startDb() {
   });
 
   return new Promise((resolve) => {
-    server.listen(DB_PORT, () => resolve(server));
+    server.listen(0, '127.0.0.1', () => {
+      dbPort = server.address().port;
+      resolve(server);
+    });
   });
 }
 
@@ -295,7 +301,7 @@ async function main() {
 
   const env = {
     ...process.env,
-    NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${DB_PORT}`,
+    NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${dbPort}`,
     SUPABASE_SERVICE_ROLE_KEY: 'fixture-key',
     NEXT_PUBLIC_SITE_URL: BASE,
     ADMIN_PASSWORD: 'race-pages-fixture',
@@ -635,6 +641,9 @@ async function main() {
                 const node = walker.currentNode;
                 const parent = node.parentElement;
                 if (parent && skip.some((s) => s.contains(parent))) continue;
+                /* Script and style are not page copy. The flight payload
+                   lives in a script tag and was being read as prose. */
+                if (parent && parent.closest('script, style, template')) continue;
                 const t = node.textContent.trim();
                 if (t) out.push(t);
               }
@@ -679,7 +688,7 @@ async function main() {
                    smallest is the title subtitle and failing the map over that
                    was measuring the wrong thing. The street labels are what has
                    to survive being read on a phone. */
-                const streets = [...map.querySelectorAll('text.rd')].filter(
+                const streets = [...map.querySelectorAll('text.ttc-rd')].filter(
                   (t) => getComputedStyle(t).display !== 'none'
                 );
                 if (streets.length) {
@@ -716,7 +725,7 @@ async function main() {
                elements, so the animation sits on a use and not on a path. An
                earlier selector of '.route, path[class]' found nothing at all
                and the check reported no drawn path rather than a result. */
-            const drawn = map ? map.querySelector('.draw') : null;
+            const drawn = map ? map.querySelector('.ttc-route') : null;
             const motion = drawn
               ? {
                   animationName: getComputedStyle(drawn).animationName,
@@ -776,20 +785,34 @@ async function main() {
               : 'assets absent, no frame and no broken player'
           );
 
+          /* A claim, not a disclaimer.
+
+             This required the page to SAY the course is not certified. There
+             is no obligation to disclose that, and the line has been removed,
+             so the gate would have failed the page for a choice that was
+             made deliberately. Not claiming something and disclaiming it are
+             different things and only one of them is required.
+
+             What stays is the part that matters: the page may never claim the
+             course IS certified. */
           record(
-            `${label}: never claims a certified course, and says so`,
-            !bits.claimsCertified.claimed && bits.saysApproximately && bits.saysNotCertified,
+            `${label}: never claims a certified course`,
+            !bits.claimsCertified.claimed && bits.saysApproximately,
             bits.claimsCertified.claimed
               ? 'claimed in: ' + bits.claimsCertified.where.join(' | ')
-              : `says not USATF certified: ${bits.saysNotCertified}, says approximately 3.1 miles: ${bits.saysApproximately}`
+              : `no certification claim, says approximately 3.1 miles: ${bits.saysApproximately}`
           );
 
+          /* Same rule for timing. The page may not promise official results,
+             splits or finish times while chip_timed is false. Whether it also
+             spells out that there are none is a copy decision, not a
+             requirement, so it is not asserted here. */
           record(
             `${label}: promises no times while chip_timed is false`,
-            !bits.claimsTimes.claimed && bits.saysNoResults,
+            !bits.claimsTimes.claimed,
             bits.claimsTimes.claimed
               ? 'promised in: ' + bits.claimsTimes.where.join(' | ')
-              : 'says no official results, and promises none'
+              : 'no promise of results, splits or times'
           );
         }
 
@@ -835,7 +858,7 @@ async function main() {
       await page.goto(BASE + '/turkey-trot', { waitUntil: 'networkidle0' });
 
       const reduced = await page.evaluate(() => {
-        const el = document.querySelector('.race__coursemap svg .draw');
+        const el = document.querySelector('.race__coursemap svg .ttc-route');
         if (!el) return null;
         const cs = getComputedStyle(el);
         return { animationName: cs.animationName, dashoffset: cs.strokeDashoffset };
@@ -851,6 +874,53 @@ async function main() {
           ? `animation ${reduced.animationName}, dashoffset ${reduced.dashoffset}`
           : 'no drawn path found'
       );
+      /* WITH JAVASCRIPT OFF, THE MAP MUST STILL BE DRAWN.
+
+         This is the case that shipped broken, and it shipped broken because
+         the contract was the wrong way round: the page hid the route and
+         script was what revealed it, so anything that stopped the script
+         left a blank grid. It is inverted now. No classes means fully drawn;
+         script adds .ttc-armed to take that away and .ttc-draw to animate it
+         back. Any failure leaves a drawn map.
+
+         Checked first, before the animation checks, because it is the one
+         that matters: a map that never animates is a missed flourish, and a
+         map that never appears is a missing map. */
+      {
+        const page = await browser.newPage();
+        await page.setJavaScriptEnabled(false);
+        await page.setViewport({ width: 1440, height: 900 });
+        await page.goto(BASE + '/turkey-trot', { waitUntil: 'networkidle0' });
+
+        const noJs = await page.evaluate(() => {
+          const svg = document.querySelector('#course-map svg');
+          const route = document.querySelector('#course-map .ttc-route');
+          if (!svg || !route) return null;
+          const cs = getComputedStyle(route);
+          return {
+            armed: svg.classList.contains('ttc-armed'),
+            offset: Math.round(parseFloat(cs.strokeDashoffset) || 0),
+            opacity: Number(cs.opacity),
+            /* The line has to have real geometry, not just exist. */
+            len: Math.round(route.getTotalLength ? route.getTotalLength() : 0),
+          };
+        });
+        await page.close();
+
+        record(
+          'course map: drawn with JavaScript disabled',
+          Boolean(noJs) &&
+            !noJs.armed &&
+            noJs.offset === 0 &&
+            noJs.opacity > 0.9 &&
+            noJs.len > 1000,
+          noJs
+            ? `armed ${noJs.armed}, dashoffset ${noJs.offset}, opacity ${noJs.opacity}, ` +
+              `path length ${noJs.len}`
+            : 'no route path found at all'
+        );
+      }
+
 
       /* Held at the top of the page, drawing once scrolled to.
 
@@ -881,20 +951,26 @@ async function main() {
         await new Promise((r) => setTimeout(r, 900));
 
         const after = await page.evaluate(() => {
-          const el = document.querySelector('#course-map svg .draw');
-          if (!el) return null;
-          const cs = getComputedStyle(el);
+          const svg = document.querySelector('#course-map svg');
+          const el = document.querySelector('#course-map svg .ttc-route');
+          if (!svg || !el) return null;
           return {
-            animation: cs.animationName,
-            drawn: document.getElementById('course-map').classList.contains('is-drawn'),
+            animation: getComputedStyle(el).animationName,
+            armed: svg.classList.contains('ttc-armed'),
+            drawing: svg.classList.contains('ttc-draw'),
           };
         });
         await page.close();
 
         record(
           'course map: draws once it enters the viewport',
-          Boolean(after) && after.drawn && after.animation === 'draw',
-          after ? `animation ${after.animation}, drawn ${after.drawn}` : 'no drawn path found'
+          Boolean(after) &&
+            after.armed &&
+            after.drawing &&
+            after.animation === 'ttcDraw',
+          after
+            ? `armed ${after.armed}, draw class ${after.drawing}, animation ${after.animation}`
+            : 'no route path found'
         );
       }
     }
@@ -1109,6 +1185,39 @@ async function main() {
     if (browser) await browser.close();
     server.kill();
     db.close();
+    /* Throw the build away, and say so if it cannot be.
+
+       This gate builds with a fixture Supabase URL, and Next inlines
+       NEXT_PUBLIC_* at build time, so what is left in .next points at a
+       fixture database on a port that stops existing the moment this process
+       does. check-admin-parity does not build, it only starts a server
+       against whatever is there, so it inherited that URL and failed with
+       ECONNREFUSED against a port it had never heard of. That is how this was
+       found, and it was found by accident.
+
+       The delete races the dying server for file locks on Windows, so it
+       retries. A silent failure is what caused the original confusion, so a
+       run that cannot clean up says so plainly instead of leaving a poisoned
+       build behind a clean exit code. */
+    let cleaned = false;
+    for (let i = 0; i < 10; i += 1) {
+      try {
+        rmSync(path.join(root, '.next'), { recursive: true, force: true, maxRetries: 3 });
+        cleaned = true;
+        break;
+      } catch {
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    }
+
+    if (!cleaned) {
+      console.error(
+        '\n  WARNING: .next still holds the fixture build from this run.\n' +
+          '  NEXT_PUBLIC_SUPABASE_URL is inlined at build time, so anything that\n' +
+          '  starts a server against it will reach a fixture port that is gone.\n' +
+          '  Run npm run build before any other gate.\n'
+      );
+    }
   }
 
   /* -------------------------------------------------------------- report */

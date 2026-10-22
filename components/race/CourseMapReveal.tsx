@@ -3,40 +3,42 @@
 import { useEffect } from 'react';
 
 /**
- * Starts the course map's draw when it scrolls into view, once.
+ * Arms the course map, then draws it when it scrolls into view.
  *
- * The map's animation is CSS inside the SVG, so it began at page load and
- * finished about three and a half seconds later, while the visitor was still
- * looking at the hero. By the time anybody scrolled down to it, it had already
- * drawn. The animation was real and nobody was ever going to see it.
+ * THE ORDER IS THE POINT, and it is the opposite of what shipped before.
  *
- * This renders NOTHING. It finds the container by id and adds a class, so the
- * 7.6 kB of inlined SVG stays server rendered markup and never becomes a prop,
- * a child, or a serialized payload. Same reason the waiver is a sibling rather
- * than a child.
+ * The map now renders fully drawn with no JavaScript at all. Script is only
+ * allowed to take that away: on mount this adds .ttc-armed to the svg, which
+ * hides the line and sets it undrawn, and on entry it adds .ttc-draw, which
+ * animates it in.
  *
- * Reduced motion never gets here: the page only mounts this when the visitor
- * has not asked for less movement, and the SVG's own media query draws it
- * complete either way.
+ * The previous version had it backwards. CSS in the page hid the line and the
+ * script was what revealed it, so anything that stopped the script, a bundle
+ * that failed to load, an error earlier on the page, a browser with JavaScript
+ * off, left a blank grid with nothing on it. Any failure here leaves a drawn
+ * map instead, which is the state somebody actually wants to see.
+ *
+ * Renders nothing and receives nothing. It finds the container by id, so the
+ * inlined SVG stays server rendered markup rather than becoming a prop.
+ *
+ * Reduced motion is handled inside the SVG: armed plus reduced motion resolves
+ * to drawn with no animation, so it is correct whether or not the observer
+ * ever fires.
  */
 export default function CourseMapReveal({ targetId }: { targetId: string }) {
   useEffect(() => {
-    const target = document.getElementById(targetId);
-    if (!target) return;
+    const container = document.getElementById(targetId);
+    const svg = container?.querySelector('svg');
+    if (!svg) return;
 
-    /* Asked for less movement: draw it now and do not observe anything. */
-    try {
-      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-        target.classList.add('is-drawn');
-        return;
-      }
-    } catch {
-      target.classList.add('is-drawn');
-      return;
-    }
+    /* Step one: take the drawn map away. Nothing before this point may hide
+       it, which is why there is no CSS in the page doing so. */
+    svg.classList.add('ttc-armed');
+
+    const draw = () => svg.classList.add('ttc-draw');
 
     if (typeof IntersectionObserver === 'undefined') {
-      target.classList.add('is-drawn');
+      draw();
       return;
     }
 
@@ -44,16 +46,15 @@ export default function CourseMapReveal({ targetId }: { targetId: string }) {
       (entries) => {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue;
-          /* Once. A map that redraws every time somebody scrolls past is a
-             fidget, not a reveal. */
-          entry.target.classList.add('is-drawn');
+          /* Once. A map that redraws on every scroll past is a fidget. */
+          draw();
           observer.disconnect();
         }
       },
       { threshold: 0.25 }
     );
 
-    observer.observe(target);
+    observer.observe(container as Element);
     return () => observer.disconnect();
   }, [targetId]);
 

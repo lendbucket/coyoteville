@@ -10416,48 +10416,18 @@ p {
   cursor: not-allowed;
 }
 
-/* ------------------------------------------- holding the course map undrawn
+/* The course map hides itself only when script says so.
 
-   The SVG ships with its animation classes already applied, so without this it
-   starts drawing at page load and is finished long before anybody scrolls to
-   it. These rules hold everything at its starting state until
-   CourseMapReveal adds is-drawn, which happens when the map enters the
-   viewport.
+   There used to be rules here holding the route undrawn until a class arrived,
+   which meant the page shipped the map hidden and relied on JavaScript to
+   reveal it. Anything that stopped the script left a blank grid, and that is
+   what went live.
 
-   stroke-dashoffset stays at full rather than 0, so the route sits undrawn and
-   then draws. Setting it to 0 would flash the finished map and then redraw it,
-   which is worse than not animating at all.
+   The contract is inverted now and it lives inside the SVG: no classes means
+   fully drawn, .ttc-armed hides it, .ttc-armed.ttc-draw animates it in.
+   CourseMapReveal adds both, in that order. Nothing in this stylesheet may hide
+   the map, because this stylesheet loads whether or not the script does. */
 
-   Wrapped in no-preference so it cannot reach somebody who asked for less
-   movement: for them the SVG's own reduced motion query draws it complete
-   immediately, with no observer and no wait. */
-@media (prefers-reduced-motion: no-preference) {
-  .race__coursemap:not(.is-drawn) svg .draw {
-    animation: none;
-    stroke-dashoffset: 2622;
-  }
-
-  .race__coursemap:not(.is-drawn) svg .flow {
-    animation: none;
-    stroke-opacity: 0;
-  }
-
-  .race__coursemap:not(.is-drawn) svg .runner,
-  .race__coursemap:not(.is-drawn) svg .pulse {
-    animation: none;
-    opacity: 0;
-  }
-
-  /* The fades too, so the map arrives as one thing rather than appearing in
-     pieces before the line that connects them. */
-  .race__coursemap:not(.is-drawn) svg .pin,
-  .race__coursemap:not(.is-drawn) svg .st,
-  .race__coursemap:not(.is-drawn) svg .ttl,
-  .race__coursemap:not(.is-drawn) svg .grid {
-    animation: none;
-    opacity: 0;
-  }
-}
 
 /* =========================================================== HERO FIXES ===
 
@@ -10679,4 +10649,100 @@ p {
   margin: 0 auto 22px;
   font-size: 0.9rem;
   color: rgba(23, 34, 46, 0.72);
+}
+
+/* =============================================== WARMER, FOR THE SEASON ===
+
+   Two more steps in the same family as the orange and gold already in the
+   logo: a deeper rust under them and a harvest gold between. Nothing new is
+   introduced, they are darker and warmer versions of what the brand already
+   uses, which is what lets them sit next to it without arguing.
+
+   Both are dark enough to carry cream body copy, which plain orange is not. */
+:root {
+  --tt-rust: #b8431a;
+  --tt-harvest: #c8872e;
+}
+
+/* The food section. Warm rather than navy, because it is the one part of the
+   page that is about sitting down and eating rather than about running. */
+.section--harvest {
+  position: relative;
+  background: linear-gradient(170deg, #2a1b12 0%, #1d1510 100%);
+  color: var(--tt-cream);
+  overflow: hidden;
+}
+
+.section--harvest h2 {
+  color: var(--tt-cream);
+}
+
+.section--harvest .eyebrow {
+  color: var(--tt-harvest);
+}
+
+.section--harvest .lede,
+.section--harvest p {
+  color: rgba(247, 240, 222, 0.88);
+}
+
+/* The turkey, quietly.
+
+   The logo, oversized and nearly transparent behind the copy, bled off the
+   right edge. It is the artwork the brand already has rather than clip art
+   brought in for the occasion, and at this weight it reads as texture rather
+   than as a picture of a bird. Hidden from assistive technology and from
+   print, and it never covers the text: the copy sits above it. */
+.section--harvest::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -8%;
+  width: min(52vw, 520px);
+  aspect-ratio: 1456 / 1080;
+  transform: translateY(-50%);
+  background-image: var(--tt-mark, none);
+  background-size: contain;
+  background-repeat: no-repeat;
+  opacity: 0.07;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.section--harvest .shell {
+  position: relative;
+  z-index: 1;
+}
+
+/* The vendor line, deliberately quiet. It is for the few operators reading
+   this, not for the runners the section is written for. */
+.race__vendorline {
+  margin: 22px 0 0;
+  font-size: 0.9rem;
+  color: rgba(247, 240, 222, 0.66);
+}
+
+.race__vendorline a {
+  color: var(--tt-harvest);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* The stripe band picks up the rust, so the divider carries the same warmth
+   as the section it introduces. */
+.stripeband {
+  background: linear-gradient(
+    to right,
+    var(--tt-harvest) 0 20%,
+    var(--tt-orange) 20% 40%,
+    var(--tt-rust) 40% 60%,
+    var(--tt-orange) 60% 80%,
+    var(--tt-harvest) 80% 100%
+  );
+}
+
+@media print {
+  .section--harvest::before {
+    display: none;
+  }
 }

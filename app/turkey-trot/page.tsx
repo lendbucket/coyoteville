@@ -13,7 +13,6 @@ import {
   RACE_H1,
   raceDescription,
   RACE_OG_IMAGE,
-  RACE_SUBHEAD,
   RACE_TITLE,
   raceFaq,
   raceFaqSchema,
@@ -294,10 +293,6 @@ export default async function TurkeyTrotPage() {
               </div>
             )}
 
-            <p className="formnote">
-              The course is {race.distanceLabel} and is not USATF certified, so distances and
-              times are not official for any purpose.
-            </p>
           </div>
         </section>
 
@@ -461,53 +456,60 @@ export default async function TurkeyTrotPage() {
         </section>
 
         {/* ----------------------------------------------------- food nights */}
-        <section className="section section--navy" id="vendors" aria-labelledby="nights-title">
+        {/* The turkey accent is the logo the brand already has, set as a
+            custom property here rather than hardcoded in the stylesheet, so
+            it is gated on the asset existing the same way everything else
+            is. No logo, no accent, and the section is just warm. */}
+        <section
+          className="section section--harvest"
+          id="vendors"
+          aria-labelledby="nights-title"
+          style={
+            HAS_LOGO
+              ? ({ ['--tt-mark']: `url(${RACE_ASSETS.logo})` } as React.CSSProperties)
+              : undefined
+          }
+        >
           <div className="shell">
-            <p className="eyebrow">Two nights for vendors</p>
-            <h2 id="nights-title">Food trucks and booths, both days</h2>
+            <p className="eyebrow">Both days</p>
+            <h2 id="nights-title">There is food either side of this race</h2>
 
-            {/* Both nights come off their event rows. They were typed out here
-                while the rows were unpublished and getEvents could not see
-                them; they published on 2026-10-22. If a row goes missing the
-                copy names no date rather than guessing at one, because a
-                sentence naming the wrong Friday sends somebody to a closed
-                lot. */}
-            <p className="lede">
-              {nights.pickup && nights.morning ? (
-                <>
-                  {nights.pickup.weekday} is packet pickup, with trucks and vendors open at{' '}
-                  {nights.pickup.opens}. {nights.morning.weekday} they open at{' '}
-                  {nights.morning.opens}, breakfast before the start and a full lot when
-                  runners come back in.
-                </>
-              ) : (
-                <>
-                  Trucks and vendors are open the evening before the race and again on race
-                  morning. Dates and times are on the event page.
-                </>
-              )}
-            </p>
+            {nights.pickup && nights.morning ? (
+              <>
+                <p className="lede">
+                  {nights.pickup.weekday} is packet pickup and a food truck night. Come down
+                  from {nights.pickup.opens}, get your bib, and stay for dinner. You do not
+                  have to be running to eat.
+                </p>
 
-            <p className="race__cta">
-              {/* Both prices off PRICING, which is the number Square charges.
-                  They were typed out as $65 and $35; the $65 matched and the
-                  $35 did not match anything, because the booth price is $25
-                  site wide and there is no event specific price to read. A
-                  page quoting a price checkout will not honour is worse than
-                  a page quoting a lower one. */}
+                <p className="lede">
+                  {nights.morning.weekday} the trucks open at {nights.morning.opens}, two
+                  hours before the gun. Breakfast tacos and coffee while it is still dark,
+                  and the whole lot open again when runners come back in. Bring the people
+                  who came to watch. They will want somewhere to sit and something to eat
+                  while they wait.
+                </p>
+              </>
+            ) : (
+              <p className="lede">
+                The trucks are open the evening before the race and again on race morning,
+                before the start and after the finish. Dates and times are on the event
+                page.
+              </p>
+            )}
+
+            {/* The vendor line, demoted. It is for the handful of operators
+                reading this, not for the runners the section is written for. */}
+            <p className="race__vendorline">
+              Selling food or running a booth?{' '}
               {nights.pickup ? (
-                <a className="btn btn--primary" href={nights.pickup.signupHref}>
-                  Book {nights.pickup.weekday}
-                </a>
+                <a href={nights.pickup.signupHref}>Book {nights.pickup.weekday}</a>
               ) : null}
+              {nights.pickup && nights.morning ? ' or ' : null}
               {nights.morning ? (
-                <a className="btn btn--primary" href={nights.morning.signupHref}>
-                  Book {nights.morning.weekday}
-                </a>
+                <a href={nights.morning.signupHref}>book {nights.morning.weekday}</a>
               ) : null}
-              <a className="btn btn--ghost" href="/#apply">
-                Food truck {PRICING.truck.price}, vendor booth {PRICING.booth.price}
-              </a>
+              . Food truck {PRICING.truck.price}, vendor booth {PRICING.booth.price}.
             </p>
           </div>
         </section>

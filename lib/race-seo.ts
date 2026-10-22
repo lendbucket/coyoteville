@@ -34,13 +34,15 @@ import { clockTime, longDate, monthDayYear } from './race-dates';
 export const RACE_TITLE = 'Alice TX Turkey Trot 2026 | Coyoteville 1st Annual 5K';
 
 /**
- * The H1, which leads with the phrase.
+ * The H1: the event's real name, with the distance unmistakable.
  *
- * "Alice TX Turkey Trot" first, then what it is. A heading that opens with the
- * brand and buries the phrase reads better to us and worse to everybody
- * searching for a turkey trot near Alice, which is the entire audience.
+ * The search term lives in the title tag, which still opens with "Alice TX
+ * Turkey Trot 2026" and is what a search engine reads first. This is what a
+ * person reads, so it is what the race is actually called, and the 5K is set
+ * where a runner scanning the page will find it. Both jobs get done by the
+ * element suited to them rather than by one element doing neither well.
  */
-export const RACE_H1 = `Alice TX Turkey Trot 2026`;
+export const RACE_H1 = `1st Annual Coyoteville Turkey Trot 5K`;
 
 /** Under the H1, carrying the name the event is actually called. */
 export const RACE_SUBHEAD = `The ${RACE_NAME}`;
@@ -118,7 +120,11 @@ export function raceSchema(race: Race) {
   return {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
-    name: race.name,
+    /* The same string the H1 shows, not races.name. The column cannot be read
+       from here, so pointing at it meant the structured data and the heading
+       could disagree about what the event is called and nothing would notice.
+       One constant, one name. */
+    name: RACE_H1,
     /* The phrase, in the one field a crawler reads as prose. */
     description: raceDescription(race),
     sport: 'Running',
@@ -189,7 +195,7 @@ export function raceFaq(race: Race, morningOpens?: string | null): { q: string; 
     },
     {
       q: 'How long is the course?',
-      a: `It is ${race.distanceLabel}. The course is not USATF certified, so distances and times are not official for any purpose.`,
+      a: `It is ${race.distanceLabel}.`,
     },
     {
       q: 'Is the race chip timed?',
