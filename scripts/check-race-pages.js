@@ -381,8 +381,28 @@ async function main() {
             /* A couple of pixels of slack for subpixel rounding and for the
                one table that is deliberately allowed to scroll inside itself. */
             if (r.right > window.innerWidth + 2) {
-              const inScroller = el.closest('[style*="overflow"], .race-tr__tablewrap');
-              if (!inScroller) {
+              /* An element inside a clipping ancestor cannot push the page
+                 sideways, whatever its own geometry says.
+
+                 getBoundingClientRect reports where a box would be, not
+                 where it is visible, so the decorative string lights SVG in
+                 the hero measured 4px past the edge while being clipped by
+                 the hero's own overflow: hidden, and the page scroll check,
+                 which is the one that matters, passed at the same time.
+
+                 The old test looked only for an inline overflow style, so a
+                 clip set by a class was invisible to it. Computed style on
+                 the ancestors is the actual question. */
+              let clipped = false;
+              for (let a = el.parentElement; a; a = a.parentElement) {
+                const o = getComputedStyle(a);
+                if (/hidden|clip|auto|scroll/.test(o.overflowX + o.overflow)) {
+                  clipped = true;
+                  break;
+                }
+              }
+
+              if (!clipped) {
                 past.push(
                   (el.tagName.toLowerCase() + '.' + (el.className || '').toString().split(' ')[0]).slice(0, 44) +
                     ' right=' + Math.round(r.right)

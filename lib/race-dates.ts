@@ -49,6 +49,24 @@ export function weekdayAndDate(ms: number): string {
 }
 
 /** "November 2, 2026". */
+/** "Saturday", the weekday on its own. */
+export function weekdayOnly(ms: number): string {
+  return new Intl.DateTimeFormat('en-US', { timeZone: ZONE, weekday: 'long' }).format(ms);
+}
+
+/** "Nov 14", for the display size line of the date block. */
+export function monthDayShort(ms: number): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: ZONE,
+    month: 'short',
+    day: 'numeric',
+  }).formatToParts(ms);
+
+  const month = parts.find((x) => x.type === 'month')?.value ?? '';
+  const day = parts.find((x) => x.type === 'day')?.value ?? '';
+  return `${month} ${day}`;
+}
+
 export function monthDayYear(ms: number): string {
   return parts(ms, { month: 'long', day: 'numeric', year: 'numeric' });
 }
@@ -65,6 +83,10 @@ export type RaceDates = {
   startShort: string;
   /** "Saturday, November 14". */
   startWeekday: string;
+  /** "Saturday", for the small line above the date. */
+  startWeekdayOnly: string;
+  /** "Nov 14", for the display size line. */
+  startMonthDay: string;
   /** "8:00 AM". */
   startTime: string;
   /**
@@ -91,6 +113,8 @@ export function raceDates(race: Race, now: number = Date.now()): RaceDates {
     startLong: longDate(starts),
     startShort: shortDate(starts),
     startWeekday: weekdayAndDate(starts),
+    startWeekdayOnly: weekdayOnly(starts),
+    startMonthDay: monthDayShort(starts),
     startTime: clockTime(starts),
     checkInTime: clockTime(closes),
     shirtDeadlineLong: monthDayYear(shirts),

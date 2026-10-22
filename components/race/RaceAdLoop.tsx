@@ -53,7 +53,23 @@ function shouldHoldBack(): boolean {
   return false;
 }
 
-export default function RaceAdLoop({ src, logo }: { src: string; logo?: string | null }) {
+export default function RaceAdLoop({
+  src,
+  logo,
+  variant = 'frame',
+}: {
+  src: string;
+  logo?: string | null;
+  /**
+   * 'frame' is the 16:9 card. 'hero' is the full bleed background: cover
+   * rather than contain, no browser controls, and one custom unmute.
+   *
+   * A muted looping hero does not need a scrubber and a three dot menu, and
+   * default controls over the type look bolted on.
+   */
+  variant?: 'frame' | 'hero';
+}) {
+  const hero = variant === 'hero';
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
 
@@ -147,7 +163,7 @@ export default function RaceAdLoop({ src, logo }: { src: string; logo?: string |
   const manual = holdBack !== false;
 
   return (
-    <div className="racead">
+    <div className={hero ? 'racead racead--hero' : 'racead'}>
       <div className="racead__frame" ref={frameRef}>
         <video
           ref={videoRef}
@@ -162,7 +178,7 @@ export default function RaceAdLoop({ src, logo }: { src: string; logo?: string |
              logo behind this element. */
           src={armed ? src : undefined}
           preload="none"
-          controls
+          {...(hero ? {} : { controls: true })}
           playsInline
           muted
           /* No loop under reduced motion: it plays once if they ask for it. */
@@ -179,7 +195,7 @@ export default function RaceAdLoop({ src, logo }: { src: string; logo?: string |
           </button>
         ) : (
           <button
-            className="racead__mute"
+            className={hero ? 'racead__mute racead__mute--hero' : 'racead__mute'}
             type="button"
             onClick={toggleMute}
             aria-pressed={!muted}

@@ -9746,3 +9746,672 @@ p {
   text-transform: uppercase;
   color: var(--cream-70, rgba(243, 238, 229, 0.7));
 }
+
+/* ===========================================================================
+   THE TURKEY TROT DESIGN PASS
+   ===========================================================================
+
+   The palette is the logo's, not an invention: cream, navy, orange, gold. The
+   display face is Anton, already preloaded site wide, so the heavy type costs
+   nothing new.
+
+   Orange is for large type and accents only. It does not reach AA on navy at
+   body size, so body copy on navy is cream and body copy on cream is navy,
+   both of which clear it comfortably.
+
+   Nothing in here animates. The video moves and the course map draws itself
+   once; there are no scroll reveals, no parallax and no counters beyond the
+   countdown that already existed.
+   =========================================================================== */
+
+:root {
+  --tt-cream: #f7f0de;
+  --tt-navy: #17222e;
+  --tt-orange: #e8541f;
+  --tt-gold: #f2a541;
+}
+
+/* --------------------------------------------------------------- the hero */
+
+/* Full bleed without a horizontal scrollbar.
+
+   100vw includes the scrollbar's width on a desktop browser, which is how a
+   full bleed block gives a page 15px of sideways scroll. Breaking out of the
+   centred column with negative margins measured from 100% instead keeps the
+   width honest. */
+.racehero {
+  position: relative;
+  min-height: 70vh;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  background: var(--tt-navy);
+  isolation: isolate;
+}
+
+.racehero__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+/* The scrim. 55% navy over the video so cream type stays readable over a
+   moving image, which is the one thing a video hero has to get right. */
+.racehero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    to top,
+    rgba(23, 34, 46, 0.82) 0%,
+    rgba(23, 34, 46, 0.55) 55%,
+    rgba(23, 34, 46, 0.5) 100%
+  );
+  pointer-events: none;
+}
+
+.racehero__in {
+  position: relative;
+  /* Above the scrim. The lights sit between the two. */
+  z-index: 3;
+  padding-top: 72px;
+  padding-bottom: 48px;
+  text-align: center;
+}
+
+/* The string lights go over the scrim and under the type. */
+.racehero .lights,
+.racehero [class*='lights'] {
+  z-index: 2;
+}
+
+/* The video as a background: cover, filling the block, no letterbox. */
+.racead--hero,
+.racead--hero .racead__frame {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--tt-navy);
+}
+
+.racead--hero .racead__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The logo still behind the hero video, and the no-video fallback, are the
+   same picture: the logo on navy, contained. */
+.racead--hero .racead__still,
+.racehero__bg--still {
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: var(--tt-navy);
+}
+
+.racehero__stilllogo,
+.racead--hero .racead__still {
+  width: min(62vw, 420px);
+  height: auto;
+  max-height: 72%;
+  object-fit: contain;
+}
+
+/* The play button over the still, for reduced motion, saveData and 2g. */
+.racead--hero .racead__play {
+  background: rgba(23, 34, 46, 0.4);
+}
+
+/* One unmute control, bottom right, styled rather than a default control bar. */
+.racead__mute--hero {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 4;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(247, 240, 222, 0.5);
+  border-radius: 999px;
+  background: rgba(23, 34, 46, 0.6);
+  color: var(--tt-cream);
+  font-family: var(--font-condensed), Arial, sans-serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.racehero__logo {
+  display: block;
+  width: 200px;
+  height: auto;
+  margin: 0 auto 18px;
+}
+
+.racehero__h1 {
+  margin: 0 0 18px;
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-size: clamp(2.1rem, 9vw, 3.6rem);
+  line-height: 0.98;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--tt-cream);
+  text-wrap: balance;
+}
+
+/* ----------------------------------------------------------- the date block */
+
+/* Not a sentence. People decide on the date before they read a word, so it is
+   set as three lines with the day at display size. Every part comes off
+   starts_at. */
+.racedate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 0 0 22px;
+}
+
+.racedate__day,
+.racedate__time {
+  font-family: var(--font-condensed), Arial, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--tt-gold);
+}
+
+.racedate__big {
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-size: clamp(3rem, 15vw, 5.5rem);
+  line-height: 0.9;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: var(--tt-cream);
+}
+
+.racehero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin: 0 0 26px;
+}
+
+/* ------------------------------------------------------------ the countdown */
+
+.racehero__clock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 0;
+}
+
+.racehero__unit {
+  min-width: 64px;
+  padding: 8px 10px;
+  border: 1px solid rgba(247, 240, 222, 0.28);
+  border-radius: var(--radius-sm);
+  background: rgba(23, 34, 46, 0.5);
+  text-align: center;
+}
+
+.racehero__unit b {
+  display: block;
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-size: 1.7rem;
+  line-height: 1;
+  color: var(--tt-cream);
+  font-variant-numeric: tabular-nums;
+}
+
+.racehero__unit span {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tt-gold);
+}
+
+.racehero__gone {
+  margin: 0;
+  color: var(--tt-gold);
+}
+
+/* ------------------------------------------------------- the stripe band */
+
+/* The sunset stripe from the logo, as a divider. Five bars, 8px, and that is
+   the whole thing: three lines of gradient rather than an image. */
+.stripeband {
+  height: 8px;
+  background: linear-gradient(
+    to right,
+    var(--tt-orange) 0 20%,
+    var(--tt-gold) 20% 40%,
+    var(--tt-cream) 40% 60%,
+    var(--tt-gold) 60% 80%,
+    var(--tt-orange) 80% 100%
+  );
+}
+
+/* ---------------------------------------------------------- navy sections */
+
+.section--navy {
+  background: var(--tt-navy);
+  color: var(--tt-cream);
+}
+
+.section--navy h2,
+.section--navy h3 {
+  color: var(--tt-cream);
+}
+
+.section--navy .eyebrow {
+  color: var(--tt-gold);
+}
+
+.section--navy .lede,
+.section--navy p {
+  color: rgba(247, 240, 222, 0.86);
+}
+
+/* The map is navy artwork in a navy section: no card, no border, no seam. */
+.race__coursesec .race__coursemap {
+  max-width: 1100px;
+}
+
+/* A wider column where the content wants it, so a price list does not leave
+   half the screen empty at 1440. */
+.shell--wide {
+  max-width: 1180px;
+}
+
+/* ---------------------------------------------------------- the price ladder */
+
+.race__urgent {
+  margin: 0 0 20px;
+  font-family: var(--font-condensed), Arial, sans-serif;
+  /* Large type, which is the only size orange is used at. */
+  font-size: clamp(1.15rem, 3.4vw, 1.5rem);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--tt-orange);
+}
+
+.ladder {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 0 0 28px;
+  padding: 0;
+  counter-reset: none;
+}
+
+.ladder__step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 18px 20px;
+  border: 2px solid rgba(23, 34, 46, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* The live step is marked and the others are dimmed, which is the whole point
+   of a ladder over a table: the escalation is the argument. */
+.ladder__step[data-live='yes'] {
+  border-color: var(--tt-orange);
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(232, 84, 31, 0.16);
+}
+
+.ladder__step[data-live='no'] {
+  opacity: 0.55;
+}
+
+.ladder__price {
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-size: clamp(2rem, 7vw, 2.6rem);
+  line-height: 1;
+  color: var(--tt-navy);
+}
+
+.ladder__when {
+  font-family: var(--font-condensed), Arial, sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(23, 34, 46, 0.72);
+}
+
+.ladder__now {
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--tt-orange);
+  color: var(--tt-cream);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------- the tiers */
+
+.tiers {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 0 0 22px;
+}
+
+.tier {
+  padding: 18px 20px;
+  border: 1px solid rgba(23, 34, 46, 0.14);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.tier__price {
+  display: block;
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-size: 2.1rem;
+  line-height: 1;
+  color: var(--tt-navy);
+}
+
+.tier__name {
+  margin: 6px 0 4px;
+  font-size: 1rem;
+}
+
+.tier__note {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(23, 34, 46, 0.72);
+}
+
+/* -------------------------------------------------------- what you get */
+
+.getlist {
+  list-style: none;
+  counter-reset: get;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  margin: 22px 0 0;
+  padding: 0;
+}
+
+.getlist__item {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.getlist__n {
+  flex: 0 0 auto;
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--tt-orange);
+}
+
+.getlist__text {
+  font-family: var(--font-condensed), Arial, sans-serif;
+  font-size: clamp(1.1rem, 3.6vw, 1.5rem);
+  line-height: 1.25;
+  color: var(--tt-cream);
+}
+
+/* ----------------------------------------------------------- the offers */
+
+.offers {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin: 22px 0;
+  padding: 0;
+}
+
+.offer {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1px solid rgba(23, 34, 46, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Sold levels are marked, not removed. A level that disappears looks like it
+   never existed; a level marked sold is proof somebody else bought it. */
+.offer[data-sold='yes'] {
+  opacity: 0.6;
+}
+
+.offer__price {
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--tt-navy);
+  font-variant-numeric: tabular-nums;
+}
+
+.offer__name {
+  font-family: var(--font-condensed), Arial, sans-serif;
+  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+}
+
+.offer__state {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tt-orange);
+  white-space: nowrap;
+}
+
+.offer[data-sold='yes'] .offer__state {
+  color: rgba(23, 34, 46, 0.6);
+}
+
+/* --------------------------------------------------------- wider screens */
+
+@media (min-width: 700px) {
+  .racehero {
+    min-height: 78vh;
+  }
+
+  .racehero__logo {
+    width: 320px;
+  }
+
+  .racehero__in {
+    padding-top: 96px;
+    padding-bottom: 64px;
+  }
+
+  .ladder {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .tiers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .getlist {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+
+  .getlist__item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .offers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1000px) {
+  .tiers {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .racehero__unit {
+    min-width: 78px;
+  }
+}
+
+/* ------------------------------------------------- the sponsor price ladder */
+
+/* Descending, because SPONSOR_LEVELS is already ordered by value: the order is
+   the data rather than a decision made here. A sold level is dimmed and marked
+   rather than removed, for the same reason as on the race page. */
+.slad {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin: 22px 0;
+  padding: 0;
+}
+
+.slad__level {
+  padding: 20px;
+  border: 1px solid rgba(23, 34, 46, 0.16);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.slad__level[data-feature='yes'] {
+  border-color: var(--tt-orange);
+  border-width: 2px;
+  background: #fff;
+}
+
+.slad__level[data-sold='yes'] {
+  opacity: 0.58;
+}
+
+.slad__head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.slad__price {
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-size: clamp(1.9rem, 6vw, 2.5rem);
+  line-height: 1;
+  color: var(--tt-navy);
+  font-variant-numeric: tabular-nums;
+}
+
+.slad__id {
+  min-width: 0;
+}
+
+.slad__name {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.slad__left {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tt-orange);
+}
+
+.slad__level[data-sold='yes'] .slad__left {
+  color: rgba(23, 34, 46, 0.6);
+}
+
+.slad__benefits {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.92rem;
+  color: rgba(23, 34, 46, 0.78);
+}
+
+.slad__benefits li {
+  margin: 0 0 4px;
+}
+
+/* Orange on navy, at display size only. */
+.race__urgent--onnavy {
+  color: var(--tt-gold);
+}
+
+.racehero__lede {
+  max-width: 44rem;
+  margin: 0 auto 18px;
+  color: rgba(247, 240, 222, 0.9);
+}
+
+.racehero--sponsor {
+  min-height: 52vh;
+  text-align: center;
+}
+
+@media (min-width: 700px) {
+  .slad {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .racehero--sponsor {
+    min-height: 58vh;
+  }
+}
+
+/* ---------------------------------------------------- the signing block */
+
+/* Designed, not restructured. The document text stays server rendered in its
+   own section outside the client boundary; this is only how the island looks. */
+.racereg__waiver .check {
+  padding: 12px 14px;
+  border: 1px solid rgba(243, 238, 229, 0.18);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.18);
+  margin-bottom: 10px;
+}
+
+.racereg__waiver .check a {
+  color: var(--tt-gold);
+}
+
+.racereg__waiver legend {
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Disabled means disabled, and it should look it rather than look broken. */
+.racereg__waiver + .btn:disabled,
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import Nav from '@/components/Nav';
+import StripeBand from '@/components/race/StripeBand';
+import StringLights from '@/components/StringLights';
+import { HAS_LOGO, RACE_ASSETS } from '@/lib/race-assets';
 import Footer from '@/components/Footer';
 import JsonLd from '@/components/JsonLd';
 import SponsorForm from '@/components/race/SponsorForm';
@@ -104,58 +107,94 @@ export default async function SponsorsPage() {
       <Nav />
 
       <main id="main">
-        <section className="section section--char">
-          <div className="shell">
+        {/* Same treatment as the race page: the logo on navy, big, with the
+            type over it. No video here; the logo is the artwork. */}
+        <section className="racehero racehero--sponsor">
+          <div className="racehero__bg racehero__bg--still" aria-hidden="true">
+            {HAS_LOGO ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={RACE_ASSETS.logo} alt="" className="racehero__stilllogo" />
+            ) : null}
+          </div>
+
+          <StringLights
+            tone="dark"
+            variant="top"
+            swags={4}
+            sag={24}
+            bulbsPerSwag={7}
+            id="tts-lights"
+          />
+
+          <div className="shell racehero__in">
             <p className="eyebrow">Sponsorship</p>
-            <h1 className="race__h1">Turkey Trot sponsorship, Alice TX</h1>
-            <p className="lede race__lede">
+            <h1 className="racehero__h1">Turkey Trot sponsorship, Alice TX</h1>
+            <p className="lede racehero__lede">
               A few hundred people on a Saturday morning in November, running past your name on
               streets the city closes for them, and wearing your logo home. This is the first
               annual, so whoever puts their name on it now is the business this race is
               associated with for as long as it runs.
             </p>
-            <p className="race__cta">
+
+            {/* The shirt deadline as the urgency it is, derived from
+                shirt_deadline_at rather than typed. */}
+            {!shirtDeadlinePassed ? (
+              <p className="race__urgent race__urgent--onnavy">
+                Shirt placement closes {shirtDeadlineLabel}.
+              </p>
+            ) : null}
+
+            <p className="racehero__cta">
               <a className="btn btn--primary btn--lg" href="#apply">
                 Pick a level
+              </a>
+              <a className="btn btn--ghost btn--lg" href="/turkey-trot">
+                The race
               </a>
             </p>
           </div>
         </section>
 
+        <StripeBand />
         {/* ---------------------------------------------------------- levels */}
-        <section className="section" aria-labelledby="levels-title">
-          <div className="shell">
+        {/* A descending price ladder. SPONSOR_LEVELS is already ordered by
+            value, so the order is the data rather than a decision here, and
+            a sold level is marked rather than hidden. */}
+        <section className="section section--cream" aria-labelledby="levels-title">
+          <div className="shell shell--wide">
+            <p className="eyebrow">The levels</p>
             <h2 id="levels-title">What is available</h2>
 
-            <ul className="sponsors__levels">
+            <ol className="slad">
               {availability.map(({ level, remaining, soldOut }) => (
                 <li
                   key={level.id}
-                  className={`sponsors__level ${level.feature ? 'is-feature' : ''} ${
-                    soldOut ? 'is-sold' : ''
-                  }`}
+                  className="slad__level"
+                  data-sold={soldOut ? 'yes' : 'no'}
+                  data-feature={level.feature ? 'yes' : 'no'}
                 >
-                  <div className="sponsors__levelhead">
-                    <h3>{level.name}</h3>
-                    <span className="sponsors__price">{dollars(level.cents)}</span>
+                  <div className="slad__head">
+                    <span className="slad__price">{dollars(level.cents)}</span>
+                    <div className="slad__id">
+                      <h3 className="slad__name">{level.name}</h3>
+                      <p className="slad__left">
+                        {soldOut
+                          ? 'Sold'
+                          : level.slots === 1
+                            ? 'One available'
+                            : `${remaining} of ${level.slots} available`}
+                      </p>
+                    </div>
                   </div>
 
-                  <p className="sponsors__left">
-                    {soldOut
-                      ? 'Sold out'
-                      : level.slots === 1
-                        ? 'One available'
-                        : `${remaining} of ${level.slots} available`}
-                  </p>
-
-                  <ul className="sponsors__benefits">
+                  <ul className="slad__benefits">
                     {level.benefits.map((b) => (
                       <li key={b}>{b}</li>
                     ))}
                   </ul>
                 </li>
               ))}
-            </ul>
+            </ol>
 
             <p className="formnote">
               {shirtDeadlinePassed
@@ -165,6 +204,7 @@ export default async function SponsorsPage() {
           </div>
         </section>
 
+        <StripeBand />
         {/* ------------------------------------------------------ who is in */}
         {published.length ? (
           <section className="section section--cream" aria-labelledby="already-title">

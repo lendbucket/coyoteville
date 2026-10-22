@@ -4,7 +4,9 @@ import Footer from '@/components/Footer';
 import JsonLd from '@/components/JsonLd';
 import StringLights from '@/components/StringLights';
 import RaceAdLoop from '@/components/race/RaceAdLoop';
+import RaceCountdown from '@/components/race/RaceCountdown';
 import RaceDocuments from '@/components/race/RaceDocuments';
+import StripeBand from '@/components/race/StripeBand';
 import RaceRegistration from '@/components/race/RaceRegistration';
 import {
   RACE_H1,
@@ -32,9 +34,16 @@ import {
 import { HAS_LOGO, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
 import { COURSE_MAP, COURSE_PNG, COURSE_PNG_SIZE, HAS_COURSE_PNG } from '@/lib/race-course';
 import { getRaceNights } from '@/lib/race-events';
+import { SPONSOR_LEVELS } from '@/lib/race-sponsorship';
 import { RACE_WAIVER_VERSION } from '@/lib/race-waiver/current';
 import { PRICING } from '@/lib/seo';
-import { clockFor, getPublishedSponsors, getRace, getRaceCounts } from '@/lib/races';
+import {
+  clockFor,
+  getPublishedSponsors,
+  getRace,
+  getRaceCounts,
+  getSponsorStanding,
+} from '@/lib/races';
 import { raceDates } from '@/lib/race-dates';
 import { OG_IMAGE, SITE_URL } from '@/lib/seo';
 import { supportEmail } from '@/lib/support';
@@ -123,6 +132,9 @@ export default async function TurkeyTrotPage() {
   const sponsors = await getPublishedSponsors(race.slug);
   /* The two vendor nights, off their own rows in events. */
   const nights = await getRaceNights();
+  /* What is still open, for the sponsors block. Counting is already done in
+     getSponsorStanding, which the Race tab uses too. */
+  const standing = await getSponsorStanding(race.slug);
 
   /* Every human date on this page, derived from the columns. Nothing here
      prints one by hand. */
@@ -147,28 +159,67 @@ export default async function TurkeyTrotPage() {
 
       <main id="main">
         {/* ------------------------------------------------------------ hero */}
-        <section className="section section--char race__hero">
-          <StringLights tone="dark" variant="top" swags={5} sag={26} bulbsPerSwag={7} id="tt-lights" />
-          <div className="shell race__heroin">
+        {/* ------------------------------------------------------------ hero
+
+            The video IS the hero: full bleed behind a navy scrim with the type
+            over it. The logo on navy is what shows before it loads and what
+            reduced motion, saveData and a 2g connection get instead of
+            autoplay, so there is no state where this is an empty box.
+
+            There is no separate video section any more. */}
+        <section className="racehero">
+          {HAS_VIDEO ? (
+            <div className="racehero__bg" aria-hidden="true">
+              <RaceAdLoop
+                src={RACE_ASSETS.video}
+                logo={HAS_LOGO ? RACE_ASSETS.logo : null}
+                variant="hero"
+              />
+            </div>
+          ) : (
+            /* No video in the repo: the logo on navy is the hero on its own. */
+            <div className="racehero__bg racehero__bg--still" aria-hidden="true">
+              {HAS_LOGO ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={RACE_ASSETS.logo} alt="" className="racehero__stilllogo" />
+              ) : null}
+            </div>
+          )}
+
+          {/* Over the scrim, under the type. */}
+          <StringLights
+            tone="dark"
+            variant="top"
+            swags={5}
+            sag={26}
+            bulbsPerSwag={7}
+            id="tt-lights"
+          />
+
+          <div className="shell racehero__in">
             {HAS_LOGO ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img className="race__logo" src={RACE_ASSETS.logo} alt="" width={220} height={220} />
+              <img
+                className="racehero__logo"
+                src={RACE_ASSETS.logo}
+                alt=""
+                width={1456}
+                height={1080}
+              />
             ) : null}
 
-            <h1 className="race__h1">{RACE_H1}</h1>
-            <p className="race__sub">{RACE_SUBHEAD}</p>
+            <h1 className="racehero__h1">{RACE_H1}</h1>
 
-            <p className="race__when">
-              {dates.startLong} at {dates.startTime}
+            {/* The date as a block, not a sentence. People decide on the date
+                before they read a word of the copy, and every part of it comes
+                off starts_at through lib/race-dates. */}
+            <p className="racedate">
+              <span className="racedate__day">{dates.startWeekdayOnly}</span>
+              <span className="racedate__big">{dates.startMonthDay}</span>
+              <span className="racedate__time">{dates.startTime}</span>
             </p>
 
-            <p className="lede race__lede">
-              A {race.distanceLabel} run through Alice on streets the city closes for the
-              morning, starting and finishing at {race.locationName}. The park opens early and
-              stays open after, with food trucks running.
-            </p>
-
-            <p className="race__cta">
+            <p className="racehero__cta">
               <a className="btn btn--primary btn--lg" href="#register">
                 Register
               </a>
@@ -176,20 +227,19 @@ export default async function TurkeyTrotPage() {
                 Sponsor the race
               </a>
             </p>
+
+            {/* The countdown already on the home and fundraiser pages, pointed
+                at starts_at. Not a second one. */}
+            <RaceCountdown targetMs={Date.parse(race.startsAtISO)} serverNowMs={now} />
           </div>
         </section>
 
-        {/* ------------------------------------------------------------- ad */}
-        {HAS_VIDEO ? (
-          <section className="section section--cream">
-            <div className="shell">
-              <RaceAdLoop src={RACE_ASSETS.video} logo={HAS_LOGO ? RACE_ASSETS.logo : null} />
-            </div>
-          </section>
-        ) : null}
-
+        <StripeBand />
         {/* --------------------------------------------------------- course */}
-        <section className="section" id="course" aria-labelledby="course-title">
+        {/* The map is navy artwork, so it sits in a navy section with no card
+            and no seam. Full bleed: a white box around it would be a frame
+            around a frame. */}
+        <section className="section section--navy race__coursesec" id="course" aria-labelledby="course-title">
           <div className="shell">
             <p className="eyebrow">The course</p>
             <h2 id="course-title">{race.distanceLabel}, out and back through town</h2>
@@ -230,51 +280,86 @@ export default async function TurkeyTrotPage() {
         </section>
 
         {/* -------------------------------------------------------- pricing */}
-        <section className="section section--cream-deep" id="pricing" aria-labelledby="pricing-title">
-          <div className="shell">
+        <section className="section section--cream" id="pricing" aria-labelledby="pricing-title">
+          <div className="shell shell--wide">
             <p className="eyebrow">Entry</p>
             <h2 id="pricing-title">What it costs</h2>
 
-            <p className="lede">
-              {window === 'early'
-                ? `Early pricing is on now and ends with the shirt deadline.`
-                : window === 'regular'
-                  ? 'Early pricing has closed. Race day pricing starts on the morning.'
-                  : window === 'raceDay'
-                    ? 'This is race day pricing.'
-                    : 'Registration has closed for this year.'}
-            </p>
+            {/* The reason to act today, at a size that says so. Derived from
+                shirt_deadline_at, never typed: the early price and the shirt
+                deadline are the same instant, and that is the column. */}
+            {window === 'early' ? (
+              <p className="race__urgent">
+                The price goes up after {dates.shirtDeadlineLong}.
+              </p>
+            ) : window === 'regular' ? (
+              <p className="race__urgent">
+                Early pricing closed on {dates.shirtDeadlineLong}. Race day costs more again.
+              </p>
+            ) : null}
 
-            <ul className="race__prices">
-              <li>
-                <b>Adult</b>
-                <span>{dollars(adultNow)}</span>
-                <i>
-                  {dollars(RACE_PRICING.adultEarly)} early, {dollars(RACE_PRICING.adultRegular)}{' '}
-                  regular, {dollars(RACE_PRICING.adultRaceDay)} on the day
-                </i>
-              </li>
-              <li>
-                <b>Kids {KID_MAX_AGE} and under</b>
-                <span>{dollars(RACE_PRICING.kid)}</span>
-                <i>Never goes up</i>
-              </li>
-              <li>
-                <b>Family</b>
-                <span>{dollars(RACE_PRICING.family)}</span>
-                <i>Up to {FAMILY_MAX_RUNNERS} runners, at least one adult, one payment</i>
-              </li>
-              <li>
-                <b>Team or organization</b>
-                <span>{dollars(RACE_PRICING.team)} each</span>
-                <i>{TEAM_MIN_RUNNERS} runner minimum, the captain pays once</i>
-              </li>
-              <li>
-                <b>Virtual</b>
-                <span>{dollars(RACE_PRICING.virtual)}</span>
-                <i>Run it anywhere. Shirt and medal included</i>
-              </li>
-            </ul>
+            {/* The adult price as a ladder, because the escalation is the
+                argument and a table hides it. Which step is live comes from
+                the same clock the form charges on, so the page and the
+                checkout cannot disagree. */}
+            <ol className="ladder" aria-label="Adult entry price by date">
+              {[
+                {
+                  key: 'early',
+                  cents: RACE_PRICING.adultEarly,
+                  when: `Through ${dates.shirtDeadlineShort}`,
+                },
+                {
+                  key: 'regular',
+                  cents: RACE_PRICING.adultRegular,
+                  when: `After ${dates.shirtDeadlineShort}`,
+                },
+                {
+                  key: 'raceDay',
+                  cents: RACE_PRICING.adultRaceDay,
+                  when: 'Race day',
+                },
+              ].map((step) => (
+                <li
+                  key={step.key}
+                  className="ladder__step"
+                  data-live={window === step.key ? 'yes' : 'no'}
+                >
+                  <span className="ladder__price">{dollars(step.cents)}</span>
+                  <span className="ladder__when">{step.when}</span>
+                  {window === step.key ? (
+                    <span className="ladder__now">On now</span>
+                  ) : null}
+                </li>
+              ))}
+            </ol>
+
+            <div className="tiers">
+              <div className="tier">
+                <span className="tier__price">{dollars(RACE_PRICING.kid)}</span>
+                <h3 className="tier__name">Kids {KID_MAX_AGE} and under</h3>
+                <p className="tier__note">Never goes up.</p>
+              </div>
+              <div className="tier">
+                <span className="tier__price">{dollars(RACE_PRICING.family)}</span>
+                <h3 className="tier__name">Family</h3>
+                <p className="tier__note">
+                  Up to {FAMILY_MAX_RUNNERS} runners, at least one adult, one payment.
+                </p>
+              </div>
+              <div className="tier">
+                <span className="tier__price">{dollars(RACE_PRICING.team)}</span>
+                <h3 className="tier__name">Team or organization</h3>
+                <p className="tier__note">
+                  Each. {TEAM_MIN_RUNNERS} runner minimum, the captain pays once.
+                </p>
+              </div>
+              <div className="tier">
+                <span className="tier__price">{dollars(RACE_PRICING.virtual)}</span>
+                <h3 className="tier__name">Virtual</h3>
+                <p className="tier__note">Run it anywhere. Shirt and medal included.</p>
+              </div>
+            </div>
 
             <p className="race__addons">
               Add ons: shirt {dollars(RACE_ADDONS.shirt)}
@@ -293,16 +378,26 @@ export default async function TurkeyTrotPage() {
           </div>
         </section>
 
+        <StripeBand />
         {/* ------------------------------------------------------- includes */}
-        <section className="section" aria-labelledby="includes-title">
+        <section className="section section--navy" aria-labelledby="includes-title">
           <div className="shell">
             <p className="eyebrow">Every entry</p>
             <h2 id="includes-title">What you get</h2>
-            <ul className="race__includes">
-              {ENTRY_INCLUDES.map((line) => (
-                <li key={line}>{line}</li>
+
+            {/* Three things, set large. The list came off ENTRY_INCLUDES and
+                still does: the copy is the constant, only the setting is new. */}
+            <ol className="getlist">
+              {ENTRY_INCLUDES.map((line, i) => (
+                <li key={line} className="getlist__item">
+                  <span className="getlist__n" aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  <span className="getlist__text">{line}</span>
+                </li>
               ))}
-            </ul>
+            </ol>
+
             {!race.chipTimed ? (
               <p className="formnote">
                 This first year is not chip timed. There are no official results, no splits and
@@ -311,6 +406,9 @@ export default async function TurkeyTrotPage() {
             ) : null}
           </div>
         </section>
+
+        <StripeBand />
+        <StripeBand />
 
         {/* -------------------------------------------------------- checkin */}
         <section className="section section--cream" id="packet-pickup" aria-labelledby="pickup-title">
@@ -327,7 +425,7 @@ export default async function TurkeyTrotPage() {
         </section>
 
         {/* ----------------------------------------------------- food nights */}
-        <section className="section" id="vendors" aria-labelledby="nights-title">
+        <section className="section section--navy" id="vendors" aria-labelledby="nights-title">
           <div className="shell">
             <p className="eyebrow">Two nights for vendors</p>
             <h2 id="nights-title">Food trucks and booths, both days</h2>
@@ -378,43 +476,70 @@ export default async function TurkeyTrotPage() {
           </div>
         </section>
 
+        <StripeBand />
+
         {/* ------------------------------------------------------- sponsors */}
-        <section className="section section--cream-deep" id="sponsors" aria-labelledby="sponsors-title">
-          <div className="shell">
+        {/* The sponsors block reads as an offer rather than a footnote: what
+            is still open, at what price, with the sold levels marked rather
+            than hidden. Counts come from getSponsorStanding, so a level that
+            sells says so without anybody editing the page. */}
+        <section
+          className="section section--cream-deep"
+          id="sponsors"
+          aria-labelledby="sponsors-title"
+        >
+          <div className="shell shell--wide">
             <p className="eyebrow">Sponsors</p>
-            <h2 id="sponsors-title">The businesses putting this on</h2>
+            <h2 id="sponsors-title">Put your name on this race</h2>
 
             {sponsors.length ? (
               <ul className="race__sponsors">
-                {sponsors.map((s) => (
-                  <li key={s.id}>
-                    {s.website ? (
-                      <a href={s.website} target="_blank" rel="noreferrer noopener">
-                        {s.businessName}
+                {sponsors.map((sp) => (
+                  <li key={sp.id}>
+                    {sp.website ? (
+                      <a href={sp.website} target="_blank" rel="noreferrer noopener">
+                        {sp.businessName}
                       </a>
                     ) : (
-                      <span>{s.businessName}</span>
+                      <span>{sp.businessName}</span>
                     )}
                   </li>
                 ))}
               </ul>
-            ) : (
-              <p className="lede">
-                Sponsor spots are open. Put your business on the shirt every runner wears home,
-                on the start line, and in front of a few hundred people on a Saturday morning.
-              </p>
-            )}
+            ) : null}
+
+            <p className="lede">
+              Your business on the shirt every runner wears home, on the start line, and in
+              front of a few hundred people on a Saturday morning in Alice.
+            </p>
+
+            <ul className="offers">
+              {SPONSOR_LEVELS.map((level) => {
+                const taken = standing.takenByLevel[level.id] ?? 0;
+                const left = Math.max(0, level.slots - taken);
+                return (
+                  <li key={level.id} className="offer" data-sold={left === 0 ? 'yes' : 'no'}>
+                    <span className="offer__price">{dollars(level.cents)}</span>
+                    <span className="offer__name">{level.name}</span>
+                    <span className="offer__state">
+                      {left === 0 ? 'Sold' : left === level.slots ? 'Open' : `${left} left`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
 
             <p className="race__cta">
-              <a className="btn btn--primary" href="/turkey-trot/sponsors">
-                See the sponsorship levels
+              <a className="btn btn--primary btn--lg" href="/turkey-trot/sponsors">
+                See what each level includes
               </a>
             </p>
           </div>
         </section>
 
+        <StripeBand />
         {/* ------------------------------------------------------------ faq */}
-        <section className="section" id="faq" aria-labelledby="faq-title">
+        <section className="section section--cream" id="faq" aria-labelledby="faq-title">
           <div className="shell">
             <p className="eyebrow">Questions</p>
             <h2 id="faq-title">Before you ask</h2>
