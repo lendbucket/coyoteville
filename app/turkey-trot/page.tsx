@@ -29,6 +29,7 @@ import {
   shirtsAvailableAt,
 } from '@/lib/race';
 import { HAS_LOGO, HAS_POSTER, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
+import { COURSE_MAP, COURSE_PNG, HAS_COURSE_PNG } from '@/lib/race-course';
 import { clockFor, getPublishedSponsors, getRace, getRaceCounts } from '@/lib/races';
 import { raceDates } from '@/lib/race-dates';
 import { OG_IMAGE, SITE_URL } from '@/lib/seo';
@@ -71,11 +72,15 @@ export async function generateMetadata(): Promise<Metadata> {
       description: description,
       url: CANONICAL,
       type: 'website',
-      /* The poster frame, which is a still of the thing happening. Falls back
-         to the site card rather than to a 404 when the file is not in yet. */
+      /* The poster frame first: a still of somebody running reads as an event
+         in a feed. The course map second, because a route anybody can
+         recognise is still better than a generic site card. The site card
+         last, so this is never a 404. */
       images: HAS_POSTER
         ? [{ url: `${SITE_URL}${RACE_OG_IMAGE}`, width: 1080, height: 1920 }]
-        : [OG_IMAGE],
+        : HAS_COURSE_PNG
+          ? [{ url: `${SITE_URL}${COURSE_PNG}` }]
+          : [OG_IMAGE],
     },
     twitter: {
       card: 'summary_large_image',
@@ -186,12 +191,28 @@ export default async function TurkeyTrotPage() {
               on it for the morning, and there are volunteers and officers at every turn.
             </p>
 
-            <div className="race__coursemap">
-              <p className="race__coursesoon">
-                The course map is being finalised with the city. It goes up here as soon as the
-                closure is signed off, and every runner registered gets it by email.
-              </p>
-            </div>
+            {COURSE_MAP ? (
+              /* Inlined, not an img. The draw animation and the reduced motion
+                 media query both live inside the file, and an img tag would
+                 isolate both: the route would never draw and the reduced
+                 motion rule would never reach anybody who needs it.
+
+                 The file already carries role="img" and an aria-label
+                 describing the course in words, so this wrapper adds no role,
+                 no label and no heading of its own. A second announcement
+                 would make a screen reader read the route twice. */
+              <div
+                className="race__coursemap"
+                dangerouslySetInnerHTML={{ __html: COURSE_MAP }}
+              />
+            ) : (
+              <div className="race__coursemap race__coursemap--soon">
+                <p className="race__coursesoon">
+                  The course map is being finalised with the city. It goes up here as soon as
+                  the closure is signed off, and every runner registered gets it by email.
+                </p>
+              </div>
+            )}
 
             <p className="formnote">
               The course is {race.distanceLabel} and is not USATF certified, so distances and

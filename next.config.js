@@ -182,6 +182,30 @@ const nextConfig = {
          photo directory has to be in its bundle. Same rule as the spot email's
          lot map, and the same caveat: a file added locally is not on the server
          until it is deployed. The route says so rather than sending without it. */
+      /* The course map, read off disk by lib/race-course and inlined into the
+         page. /turkey-trot is ISR, so it is rendered by a serverless function
+         on revalidation, and a file the tracer did not see is a file that
+         function does not have. That has gone wrong twice here already, with
+         pdfkit's standard fonts and with the lot map, and both times the first
+         symptom was a page that worked locally and 500ed in production.
+         check-traced-assets reads this list back out of the build manifest. */
+      '/turkey-trot': [
+        './public/course/turkey-trot-course.svg',
+        './public/course/turkey-trot-course.png',
+        './public/video/**',
+        './public/photos/turkey-trot-logo.png',
+      ],
+      /* The homepage block checks for the same video and logo before it
+         renders anything, so it needs them for the same reason. Harmless
+         while the page is fully static and correct the moment it is not,
+         which is a better trade than finding out from a block that
+         disappeared in production. */
+      /* Keyed /page, not /. These keys are globs matched against route
+         paths, and a bare / matches every route: with it, the course map
+         and the video land in all twenty odd function bundles instead of
+         the one page that reads them. Measured, not assumed, by reading
+         the manifests of three unrelated routes before and after. */
+      '/page': ['./public/video/**', './public/photos/turkey-trot-logo.png'],
       '/api/admin/compose': ['./public/photos/**'],
       '/api/admin/volunteer-waivers': [
         './lib/agreement/fonts/**',
