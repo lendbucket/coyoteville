@@ -156,6 +156,19 @@ const document: WaiverDocument = {
          deposition. The site currently collects both signatures so that the
          decision stays open.
 
+       START FROM THE VOLUNTEER WAIVER, NOT FROM A BLANK PAGE.
+
+       vol-v1.0-2026 went through counsel on this same Texas question and came
+       back approved. Whatever was decided there about a parent signing on a
+       minor's behalf is the starting point for this clause: the facts differ,
+       a road race is not a shift in a lot, but the law is the same law and the
+       reasoning has already been paid for once.
+
+       Robert's decision, 2026-10-22: minors stay in. The kid tier is where the
+       families come from, and the event insurance is the real protection
+       rather than this paragraph. That settles the product question above; it
+       does not settle the drafting one, which is still yours.
+
        Do not promote this version out of DRAFT until this clause has been
        answered specifically, not in general.
        ======================================================================== */

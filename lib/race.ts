@@ -70,9 +70,20 @@ export const TEAM_MIN_RUNNERS = 10;
 export const KID_MAX_AGE = 12;
 export const ADULT_MIN_AGE = 18;
 
+/**
+ * Money, with a thousand separator.
+ *
+ * The separator is not decoration. A title sponsorship rendered as $1500 reads
+ * as a smaller number than $1,500 at a glance, and the glance is what this page
+ * gets. Whole dollars drop the cents, because every price here is whole.
+ */
 export function dollars(cents: number): string {
   const safe = Number.isFinite(cents) ? Math.max(0, Math.round(cents)) : 0;
-  return safe % 100 === 0 ? `$${safe / 100}` : `$${(safe / 100).toFixed(2)}`;
+  const whole = safe % 100 === 0;
+  return `$${(safe / 100).toLocaleString('en-US', {
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: whole ? 0 : 2,
+  })}`;
 }
 
 /* -------------------------------------------------------------- the tiers */

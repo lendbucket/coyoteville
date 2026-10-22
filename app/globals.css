@@ -9091,3 +9091,116 @@ p {
 }
 .tt__cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0 0; }
 .tt__nights { margin: 16px 0 0; font-size: 0.9rem; color: var(--cream-70); }
+
+/* ============================================================
+   Turkey Trot sponsorship
+   ============================================================
+
+   Written to sell. The price is the second thing read after the name, the
+   benefits are a list rather than a paragraph, and a sold level stays on the
+   page looking sold: taking it down would make the sheet look thinner than it
+   is and hide the one fact that moves somebody onto the next level. */
+
+.sponsors__levels {
+  list-style: none;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  margin: 24px 0 0;
+  padding: 0;
+}
+
+.sponsors__level {
+  padding: 18px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+/* The title sponsorship. One of them, and it should look like it. */
+.sponsors__level.is-feature {
+  border-color: var(--ember);
+  border-width: 2px;
+  grid-column: 1 / -1;
+  background: linear-gradient(180deg, rgba(240, 169, 75, 0.1), #fff 60%);
+}
+
+/* Sold, and still on the page. */
+.sponsors__level.is-sold {
+  opacity: 0.6;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.sponsors__levelhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.sponsors__levelhead h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.sponsors__price {
+  font-family: var(--font-condensed);
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--rust);
+  white-space: nowrap;
+}
+
+.sponsors__left {
+  margin: 0 0 10px;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-70);
+}
+
+.sponsors__level.is-sold .sponsors__left {
+  color: var(--rust);
+  font-weight: 700;
+}
+
+.sponsors__benefits {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.sponsors__benefits li {
+  margin: 0 0 5px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------- the application */
+
+.sponsorform {
+  max-width: 44rem;
+  margin: 20px auto 0;
+  text-align: left;
+}
+
+.sponsorform--shut {
+  text-align: center;
+}
+
+/* What the selected level includes, under the picker, so the thing being
+   bought is on screen while the decision is being made. */
+.sponsorform__benefits {
+  margin: 0 0 20px;
+  padding: 12px 14px 12px 32px;
+  border-left: 3px solid var(--ember);
+  background: rgba(240, 169, 75, 0.1);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.sponsorform__benefits li {
+  margin: 0 0 5px;
+  font-size: 0.92rem;
+  color: var(--cream-70);
+}

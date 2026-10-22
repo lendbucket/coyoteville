@@ -218,3 +218,78 @@ export async function getPublishedSponsors(raceSlug: string): Promise<PublishedS
     return [];
   }
 }
+
+/* ------------------------------------------------- sponsorship counting */
+
+/**
+ * How many of each level are taken, and the two numbers Robert watches.
+ *
+ * Taken means paid. A level is not spoken for because somebody opened the form
+ * and walked away, and selling the same title sponsorship twice because an
+ * abandoned checkout was holding it is a worse failure than briefly showing it
+ * as available while somebody is paying.
+ *
+ * Committed is everything that is not refunded, paid or not. Collected is paid
+ * only. The two are different questions: committed is what has been agreed and
+ * collected is what is in the bank, and a sponsorship sheet that reports one as
+ * the other is how a budget goes wrong.
+ */
+export type SponsorStanding = {
+  takenByLevel: Record<string, number>;
+  committedCents: number;
+  collectedCents: number;
+  count: number;
+};
+
+export async function getSponsorStanding(raceSlug: string): Promise<SponsorStanding> {
+  const empty: SponsorStanding = {
+    takenByLevel: {},
+    committedCents: 0,
+    collectedCents: 0,
+    count: 0,
+  };
+
+  if (!isSupabaseConfigured()) return empty;
+
+  try {
+    const { data, error } = await getSupabaseAdmin()
+      .from('race_sponsors')
+      .select('level, amount_cents, payment_status')
+      .eq('race_slug', raceSlug);
+
+    if (error) throw error;
+
+    const rows = (data ?? []) as {
+      level: string;
+      amount_cents: number | null;
+      payment_status: string | null;
+    }[];
+
+    const standing: SponsorStanding = {
+      takenByLevel: {},
+      committedCents: 0,
+      collectedCents: 0,
+      count: 0,
+    };
+
+    for (const row of rows) {
+      const status = row.payment_status ?? 'unpaid';
+      if (status === 'refunded') continue;
+
+      const amount = Math.max(0, row.amount_cents ?? 0);
+      standing.committedCents += amount;
+      standing.count += 1;
+
+      const settled = status === 'paid' || status === 'not_required';
+      if (settled) {
+        standing.collectedCents += amount;
+        standing.takenByLevel[row.level] = (standing.takenByLevel[row.level] ?? 0) + 1;
+      }
+    }
+
+    return standing;
+  } catch (err) {
+    console.error('could not read the sponsor standing', raceSlug, err);
+    return empty;
+  }
+}

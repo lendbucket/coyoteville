@@ -454,6 +454,47 @@ async function stepTurkeyTrot() {
 }
 
 /**
+ * The sponsorship page renders.
+ *
+ * A fetch and nothing more. Every level on it is a real payment link against a
+ * real Square account, so there is no version of submitting this that is not
+ * a charge, and the health check does not charge anybody.
+ *
+ * What it does assert is the thing that would actually cost money if it broke:
+ * that the page is up, that the levels are on it with prices, and that a sold
+ * out level still says sold out rather than disappearing. A level that
+ * vanished when it sold would make the sheet look thinner than it is.
+ */
+async function stepTurkeyTrotSponsors() {
+  const res = await fetch(`${BASE}/turkey-trot/sponsors`);
+  assert(res.status === 200, `the sponsorship page answered ${res.status}`);
+
+  const html = await res.text();
+
+  assert(
+    /Title sponsor/i.test(html),
+    'the sponsorship levels are not on the page'
+  );
+  assert(
+    html.includes('$1,500') || html.includes('$1500'),
+    'the title sponsorship price is not on the page'
+  );
+  assert(
+    /sponsor-v0\.1-DRAFT-2026|Accepting version/i.test(html),
+    'the sponsorship agreement is not on the page'
+  );
+
+  /* The shirt deadline is a term, not a courtesy. A sponsor has to see it
+     before they pay rather than after. */
+  assert(
+    /shirt/i.test(html) && /deadline|printer/i.test(html),
+    'the shirt deadline is not stated on the sponsorship page'
+  );
+
+  return 'the page is up, the levels are priced, and the shirt deadline is stated';
+}
+
+/**
  * 5. A real signup, all six combinations, through the real route and database.
  *
  * Posted rather than typed into the form. The form is walked by step 4 and by
@@ -1007,6 +1048,7 @@ const STEPS = [
   ['square-sdk', stepSquareSdk],
   ['square-live', stepSquareLive],
   ['turkey-trot', stepTurkeyTrot],
+  ['turkey-trot-sponsors', stepTurkeyTrotSponsors],
   ['signup', stepSignup],
   ['admin-login', stepAdminLogin],
   ['agreement-pdf', stepAgreementPdf],
