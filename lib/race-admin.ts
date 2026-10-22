@@ -55,6 +55,10 @@ const RUNNER_COLUMNS = [
   'shirt_collected',
   'is_minor',
   'guardian_name',
+  'guardian_relationship',
+  'guardian_phone',
+  'guardian_email',
+  'minor_accompanied_by',
   'created_at',
 ].join(', ');
 
@@ -84,6 +88,11 @@ export type RunnerRow = {
   shirtCollected: boolean;
   isMinor: boolean;
   guardianName: string | null;
+  guardianRelationship: string | null;
+  guardianPhone: string | null;
+  guardianEmail: string | null;
+  /** The adult who will be on course with a runner under 12. */
+  minorAccompaniedBy: string | null;
 };
 
 export type GroupRow = {
@@ -187,6 +196,10 @@ export async function getRaceAdminView(raceSlug: string): Promise<RaceAdminView>
     shirtCollected: Boolean(r.shirt_collected),
     isMinor: Boolean(r.is_minor),
     guardianName: (r.guardian_name as string | null) ?? null,
+    guardianRelationship: (r.guardian_relationship as string | null) ?? null,
+    guardianPhone: (r.guardian_phone as string | null) ?? null,
+    guardianEmail: (r.guardian_email as string | null) ?? null,
+    minorAccompaniedBy: (r.minor_accompanied_by as string | null) ?? null,
   }));
 
   /* Counts per tier. Registered is everything not refunded, because a refunded
@@ -403,6 +416,12 @@ export const RUNNER_EXPORT_HEADERS = [
   'City',
   'State',
   'Checked in',
+  /* A runner under 18 has a guardian who may not be standing there, and a
+     runner under 12 is supposed to have a named adult on course with them.
+     Both belong on the sheet somebody is holding at the table. */
+  'Guardian phone',
+  'Guardian email',
+  'Accompanied by',
 ] as const;
 
 export function runnersCsv(view: RaceAdminView): string {
@@ -426,6 +445,9 @@ export function runnersCsv(view: RaceAdminView): string {
         r.city ?? '',
         r.state ?? '',
         r.checkedInAt ? 'Yes' : 'No',
+        r.guardianPhone ?? '',
+        r.guardianEmail ?? '',
+        r.minorAccompaniedBy ?? '',
       ]
         .map(cell)
         .join(',')

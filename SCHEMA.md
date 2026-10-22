@@ -99,8 +99,11 @@ race_registrations
   addon_cents, donation_cents, amount_cents, payment_status,
   square_order_id, square_payment_id, paid_at, bib_number, checked_in_at,
   shirt_collected, is_minor, guardian_name, guardian_signature_name,
+  guardian_relationship, guardian_phone, guardian_email,
+  minor_accompanied_by, fitness_certified,
   waiver_accepted, waiver_version, signature_name, signed_at, signer_ip,
-  signer_user_agent, admin_notes, created_at, updated_at
+  signer_user_agent, media_release_accepted, media_release_version,
+  admin_notes, created_at, updated_at
 
 race_sponsors
   id, race_slug, level, business_name, contact_name, email, phone,
@@ -231,17 +234,53 @@ then demands.
 
 ```requires
 race_registrations.is_minor = true
-  guardian_name, guardian_signature_name
+  guardian_name, guardian_signature_name, guardian_relationship,
+  guardian_phone, guardian_email
+
+race_registrations.waiver_accepted = true
+  signature_name, signed_at, waiver_version
+
+race_registrations.media_release_accepted = true
+  media_release_version
 
 race_sponsors.agreement_accepted = true
   agreement_version, signature_name, signed_at
 ```
 
 `race_registrations_minor_guardian` is what stops a runner under 18 being
-registered with nobody standing behind the waiver. `race_sponsors_agreement_signed`
-is the same shape for a business: accepting the sponsorship agreement without a
-version, a name and a time is an acceptance nobody can produce later, which for
-a fifteen hundred dollar commitment is the whole reason the record exists.
+registered with nobody standing behind the waiver. It grew on 2026-10-22 to
+require `guardian_relationship`, `guardian_phone` and `guardian_email` as well:
+a guardian who cannot be reached is not much of a guardian at seven in the
+morning with a queue behind you.
+
+`race_sponsors_agreement_signed` is the same shape for a business. Accepting the
+sponsorship agreement without a version, a name and a time is an acceptance
+nobody can produce later, which for a fifteen hundred dollar commitment is the
+whole reason the record exists.
+
+`waiver_accepted` and `media_release_accepted` are the same rule again, and the
+most important instance of it. A registration that reads as signed in the
+tracker but carries no name, no timestamp and no version is worse than an
+unsigned one, because nobody looks at it twice.
+
+### One constraint this block cannot express
+
+```
+race_registrations_under12_accompanied:
+  age_on_race_day IS NULL
+  OR age_on_race_day >= 12
+  OR minor_accompanied_by IS NOT NULL
+```
+
+The block above matches a column against one literal value. This constraint
+triggers on a comparison rather than an equality, so the gate cannot read it and
+does not pretend to. It is enforced by Postgres, and the form has to validate it
+with a clear message rather than letting the insert fail: a ten year old whose
+registration is refused at the last step by error 23514 is a parent who gives up.
+
+`minor_accompanied_by` is the adult who will be on course with the child, named
+by the guardian. It is on the check-in CSV, because if a ten year old is out
+there the person at the table needs to know who is supposed to be with them.
 
 `denied` and `cancelled` are both on `approval_status` and are not
 interchangeable. `denied` is a decision somebody made and it refunds.

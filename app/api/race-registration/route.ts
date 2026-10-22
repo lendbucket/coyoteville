@@ -51,6 +51,10 @@ type RunnerInput = {
   emergency_contact_name?: unknown;
   emergency_contact_phone?: unknown;
   guardian_name?: unknown;
+  guardian_relationship?: unknown;
+  guardian_phone?: unknown;
+  guardian_email?: unknown;
+  minor_accompanied_by?: unknown;
 };
 
 function str(value: unknown, max = 200): string {
@@ -141,6 +145,10 @@ export async function POST(request: Request) {
     emergencyName: string;
     emergencyPhone: string;
     guardianName: string;
+    guardianRelationship: string;
+    guardianPhone: string;
+    guardianEmail: string;
+    minorAccompaniedBy: string;
   };
 
   const runners: Prepared[] = [];
@@ -166,6 +174,10 @@ export async function POST(request: Request) {
 
     const minor = isMinorAge(age);
     const guardianName = str(raw.guardian_name, 120);
+    const guardianRelationship = str(raw.guardian_relationship, 60);
+    const guardianPhone = str(raw.guardian_phone, 40);
+    const guardianEmail = str(raw.guardian_email, 160);
+    const minorAccompaniedBy = str(raw.minor_accompanied_by, 160);
 
     /* race_registrations_minor_guardian refuses a minor row without both of
        these. Checked here so the message names the runner. */
@@ -189,6 +201,10 @@ export async function POST(request: Request) {
       emergencyName,
       emergencyPhone,
       guardianName,
+      guardianRelationship,
+      guardianPhone,
+      guardianEmail,
+      minorAccompaniedBy,
     });
   }
 
@@ -316,6 +332,14 @@ export async function POST(request: Request) {
     shirt_collected: false,
     is_minor: runner.isMinor,
     guardian_name: runner.guardianName || null,
+    guardian_relationship: runner.isMinor ? runner.guardianRelationship || null : null,
+    guardian_phone: runner.isMinor ? runner.guardianPhone || null : null,
+    guardian_email: runner.isMinor ? runner.guardianEmail || null : null,
+    /* Under 12 only. race_registrations_under12_accompanied is the one
+       constraint the schema gate cannot read, because it triggers on a
+       comparison rather than an equality, so this is the write it is
+       guarding and the form validates it before we get here. */
+    minor_accompanied_by: runner.minorAccompaniedBy || null,
     guardian_signature_name: runner.isMinor ? guardianSignatureName : null,
     waiver_accepted: true,
     waiver_version: race.waiverVersion,

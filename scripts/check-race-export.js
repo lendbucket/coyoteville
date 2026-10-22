@@ -84,7 +84,7 @@ const runner = {
   lastName: 'Ybarra',
   email: 'dana@example.com',
   phone: '361-555-0101',
-  ageOnRaceDay: 34,
+  ageOnRaceDay: 10,
   gender: 'F',
   city: 'Alice',
   state: 'TX',
@@ -100,8 +100,12 @@ const runner = {
   bibNumber: 7,
   checkedInAt: '2026-11-14T12:10:00Z',
   shirtCollected: true,
-  isMinor: false,
-  guardianName: null,
+  isMinor: true,
+  guardianName: 'Rosa Ybarra',
+  guardianRelationship: 'Mother',
+  guardianPhone: '361-555-0177',
+  guardianEmail: 'rosa@example.com',
+  minorAccompaniedBy: 'Marta Delgado, aunt'
 };
 
 const view = {
@@ -165,7 +169,19 @@ if (!view.runners[0].medicalNotes) {
 /* And the sheet has to still be useful: the emergency contact IS meant to be on
    it. A gate that passed by exporting nothing would be no good either. */
 const runnersCsv = exports_[0].csv;
-for (const required of ['Ybarra', 'Rosa Ybarra', '361-555-0199', '7']) {
+for (const required of [
+  'Ybarra',
+  'Rosa Ybarra',
+  '361-555-0199',
+  '7',
+  /* The guardian's own contact, and the adult who will be on course with a
+     runner under 12. If a ten year old is out there the person at the table
+     needs both, and a sheet that silently dropped them would still have passed
+     every other assertion here. */
+  '361-555-0177',
+  'rosa@example.com',
+  'Marta Delgado, aunt',
+]) {
   if (!runnersCsv.includes(required)) {
     failures.push(
       `the runner export is missing ${JSON.stringify(required)}.\n` +

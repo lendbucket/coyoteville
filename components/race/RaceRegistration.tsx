@@ -45,6 +45,11 @@ type Runner = {
   emergencyPhone: string;
   /** Required by the database for anybody under 18. */
   guardianName: string;
+  guardianRelationship: string;
+  guardianPhone: string;
+  guardianEmail: string;
+  /** Required under 12: the adult who will be on course with them. */
+  minorAccompaniedBy: string;
 };
 
 function blankRunner(): Runner {
@@ -57,6 +62,10 @@ function blankRunner(): Runner {
     emergencyName: '',
     emergencyPhone: '',
     guardianName: '',
+    guardianRelationship: '',
+    guardianPhone: '',
+    guardianEmail: '',
+    minorAccompaniedBy: '',
   };
 }
 
@@ -213,6 +222,26 @@ export default function RaceRegistration({
          form says so here rather than letting the insert fail with 23514 after
          somebody has filled the whole thing in. */
       const age = ages[i];
+      if (age !== null && isMinorAge(age)) {
+        /* Every column race_registrations_minor_guardian requires, checked here
+           so the row is never refused by Postgres at the last step. */
+        const want = [
+          [runner.guardianRelationship, 'the guardian relationship'],
+          [runner.guardianPhone, 'a guardian phone number'],
+          [runner.guardianEmail, 'a guardian email'],
+        ] as const;
+
+        for (const [value, label] of want) {
+          if (!value.trim()) {
+            return `${runner.firstName || 'Runner ' + (i + 1)} is under ${ADULT_MIN_AGE}, so ${label} is required.`;
+          }
+        }
+
+        if (age < KID_MAX_AGE && !runner.minorAccompaniedBy.trim()) {
+          return `${runner.firstName || 'Runner ' + (i + 1)} is under ${KID_MAX_AGE}, so name the adult who will be on course with them.`;
+        }
+      }
+
       if (age !== null && isMinorAge(age) && !runner.guardianName.trim()) {
         out.push(
           `${who} is ${age} on race day, so a parent or guardian name is required.`
@@ -279,6 +308,10 @@ export default function RaceRegistration({
             emergency_contact_name: r.emergencyName || emergencyName,
             emergency_contact_phone: r.emergencyPhone || emergencyPhone,
             guardian_name: r.guardianName,
+            guardian_relationship: r.guardianRelationship,
+            guardian_phone: r.guardianPhone,
+            guardian_email: r.guardianEmail,
+            minor_accompanied_by: r.minorAccompaniedBy,
           })),
           bib_name: bibName,
           extra_medals: Math.max(0, extraMedals),
@@ -496,6 +529,10 @@ export default function RaceRegistration({
         {runners.map((runner, i) => {
           const age = ages[i];
           const minor = age !== null && isMinorAge(age);
+          /* Under 12 on race day, which race_registrations_under12_accompanied
+             refuses without a named adult. Strictly under 12: a runner who is
+             exactly 12 is not covered by it. */
+          const underTwelve = age !== null && age < KID_MAX_AGE;
 
           return (
             <div className="racereg__runner" key={i}>
@@ -594,7 +631,7 @@ export default function RaceRegistration({
               {minor ? (
                 <div className="field racereg__guardian">
                   <label className="label" htmlFor={`${uid}-guard-${i}`}>
-                    Parent or guardian name <span className="req">*</span>
+                    Parent or guardian full legal name <span className="req">*</span>
                   </label>
                   <input
                     className="input"
@@ -602,9 +639,73 @@ export default function RaceRegistration({
                     value={runner.guardianName}
                     onChange={(e) => setRunner(i, { guardianName: e.target.value })}
                   />
+
+                  <div className="grid2">
+                    <div className="field">
+                      <label className="label" htmlFor={`${uid}-grel-${i}`}>
+                        Relationship to the runner <span className="req">*</span>
+                      </label>
+                      <input
+                        className="input"
+                        id={`${uid}-grel-${i}`}
+                        value={runner.guardianRelationship}
+                        onChange={(e) => setRunner(i, { guardianRelationship: e.target.value })}
+                      />
+                    </div>
+                    <div className="field">
+                      <label className="label" htmlFor={`${uid}-gph-${i}`}>
+                        Guardian phone <span className="req">*</span>
+                      </label>
+                      <input
+                        className="input"
+                        id={`${uid}-gph-${i}`}
+                        type="tel"
+                        inputMode="tel"
+                        value={runner.guardianPhone}
+                        onChange={(e) => setRunner(i, { guardianPhone: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="field">
+                    <label className="label" htmlFor={`${uid}-gem-${i}`}>
+                      Guardian email <span className="req">*</span>
+                    </label>
+                    <input
+                      className="input"
+                      id={`${uid}-gem-${i}`}
+                      type="email"
+                      inputMode="email"
+                      value={runner.guardianEmail}
+                      onChange={(e) => setRunner(i, { guardianEmail: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Under 12 only. The database refuses the row without it, so
+                      it is validated here with a sentence somebody can act on
+                      rather than left to come back as error 23514 at the last
+                      step, which is a parent who gives up. */}
+                  {underTwelve ? (
+                    <div className="field">
+                      <label className="label" htmlFor={`${uid}-acc-${i}`}>
+                        Adult on course with them <span className="req">*</span>
+                      </label>
+                      <input
+                        className="input"
+                        id={`${uid}-acc-${i}`}
+                        value={runner.minorAccompaniedBy}
+                        onChange={(e) => setRunner(i, { minorAccompaniedBy: e.target.value })}
+                      />
+                      <span className="hint">
+                        A runner under 12 has to be accompanied on course at all times by the
+                        parent or guardian, or by an adult the guardian names here.
+                      </span>
+                    </div>
+                  ) : null}
+
                   <span className="hint">
-                    Required for anybody under {ADULT_MIN_AGE} on race day. A parent or guardian
-                    also signs at the bottom.
+                    Required for anybody under {ADULT_MIN_AGE} on race day. The parent or
+                    guardian signs at the bottom, not the runner.
                   </span>
                 </div>
               ) : null}
