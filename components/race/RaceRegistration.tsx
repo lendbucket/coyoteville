@@ -17,7 +17,6 @@ import {
   shirtsAvailableAt,
   type RaceClock,
 } from '@/lib/race';
-import { RACE_WAIVER, RACE_WAIVER_IS_DRAFT, RACE_WAIVER_VERSION } from '@/lib/race-waiver/current';
 
 /**
  * Registration, three ways.
@@ -79,6 +78,7 @@ export default function RaceRegistration({
   remaining,
   closed,
   morningOpens,
+  waiverVersion,
 }: {
   raceSlug: string;
   clock: RaceClock;
@@ -89,6 +89,15 @@ export default function RaceRegistration({
   closed: boolean;
   /** The race morning lot opening, off its event row. Null if unreadable. */
   morningOpens?: string | null;
+  /**
+   * The version string only, never the text.
+   *
+   * The documents are rendered by the server elsewhere on the page. A client
+   * component that imported them pulled the whole instrument into the bundle,
+   * and taking it as a prop would have put the same bytes in the flight
+   * payload instead. Forty characters is the entire client side need.
+   */
+  waiverVersion: string;
 }) {
   const uid = useId();
 
@@ -119,7 +128,14 @@ export default function RaceRegistration({
 
   const [waiverAccepted, setWaiverAccepted] = useState(false);
   const [signature, setSignature] = useState('');
-  const [guardianSignature, setGuardianSignature] = useState('');
+  /* One acknowledgment per document, which is how Article 14.2 defines the
+     signature: the boxes, the typed name and the button together. The Media
+     Release and the fitness certification get their own columns because they
+     are executed separately in the paper document and 7.1 is a
+     representation rather than part of the release. */
+  const [mediaAccepted, setMediaAccepted] = useState(false);
+  const [fitnessCertified, setFitnessCertified] = useState(false);
+  const [guardianAccepted, setGuardianAccepted] = useState(false);
 
   const shirtsOpen = shirtsAvailableAt(clock, nowMs);
 
@@ -251,8 +267,8 @@ export default function RaceRegistration({
 
     if (!waiverAccepted) out.push('Read and accept the waiver.');
     if (!signature.trim()) out.push('Type your name to sign.');
-    if (anyMinor && !guardianSignature.trim()) {
-      out.push('A parent or guardian has to sign separately for any runner under 18.');
+    if (anyMinor && !guardianAccepted) {
+      out.push('A parent or guardian has to accept the Guardian Addendum.');
     }
 
     return out;
@@ -269,7 +285,9 @@ export default function RaceRegistration({
     emergencyPhone,
     waiverAccepted,
     signature,
-    guardianSignature,
+    guardianAccepted,
+    mediaAccepted,
+    fitnessCertified,
   ]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -318,10 +336,16 @@ export default function RaceRegistration({
           parking_pass: parkingPass,
           food_voucher: foodVoucher,
           donation: donation,
+          /* All three documents, in one submit. A half signed registration
+             is worse than none, because it reads as signed in the tracker. */
           waiver_accepted: waiverAccepted,
-          waiver_version: RACE_WAIVER_VERSION,
+          media_release_accepted: mediaAccepted,
+          fitness_certified: fitnessCertified,
+          waiver_version: waiverVersion,
           signature_name: signature,
-          guardian_signature_name: guardianSignature,
+          /* Article 16: a minor never signs. The one typed name is the
+             guardian’s and it lands in both columns. */
+          guardian_signature_name: anyMinor ? signature : null,
         }),
       });
 
@@ -349,8 +373,20 @@ export default function RaceRegistration({
     }
   }
 
+  /* What the signature still needs, for the line under the button and for
+     the disabled state. Article 14.2 makes the boxes, the name and the click
+     one act, so the button is not offered until all of them are there. */
+  const missing: string[] = [];
+  if (!waiverAccepted) missing.push('the Participant Agreement');
+  if (!mediaAccepted) missing.push('the Media Release');
+  if (!fitnessCertified) missing.push('the fitness certification');
+  if (anyMinor && !guardianAccepted) missing.push('the Guardian Addendum');
+  if (!signature.trim()) missing.push('your full legal name');
+
+  const canSign = missing.length === 0;
+
   if (closed) {
-    return (
+  return (
       <div className="racereg racereg--shut">
         <h3>Registration is closed</h3>
         <p className="lede">
@@ -904,38 +940,23 @@ export default function RaceRegistration({
       </div>
 
       {/* ----------------------------------------------------------- the waiver */}
+      {/* ------------------------------------------------- the signing block */}
+
+      {/* Article 14.2: checking the acknowledgments, typing the full legal
+          name and clicking the button TOGETHER constitute the electronic
+          signature. All three documents are signed by this one action.
+
+          The documents themselves are rendered by the server, above, and are
+          reached from here by anchor rather than by shared state, so no part
+          of the instrument enters this bundle. */}
       <fieldset className="racereg__block racereg__waiver">
-        <legend>The waiver</legend>
+        <legend>Sign</legend>
 
-        {RACE_WAIVER_IS_DRAFT ? (
-          <p className="formnote formnote--error">
-            This waiver is a draft and has not been reviewed by a lawyer yet. It is on the page
-            so you can read exactly what you are being asked to sign.
-          </p>
-        ) : null}
-
-        <div className="racereg__waivertext">
-          {RACE_WAIVER.map((block, i) => {
-            if (block.kind === 'heading') return <h4 key={i}>{block.text}</h4>;
-            if (block.kind === 'conspicuous') {
-              return (
-                <p key={i} className="racereg__conspicuous">
-                  {block.text}
-                </p>
-              );
-            }
-            if (block.kind === 'list') {
-              return (
-                <ul key={i}>
-                  {(block.items ?? []).map((item, j) => (
-                    <li key={j}>{item}</li>
-                  ))}
-                </ul>
-              );
-            }
-            return <p key={i}>{block.text}</p>;
-          })}
-        </div>
+        <p className="hint">
+          Checking these boxes, typing your full legal name and clicking the button together
+          are your electronic signature, under Article 14.2. One signature covers all three
+          documents.
+        </p>
 
         <label className="check">
           <input
@@ -944,41 +965,93 @@ export default function RaceRegistration({
             onChange={(e) => setWaiverAccepted(e.target.checked)}
           />
           <span>
-            I have read all of it, I understand I am giving up legal rights, and I agree to it.
+            I have read and agree to the{' '}
+            <a href="#waiver-participant-agreement">Participant Agreement</a>, including the
+            release and indemnity for the Released Parties’ own negligence
           </span>
         </label>
 
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={mediaAccepted}
+            onChange={(e) => setMediaAccepted(e.target.checked)}
+          />
+          <span>
+            I grant the <a href="#waiver-media-release">Photograph, Video and Media Release</a>
+          </span>
+        </label>
+
+        {/* Section 7.1. A representation the Released Parties rely on, not
+            part of the release, so it is its own box and its own column. */}
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={fitnessCertified}
+            onChange={(e) => setFitnessCertified(e.target.checked)}
+          />
+          <span>I certify I am physically fit to participate</span>
+        </label>
+
+        {anyMinor ? (
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={guardianAccepted}
+              onChange={(e) => setGuardianAccepted(e.target.checked)}
+            />
+            <span>
+              I am the parent or legal guardian and I agree to the{' '}
+              <a href="#waiver-guardian-addendum">Parent or Legal Guardian Addendum</a> on this
+              minor’s behalf and my own
+            </span>
+          </label>
+        ) : null}
+
+        {/* Article 16: the signer is at least 18, or is the parent or guardian
+            signing for a minor. A minor never signs, so when anybody on this
+            registration is under 18 every label here is the guardian’s and the
+            typed name is theirs. A child is never shown a field asking for
+            their signature. */}
         <div className="field">
           <label className="label" htmlFor={`${uid}-sig`}>
-            Type your full name to sign <span className="req">*</span>
+            {anyMinor
+              ? 'Parent or guardian, type your full legal name'
+              : 'Type your full legal name'}{' '}
+            <span className="req">*</span>
           </label>
           <input
             className="input"
             id={`${uid}-sig`}
             value={signature}
             onChange={(e) => setSignature(e.target.value)}
+            autoComplete="name"
           />
+          {anyMinor ? (
+            <span className="hint">
+              At least one runner is under {ADULT_MIN_AGE} on race day, so the signature is the
+              parent or guardian’s. The runner does not sign.
+            </span>
+          ) : null}
         </div>
 
-        {anyMinor ? (
-          <div className="field racereg__guardian">
-            <label className="label" htmlFor={`${uid}-gsig`}>
-              Parent or guardian, type your full name to sign <span className="req">*</span>
-            </label>
-            <input
-              className="input"
-              id={`${uid}-gsig`}
-              value={guardianSignature}
-              onChange={(e) => setGuardianSignature(e.target.value)}
-            />
-            <span className="hint">
-              Required because at least one runner is under {ADULT_MIN_AGE} on race day. This is a
-              separate signature from the one above.
+        {/* Typed, and shown as typed. No cursive face, no canvas, no ink.
+            Dressing a typed name as a drawn signature invites an argument
+            about what the signer thought they were doing. */}
+        {signature.trim() ? (
+          <p className="racereg__typed">
+            <span className="racereg__typedname">{signature.trim()}</span>
+            <span className="racereg__typedmeta">
+              Typed signature, version {waiverVersion}
             </span>
-          </div>
+          </p>
         ) : null}
 
-        <p className="hint">Signing version {RACE_WAIVER_VERSION}.</p>
+        {missing.length ? (
+          <p className="formnote" aria-live="polite">
+            Still needed: {missing.join(', ')}.
+          </p>
+        ) : null}
       </fieldset>
 
       {error ? (
@@ -987,7 +1060,11 @@ export default function RaceRegistration({
         </p>
       ) : null}
 
-      <button className="btn btn--primary btn--lg" type="submit" disabled={status === 'sending'}>
+      <button
+        className="btn btn--primary btn--lg"
+        type="submit"
+        disabled={status === 'sending' || !canSign}
+      >
         {status === 'sending'
           ? 'Sending'
           : quote.total > 0

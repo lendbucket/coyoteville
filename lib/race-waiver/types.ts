@@ -8,9 +8,17 @@
  */
 
 export type WaiverBlock = {
-  kind: 'heading' | 'paragraph' | 'list' | 'conspicuous';
+  kind: 'heading' | 'paragraph' | 'list' | 'conspicuous' | 'document';
   text?: string;
   items?: string[];
+  /**
+   * Anchor, on a 'document' block only.
+   *
+   * race-v1.0-2026 is three documents in one instrument, each executed by its
+   * own acknowledgment, and each acknowledgment checkbox links to its text. The
+   * id is what it links to.
+   */
+  id?: string;
 };
 
 export type WaiverDocument = {
@@ -22,6 +30,41 @@ export type WaiverDocument = {
   isDraft: boolean;
   blocks: WaiverBlock[];
 };
+
+export type WaiverPart = {
+  id: string;
+  title: string;
+  blocks: WaiverBlock[];
+};
+
+/**
+ * The instrument split into the documents it contains.
+ *
+ * A 'document' block starts a new one. A version with no such block, which is
+ * every version before v1.0, comes back as a single part so the renderer does
+ * not need to care which shape it was handed.
+ */
+export function waiverParts(doc: WaiverDocument): WaiverPart[] {
+  const parts: WaiverPart[] = [];
+
+  for (const block of doc.blocks) {
+    if (block.kind === 'document') {
+      parts.push({
+        id: block.id ?? String(parts.length),
+        title: block.text ?? '',
+        blocks: [],
+      });
+      continue;
+    }
+
+    if (!parts.length) {
+      parts.push({ id: 'agreement', title: '', blocks: [] });
+    }
+    parts[parts.length - 1].blocks.push(block);
+  }
+
+  return parts;
+}
 
 /** Numbered sections, counted from the text rather than typed as a literal. */
 export function sectionCount(doc: WaiverDocument): number {

@@ -21,6 +21,7 @@ import {
 } from '@/lib/race';
 import { clockFor, getRace, getRaceCounts } from '@/lib/races';
 import { raceDates } from '@/lib/race-dates';
+import { RACE_WAIVER_VERSION } from '@/lib/race-waiver/current';
 import { createRacePaymentLink, raceGroupReferenceId, raceReferenceId } from '@/lib/race-payment-link';
 import { sendRaceAlert, sendRaceConfirmation } from '@/lib/race-alert';
 import { supportEmail } from '@/lib/support';
@@ -50,6 +51,8 @@ type RunnerInput = {
   shirt_size?: unknown;
   emergency_contact_name?: unknown;
   emergency_contact_phone?: unknown;
+  media_release_accepted?: unknown;
+  fitness_certified?: unknown;
   guardian_name?: unknown;
   guardian_relationship?: unknown;
   guardian_phone?: unknown;
@@ -123,10 +126,14 @@ export async function POST(request: Request) {
   const captainEmergencyPhone = str(body.emergency_contact_phone, 32);
 
   const waiverAccepted = body.waiver_accepted === true;
+  const mediaAccepted = body.media_release_accepted === true;
+  const fitnessCertified = body.fitness_certified === true;
   const signatureName = str(body.signature_name, 120);
   const guardianSignatureName = str(body.guardian_signature_name, 120);
 
-  if (!waiverAccepted) return bad('The waiver has to be accepted.');
+  if (!waiverAccepted) return bad('The Participant Agreement has to be accepted.');
+  if (!mediaAccepted) return bad('The Media Release has to be granted.');
+  if (!fitnessCertified) return bad('The fitness certification has to be accepted.');
   if (!signatureName) return bad('Type your name to sign the waiver.');
 
   const shirtsOpen = shirtsAvailableAt(clock, now);
@@ -342,7 +349,10 @@ export async function POST(request: Request) {
     minor_accompanied_by: runner.minorAccompaniedBy || null,
     guardian_signature_name: runner.isMinor ? guardianSignatureName : null,
     waiver_accepted: true,
-    waiver_version: race.waiverVersion,
+    waiver_version: RACE_WAIVER_VERSION,
+    media_release_accepted: true,
+    media_release_version: RACE_WAIVER_VERSION,
+    fitness_certified: true,
     signature_name: signatureName,
     signed_at: nowISO,
     signer_ip: ip,

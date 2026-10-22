@@ -8,15 +8,24 @@
  * Bumping the waiver means: add a file under versions/, point this at it, add
  * it to the registry. Never edit a version file in place.
  */
-import currentDocument from './versions/race-v0-1-draft-2026';
-import { sectionCount } from './types';
+import currentDocument from './versions/race-v1-0-2026';
+import { sectionCount, waiverParts } from './types';
 
 export { currentDocument };
-export type { WaiverBlock, WaiverDocument } from './types';
+export type { WaiverBlock, WaiverDocument, WaiverPart } from './types';
 
 export const RACE_WAIVER_VERSION = currentDocument.version;
 export const RACE_WAIVER = currentDocument.blocks;
 export const RACE_WAIVER_SECTION_COUNT = sectionCount(currentDocument);
+
+/**
+ * The three documents this instrument contains, each with its own anchor.
+ *
+ * The signing block renders one acknowledgment per part and links each
+ * checkbox to its text, because each is executed on its own signature block in
+ * the paper document rather than being one agreement in three chapters.
+ */
+export const RACE_WAIVER_PARTS = waiverParts(currentDocument);
 
 /**
  * True while this text has not been through counsel.

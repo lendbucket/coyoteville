@@ -504,24 +504,72 @@ async function main() {
           broken.length ? broken.join('; ') : `${links.length} links, all resolve`
         );
 
-        /* ---- the forms are present and submittable ---- */
+        /* ---- the forms are present, and gate on being complete ---- */
+
         const form = await page.evaluate(() => {
           const f = document.querySelector('form');
           if (!f) return { present: false };
-          const submit = f.querySelector('button[type="submit"], button:not([type])');
+          const submit = f.querySelector('button[type="submit"]');
           return {
             present: true,
             submit: !!submit,
-            submitDisabled: submit ? submit.disabled : null,
+            disabledWhenEmpty: submit ? submit.disabled : null,
             fields: f.querySelectorAll('input, select, textarea').length,
+            boxes: f.querySelectorAll('input[type="checkbox"]').length,
           };
         });
+
         record(
-          `${label}: a form is present with a working submit`,
-          form.present && form.submit && form.submitDisabled === false,
+          `${label}: a form is present with a submit button`,
+          form.present && form.submit,
           JSON.stringify(form)
         );
 
+        if (route === '/turkey-trot' && form.present) {
+          /* Article 14.2 makes the boxes, the typed name and the click one
+             act, so the button must not be offered until all of them are
+             there. Disabled, not failing on submit: a button that looks ready
+             and then refuses is a trap at the last step before payment. */
+          record(
+            `${label}: signing is disabled until it is complete`,
+            form.disabledWhenEmpty === true,
+            `disabled with nothing filled: ${form.disabledWhenEmpty}`
+          );
+
+          /* Fill it in and confirm it opens up. Nothing is submitted. */
+          const afterFilling = await page.evaluate(() => {
+            const f = document.querySelector('form');
+            const boxes = [...f.querySelectorAll('input[type="checkbox"]')];
+            for (const b of boxes) {
+              if (!b.checked) {
+                b.click();
+              }
+            }
+            const name = f.querySelector('input[autocomplete="name"]');
+            if (name) {
+              const setter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype,
+                'value'
+              ).set;
+              setter.call(name, 'Dana Ybarra');
+              name.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            return { nameField: !!name, boxes: boxes.length };
+          });
+
+          await new Promise((r) => setTimeout(r, 400));
+
+          const nowEnabled = await page.evaluate(() => {
+            const submit = document.querySelector('form button[type="submit"]');
+            return submit ? !submit.disabled : null;
+          });
+
+          record(
+            `${label}: signing enables once the boxes and the name are in`,
+            nowEnabled === true,
+            `after checking ${afterFilling.boxes} boxes and typing a name: enabled ${nowEnabled}`
+          );
+        }
         /* ---- page specific ---- */
         if (route === '/turkey-trot') {
           const bits = await page.evaluate(() => {
@@ -538,8 +586,35 @@ async function main() {
              * So the text is split into sentences, and the phrase only counts
              * as claimed if a sentence containing it is not negating it.
              */
+            /* The page's own copy, excluding the waiver panel.
+
+               The instrument quoted on this page is a legal document, and
+               the Media Release grants rights to use a participant's "FINISH
+               TIME, RESULTS" among other categories of likeness. That is the
+               document describing what it may do with a result if there is
+               one, not the page promising a timed race, and scanning it for
+               marketing claims fails the page for its own waiver.
+
+               The exclusion is one container and nothing else, and it is not
+               a hole: every word in it is verified verbatim against the
+               executed PDF by check-waiver-transcription, which is a stricter
+               test than this one. */
+            const pageText = (() => {
+              const skip = [...document.querySelectorAll('.racedocs, .racereg__waivertext')];
+              const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+              const out = [];
+              while (walker.nextNode()) {
+                const node = walker.currentNode;
+                const parent = node.parentElement;
+                if (parent && skip.some((s) => s.contains(parent))) continue;
+                const t = node.textContent.trim();
+                if (t) out.push(t);
+              }
+              return out.join(' ');
+            })();
+
             const claim = (phrase) => {
-              const text = document.body.innerText.replace(/\s+/g, ' ');
+              const text = pageText.replace(/\s+/g, ' ');
               const sentences = text.split(/(?<=[.!?])\s+/);
               const re = new RegExp(phrase, 'i');
               const hits = sentences.filter((s) => re.test(s));
@@ -621,7 +696,7 @@ async function main() {
                 }
               : null;
 
-            const text = document.body.innerText;
+            const text = pageText;
 
             return {
               mapInlined: !!map,
@@ -758,6 +833,36 @@ async function main() {
       );
     }
 
+    /* ---- the waiver is in the served markup ---- */
+
+    {
+      /* Three phrases, one per document, from the executed text. Each has to
+         be in the HTML, because the whole point is that a signer can read
+         what they are signing before they sign it.
+
+         There was a second assertion here, that none of it appears in the
+         flight payload, and it was wrong. The App Router serializes the
+         whole server rendered tree into self.__next_f so a client side
+         navigation can rebuild the page, so correctly server rendered text is
+         in the payload as well. It failed against the right architecture,
+         which made it a bad check rather than a finding. What the payload
+         cannot tell you, the bundle and the import graph can: see
+         check-waiver-not-bundled. */
+      const PHRASES = [
+        'being struck by a motor vehicle can cause catastrophic injury or death',
+        'SUBLICENSABLE, AND TRANSFERABLE RIGHT AND LICENSE',
+        'must be accompanied on the course at all times by',
+      ];
+
+      const html = await (await fetch(BASE + '/turkey-trot')).text();
+      const inMarkup = PHRASES.filter((x) => html.includes(x)).length;
+
+      record(
+        'waiver: all three documents are in the served markup',
+        inMarkup === PHRASES.length,
+        `${inMarkup} of ${PHRASES.length} phrases present`
+      );
+    }
     /* ---- the ad loop defers the video download ---- */
 
     {

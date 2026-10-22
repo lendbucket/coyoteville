@@ -1,18 +1,23 @@
 import 'server-only';
 import type { WaiverDocument } from './types';
 import v0_1 from './versions/race-v0-1-draft-2026';
+import v1_0 from './versions/race-v1-0-2026';
 
 /**
  * Every version of the race waiver anybody has ever signed.
  *
- * One entry today, and the directory exists from the first commit rather than
+ * Two entries. v0.1 was never signed by anybody, and it stays anyway: a version
+ * directory that deletes what it no longer serves is not a record. v1.0 is the
+ * executed document.
+ *
+ * The directory existed from the first commit rather than
  * from the first bump. The program terms got a versions directory only after a
  * rename had already changed the text under rows that had signed the old
  * wording, which meant that for one commit those rows named a document nobody
  * could produce. Starting a signed instrument without this is a choice to have
  * that same problem later.
  */
-const RECORDS: WaiverDocument[] = [v0_1];
+const RECORDS: WaiverDocument[] = [v0_1, v1_0];
 
 const BY_VERSION = new Map(RECORDS.map((doc) => [doc.version, doc]));
 

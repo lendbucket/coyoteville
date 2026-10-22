@@ -4,6 +4,7 @@ import Footer from '@/components/Footer';
 import JsonLd from '@/components/JsonLd';
 import StringLights from '@/components/StringLights';
 import RaceAdLoop from '@/components/race/RaceAdLoop';
+import RaceDocuments from '@/components/race/RaceDocuments';
 import RaceRegistration from '@/components/race/RaceRegistration';
 import {
   RACE_H1,
@@ -31,6 +32,7 @@ import {
 import { HAS_LOGO, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
 import { COURSE_MAP, COURSE_PNG, COURSE_PNG_SIZE, HAS_COURSE_PNG } from '@/lib/race-course';
 import { getRaceNights } from '@/lib/race-events';
+import { RACE_WAIVER_VERSION } from '@/lib/race-waiver/current';
 import { PRICING } from '@/lib/seo';
 import { clockFor, getPublishedSponsors, getRace, getRaceCounts } from '@/lib/races';
 import { raceDates } from '@/lib/race-dates';
@@ -428,6 +430,26 @@ export default async function TurkeyTrotPage() {
         </section>
 
         {/* ------------------------------------------------------- register */}
+        {/* ------------------------------------------------- the documents */}
+
+        {/* Rendered here, by the server, as a sibling of the form and outside
+            any client boundary. It used to live inside RaceRegistration, which
+            is a client component because it owns form state, so the whole
+            forty thousand character instrument was being serialized into the
+            bundle. Passing it down as children or a prop would have moved the
+            same bytes into the flight payload instead. */}
+        <section
+          className="section section--char"
+          id="documents"
+          aria-labelledby="documents-title"
+        >
+          <div className="shell">
+            <p className="eyebrow">What you are signing</p>
+            <h2 id="documents-title">The documents</h2>
+            <RaceDocuments />
+          </div>
+        </section>
+
         <section className="section section--char" id="register" aria-labelledby="register-title">
           <div className="shell">
             <p className="eyebrow">Register</p>
@@ -441,6 +463,7 @@ export default async function TurkeyTrotPage() {
               remaining={counts.remaining}
               closed={!registrationOpen}
               morningOpens={nights.morning?.opens}
+              waiverVersion={RACE_WAIVER_VERSION}
             />
           </div>
         </section>

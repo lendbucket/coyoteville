@@ -9624,3 +9624,125 @@ p {
    shows through. An earlier attempt used video[src] + .racead__still, which
    cannot work: the still is the previous sibling, and CSS has no selector for
    that direction. */
+
+/* A document title inside the waiver panel.
+
+   race-v1.0-2026 is three documents in one instrument, each executed on its
+   own acknowledgment, so each gets a title and an anchor rather than running
+   together as one wall of text. */
+.racereg__waiverdoc {
+  margin: 28px 0 10px;
+  padding-top: 18px;
+  border-top: 2px solid rgba(243, 238, 229, 0.3);
+  font-family: var(--font-condensed), Arial, sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.02em;
+}
+
+.racereg__waiverdoc:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* The three documents, server rendered.
+
+   Scrollable rather than endless: fourteen pages of text above a submit button
+   would push the button off every screen, and the one thing this block must not
+   do is hide the action. */
+.racedocs {
+  margin: 18px 0 0;
+}
+
+.racedocs__scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 18px;
+  border: 1px solid rgba(243, 238, 229, 0.18);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.racedocs__scroll p {
+  margin: 0 0 12px;
+}
+
+.racedocs__title {
+  margin: 30px 0 12px;
+  padding-top: 20px;
+  border-top: 2px solid rgba(243, 238, 229, 0.3);
+  font-family: var(--font-condensed), Arial, sans-serif;
+  font-size: 1.2rem;
+  letter-spacing: 0.02em;
+  /* Scrolled to from an acknowledgment, so it needs room above it. */
+  scroll-margin-top: 12px;
+}
+
+.racedocs__title:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.racedocs__h {
+  margin: 18px 0 8px;
+  font-size: 1rem;
+}
+
+/* Article 2.2 recites that these are set in capitals so as to be conspicuous.
+   The capitals come from the document; this is the part the rendering owes. */
+.racedocs__conspicuous {
+  margin: 14px 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--ember, #f2a541);
+  background: rgba(242, 165, 65, 0.1);
+  font-weight: 700;
+}
+
+.racedocs__list {
+  margin: 10px 0 14px;
+  padding-left: 22px;
+}
+
+.racedocs__list li {
+  margin: 0 0 6px;
+}
+
+.racedocs__version,
+.racedocs__paper {
+  margin: 12px 0 0;
+  font-size: 0.85rem;
+  color: var(--cream-70, rgba(243, 238, 229, 0.7));
+}
+
+/* The typed signature, shown as typed.
+
+   No cursive face, no canvas, no ink. Dressing a typed name as a drawn
+   signature invites an argument about what the signer thought they were doing,
+   and it is not what Article 14.2 describes. */
+.racereg__typed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(243, 238, 229, 0.2);
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.racereg__typedname {
+  font-size: 1.1rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.racereg__typedmeta {
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cream-70, rgba(243, 238, 229, 0.7));
+}
