@@ -556,6 +556,8 @@ async function main() {
             const frame = document.querySelector('.racead');
 
             let smallestLabel = null;
+            let streetLabel = null;
+            let streetNames = [];
             if (map) {
               const vb = map.viewBox.baseVal;
               const scale = map.getBoundingClientRect().width / vb.width;
@@ -565,6 +567,29 @@ async function main() {
                   ...texts.map((t) => parseFloat(getComputedStyle(t).fontSize))
                 );
                 smallestLabel = Math.round(smallestUnits * scale * 10) / 10;
+
+                /* The street names specifically, and only the ones actually
+                   displayed at this width, since the artwork ships a desktop
+                   and a mobile variant of each and hides one.
+
+                   Measured apart from the smallest text anywhere, because the
+                   smallest is the title subtitle and failing the map over that
+                   was measuring the wrong thing. The street labels are what has
+                   to survive being read on a phone. */
+                const streets = [...map.querySelectorAll('text.rd')].filter(
+                  (t) => getComputedStyle(t).display !== 'none'
+                );
+                if (streets.length) {
+                  streetLabel =
+                    Math.round(
+                      Math.min(
+                        ...streets.map((t) => parseFloat(getComputedStyle(t).fontSize))
+                      ) *
+                        scale *
+                        10
+                    ) / 10;
+                  streetNames = streets.map((t) => t.textContent.trim());
+                }
               }
             }
 
@@ -584,7 +609,11 @@ async function main() {
             /* Does the draw animation resolve, and does reduced motion turn it
                off? Both read from the file's own CSS, which only reaches the
                page because the SVG is inlined. */
-            const drawn = map ? map.querySelector('.route, path[class]') : null;
+            /* The drawn line. This artwork strokes a path from defs through <use>
+               elements, so the animation sits on a use and not on a path. An
+               earlier selector of '.route, path[class]' found nothing at all
+               and the check reported no drawn path rather than a result. */
+            const drawn = map ? map.querySelector('.draw') : null;
             const motion = drawn
               ? {
                   animationName: getComputedStyle(drawn).animationName,
@@ -598,6 +627,8 @@ async function main() {
               mapInlined: !!map,
               placeholderShown: !!soon,
               smallestLabelPx: smallestLabel,
+              streetLabelPx: streetLabel,
+              streetNames,
               labelUnits,
               motion,
               videoPresent: !!video,
@@ -623,11 +654,12 @@ async function main() {
               : 'SVG not in the repo, placeholder shown'
           );
 
-          if (bits.mapInlined && bits.smallestLabelPx !== null) {
+          if (bits.mapInlined && bits.streetLabelPx !== null) {
             record(
-              `${label}: course map labels readable`,
-              bits.smallestLabelPx >= 12,
-              `smallest label ${bits.smallestLabelPx}px`
+              `${label}: course map street labels readable`,
+              bits.streetLabelPx >= 12,
+              `street labels ${bits.streetLabelPx}px (${bits.streetNames.join(', ')}), ` +
+                `smallest text anywhere ${bits.smallestLabelPx}px`
             );
           }
 
@@ -700,7 +732,7 @@ async function main() {
       await page.goto(BASE + '/turkey-trot', { waitUntil: 'networkidle0' });
 
       const reduced = await page.evaluate(() => {
-        const el = document.querySelector('.race__coursemap svg .route, .race__coursemap svg path[class]');
+        const el = document.querySelector('.race__coursemap svg .draw');
         if (!el) return null;
         const cs = getComputedStyle(el);
         return { animationName: cs.animationName, dashoffset: cs.strokeDashoffset };

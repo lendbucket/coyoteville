@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1197 660" width="100%" role="img" aria-label="Course map for the Coyoteville 1st Annual Turkey Trot. The route starts and finishes at Coyoteville on North Stadium Road in Alice, Texas, runs out along East Houston Street and returns along Sain Drive.">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2=".3" y2="1"><stop offset="0" stop-color="#1e2d3d"/><stop offset="1" stop-color="#131d28"/></linearGradient>
+<linearGradient id="rt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2a541"/><stop offset=".5" stop-color="#e8541f"/><stop offset="1" stop-color="#f2a541"/></linearGradient>
+<filter id="glow" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<radialGradient id="trail"><stop offset="0" stop-color="#f7f0de" stop-opacity=".9"/><stop offset="1" stop-color="#f7f0de" stop-opacity="0"/></radialGradient>
+<path id="course" d="M 508.9,426.9 L 493.9,348.9 L 475.9,246.9 L 379.8,306.9 L 104.0,528.9 L 232.9,555.8 L 379.8,528.9 L 530.4,509.4 L 778.9,447.9 L 893.1,438.7 L 1031.2,393.9 L 1093.4,379.4 L 913.9,124.0 L 757.6,159.9 L 511.4,208.4 L 475.9,246.9 L 493.9,348.9 L 508.9,426.9"/>
+</defs>
+<rect width="1197" height="660" fill="url(#bg)"/>
+<g class="grid" stroke="#54708c" stroke-opacity=".16" stroke-width="1">
+<line x1="0" y1="0" x2="0" y2="660"/>
+<line x1="58" y1="0" x2="58" y2="660"/>
+<line x1="116" y1="0" x2="116" y2="660"/>
+<line x1="174" y1="0" x2="174" y2="660"/>
+<line x1="232" y1="0" x2="232" y2="660"/>
+<line x1="290" y1="0" x2="290" y2="660"/>
+<line x1="348" y1="0" x2="348" y2="660"/>
+<line x1="406" y1="0" x2="406" y2="660"/>
+<line x1="464" y1="0" x2="464" y2="660"/>
+<line x1="522" y1="0" x2="522" y2="660"/>
+<line x1="580" y1="0" x2="580" y2="660"/>
+<line x1="638" y1="0" x2="638" y2="660"/>
+<line x1="696" y1="0" x2="696" y2="660"/>
+<line x1="754" y1="0" x2="754" y2="660"/>
+<line x1="812" y1="0" x2="812" y2="660"/>
+<line x1="870" y1="0" x2="870" y2="660"/>
+<line x1="928" y1="0" x2="928" y2="660"/>
+<line x1="986" y1="0" x2="986" y2="660"/>
+<line x1="1044" y1="0" x2="1044" y2="660"/>
+<line x1="1102" y1="0" x2="1102" y2="660"/>
+<line x1="1160" y1="0" x2="1160" y2="660"/>
+<line x1="0" y1="0" x2="1197" y2="0"/>
+<line x1="0" y1="58" x2="1197" y2="58"/>
+<line x1="0" y1="116" x2="1197" y2="116"/>
+<line x1="0" y1="174" x2="1197" y2="174"/>
+<line x1="0" y1="232" x2="1197" y2="232"/>
+<line x1="0" y1="290" x2="1197" y2="290"/>
+<line x1="0" y1="348" x2="1197" y2="348"/>
+<line x1="0" y1="406" x2="1197" y2="406"/>
+<line x1="0" y1="464" x2="1197" y2="464"/>
+<line x1="0" y1="522" x2="1197" y2="522"/>
+<line x1="0" y1="580" x2="1197" y2="580"/>
+<line x1="0" y1="638" x2="1197" y2="638"/>
+</g>
+<g class="st">
+<text class="rd" x="704.4" y="127.1" transform="rotate(-11.8 704.4 127.1)" text-anchor="middle" paint-order="stroke" stroke="#131d28" stroke-linejoin="round">EAST HOUSTON ST</text>
+<text class="rd dsk" x="832.3" y="397.4" transform="rotate(-4.6 832.3 397.4)" text-anchor="middle" paint-order="stroke" stroke="#131d28" stroke-linejoin="round">SAIN DR</text>
+<text class="rd mob" x="296.6" y="489.2" transform="rotate(-10.4 296.6 489.2)" text-anchor="middle" paint-order="stroke" stroke="#131d28" stroke-linejoin="round">SAIN DR</text>
+<text class="rd dsk" x="527.9" y="297.9" paint-order="stroke" stroke="#131d28" stroke-linejoin="round">N STADIUM RD</text>
+<text class="rd mob" x="533.9" y="297.9" paint-order="stroke" stroke="#131d28" stroke-linejoin="round">STADIUM RD</text>
+</g>
+<use href="#course" xlink:href="#course" fill="none" stroke="#131d28" stroke-width="23" stroke-linejoin="round" stroke-linecap="round"/>
+<use href="#course" xlink:href="#course" fill="none" stroke="#f7f0de" stroke-opacity=".09" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>
+<use class="draw" href="#course" xlink:href="#course" fill="none" stroke="url(#rt)" stroke-width="13" stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)" stroke-dasharray="2622" stroke-dashoffset="2622"/>
+<use class="flow" href="#course" xlink:href="#course" fill="none" stroke="#131d28" stroke-opacity="0" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="2 26"/>
+<g class="runner"><circle r="27" fill="url(#trail)"/><circle r="11.5" fill="#f7f0de"/><circle r="5.5" fill="#e8541f"/><animateMotion dur="9s" begin="3.4s" repeatCount="indefinite"><mpath href="#course" xlink:href="#course"/></animateMotion></g>
+<g class="pin">
+<circle class="pulse" cx="508.9" cy="426.9" r="22" fill="none" stroke="#f2a541" stroke-width="3"/>
+<circle cx="508.9" cy="426.9" r="21" fill="#f7f0de" stroke="#e8541f" stroke-width="7"/>
+<circle cx="508.9" cy="426.9" r="7" fill="#e8541f"/>
+<text class="sf" x="548.9" y="410.9" paint-order="stroke" stroke="#131d28" stroke-linejoin="round">START &amp; FINISH</text>
+<text class="sub dsk" x="548.9" y="436.9" paint-order="stroke" stroke="#131d28" stroke-linejoin="round">Coyoteville &#183; 150 N Stadium Rd, Alice</text>
+<text class="sub mob" x="548.9" y="454.9" paint-order="stroke" stroke="#131d28" stroke-linejoin="round">Coyoteville, Alice</text>
+</g>
+<g class="ttl">
+<text class="h1" x="32" y="52" fill="#f7f0de">THE COURSE</text>
+<text class="h2 dsk" x="32" y="82" fill="#e8541f">Coyoteville 1st Annual Turkey Trot &#183; Alice, Texas</text>
+<text class="h2 mob" x="32" y="96" fill="#e8541f">1st Annual Turkey Trot</text>
+</g>
+<g transform="translate(1145,56)"><g class="ttl"><path d="M 0,-26 L 10,11 L 0,3.5 L -10,11 Z" fill="#f7f0de" fill-opacity=".75"/></g></g>
+<style>
+text { font-family: Arial, Helvetica, sans-serif; }
+.rd  { font-size: 17px; letter-spacing: 3.5px; stroke-width: 7px; fill: #f7f0de; fill-opacity: .62; }
+.sf  { font-size: 24px; font-weight: 900; letter-spacing: 1.5px; stroke-width: 7px; fill: #f7f0de; font-family: "Arial Black", Arial, sans-serif; }
+.sub { font-size: 16px; stroke-width: 6px; fill: #f2a541; }
+.h1  { font-size: 28px; font-weight: 900; letter-spacing: 1.5px; font-family: "Arial Black", Arial, sans-serif; }
+.h2  { font-size: 17px; }
+.mob { display: none; }
+@media (max-width: 760px) {
+  .dsk { display: none; }
+  .mob { display: inline; }
+  .rd  { font-size: 44px; letter-spacing: 1px; stroke-width: 14px; fill-opacity: .72; }
+  .sf  { font-size: 48px; stroke-width: 15px; letter-spacing: 0; }
+  .sub { font-size: 42px; stroke-width: 13px; }
+  .h1  { font-size: 60px; }
+  .h2  { font-size: 40px; }
+}
+@keyframes draw   { to { stroke-dashoffset: 0; } }
+@keyframes flowon { to { stroke-opacity: .5; } }
+@keyframes flow   { to { stroke-dashoffset: -280; } }
+@keyframes pulse  { 0% { r:22; stroke-opacity:.85 } 70%,100% { r:48; stroke-opacity:0 } }
+@keyframes fade   { to { opacity: 1; } }
+.draw   { animation: draw 3.2s cubic-bezier(.45,.05,.3,1) .35s forwards; }
+.flow   { animation: flowon .9s linear 3.5s forwards, flow 1.9s linear 3.5s infinite; }
+.runner { opacity: 0; animation: fade .5s ease-out 3.45s forwards; }
+.pulse  { animation: pulse 2.6s ease-out 3.6s infinite; }
+.pin    { opacity: 0; animation: fade .7s ease-out 3.3s forwards; }
+.st     { opacity: 0; animation: fade .9s ease-out .2s forwards; }
+.ttl    { opacity: 0; animation: fade .8s ease-out .1s forwards; }
+.grid   { opacity: 0; animation: fade 1.2s ease-out 0s forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .draw { animation: none; stroke-dashoffset: 0; }
+  .flow { animation: none; stroke-opacity: .5; }
+  .runner, .pulse { display: none; }
+  .pin, .st, .ttl, .grid { animation: none; opacity: 1; }
+}
+</style>
+</svg>
