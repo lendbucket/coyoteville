@@ -41,7 +41,7 @@ const ts = require('typescript');
 const ROOT = path.join(__dirname, '..');
 
 /**
- * The live races row for turkey-trot-2026, as of 2026-10-22.
+ * The contract for the races row, as agreed on 2026-10-22.
  *
  * Mirrored here on purpose. The build cannot read the database, so these are
  * the contract: change the row, change these, and the build will then tell you
@@ -110,18 +110,6 @@ const SOURCES = [
   'lib/email/race-alert.ts',
 ];
 
-/**
- * The literals that are allowed to stay, and why.
- *
- * Two sentences, both about the food truck nights either side of the race.
- * Those are rows in `events`, not in `races`, and getEvents filters on
- * is_published, which is false for both while they are being got ready. There
- * is nothing readable to derive them from yet.
- *
- * This is a real exception rather than a convenient one, and it is narrow: the
- * exact strings, not the files. When those two events are published, read them
- * and delete these.
- */
 /**
  * Nothing. Deliberately nothing.
  *

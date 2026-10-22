@@ -39,11 +39,17 @@ function chromePath() {
 /* ------------------------------------------------------------ the fixture */
 
 /**
- * The live rows, as of 2026-10-22, with is_published forced true.
+ * A fixture race row. NOT a reading of the database.
  *
- * Forced true on purpose: the question this answers is whether the pages are
- * finished, which means rendering them the way the public will see them. The
- * real row is still false and only Robert flips it.
+ * Nothing in this repo can read the races table, so every value below is a
+ * choice made here to exercise the pages, not a report of what is live. An
+ * earlier version of this comment said the real row was unpublished, which
+ * was a claim about a column this process cannot see, and it went stale the
+ * moment the column changed.
+ *
+ * is_published is true here on purpose: the question this pass answers is
+ * whether the pages are finished, which means rendering them the way the
+ * public sees them.
  */
 const RACE = {
   slug: 'turkey-trot-2026',
@@ -63,7 +69,9 @@ const RACE = {
     'Friday from 4 to 7 PM, and race morning from 6:00 AM. All runners checked in by 7:00 AM.',
   runner_capacity: 400,
   is_published: true,
-  waiver_version: 'race-v0.1-DRAFT-2026',
+  /* The version the waiver module exports, so the fixture matches what the
+     page renders. Again a choice made here, not a reading. */
+  waiver_version: 'race-v1.0-2026',
   created_at: '2026-10-01T00:00:00Z',
   updated_at: '2026-10-01T00:00:00Z',
 };

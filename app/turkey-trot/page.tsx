@@ -67,12 +67,15 @@ export async function generateMetadata(): Promise<Metadata> {
   /**
    * Published decides indexing, not whether the page exists.
    *
-   * races.is_published is false while this is being got ready. The page still
-   * renders, because it has to be shareable for review and because the health
-   * check asks it for a 200, but it is kept out of search until Robert flips
-   * the column. A half finished race indexed under the phrase it is supposed to
-   * own is worse than not being indexed yet: the first crawl is the one that
-   * sets what the page is about.
+   * While races.is_published is false the page still renders, because it has
+   * to be shareable for review and because the health check asks it for a 200,
+   * but it is kept out of search. A half finished race indexed under the phrase
+   * it is supposed to own is worse than not being indexed yet: the first crawl
+   * is the one that sets what the page is about. Once the column is true the
+   * page indexes complete on that first crawl.
+   *
+   * Which it is right now is not something this file knows or should state. It
+   * reads the column and behaves accordingly.
    */
   const unpublished = !race?.isPublished;
 
