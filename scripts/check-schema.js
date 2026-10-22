@@ -408,6 +408,150 @@ function readAllowedValues() {
  * table. A gate that reports 180 things nobody will read catches nothing at
  * all, which is the worse trade.
  */
+/* ------------------------------------------- conditional check constraints */
+
+/**
+ * Columns that only become required once another column says something.
+ *
+ * A list of allowed values does not reach these. The insert is well formed,
+ * every literal is legal, and Postgres refuses it anyway with 23514 because a
+ * column is missing rather than wrong. race_registrations_minor_guardian and
+ * race_sponsors_agreement_signed are both this shape.
+ *
+ * Read out of the ```requires block in SCHEMA.md, so the rule lives next to
+ * the schema it describes rather than in here.
+ */
+function readRequiredTogether() {
+  const text = fs.readFileSync(SCHEMA_FILE, 'utf8');
+  const FENCE = BACKTICK + BACKTICK + BACKTICK;
+  const after = text.split(FENCE + 'requires')[1];
+  if (!after) return null;
+
+  const body = after.split(FENCE)[0];
+  const rules = [];
+  let current = null;
+
+  for (const line of body.split(NEWLINE)) {
+    const row = line.replace(/\r$/, '');
+    if (!row.trim()) continue;
+
+    if (!row.startsWith('  ')) {
+      /* "race_sponsors.agreement_accepted = true" */
+      const m = /^([a-z_]+)\.([a-z_]+)\s*=\s*(\S+)$/.exec(row.trim());
+      if (!m) continue;
+      current = { table: m[1], column: m[2], value: m[3], needs: [] };
+      rules.push(current);
+      continue;
+    }
+
+    if (current) {
+      for (const name of row.split(',')) {
+        const n = name.trim();
+        if (n) current.needs.push(n);
+      }
+    }
+  }
+
+  return rules;
+}
+
+/**
+ * Every insert and update that writes a trigger value without what it then owes.
+ *
+ * Deliberately only looks at a literal. A value arriving from a variable is
+ * invisible here, the same limit the allowed values check has, and for the same
+ * reason: what this catches is the write somebody typed out, which is where
+ * this constraint actually gets broken.
+ */
+function checkRequiredTogether(files, rules) {
+  const problems = [];
+
+  for (const file of files) {
+    const source = fs.readFileSync(file, 'utf8');
+    const relative = path.relative(root, file).split(path.sep).join('/');
+
+    /* Which tables this file writes to at all. Scoped by file rather than by
+       the call site, because the row being written is very often not an object
+       literal sitting inside .insert(): race_registrations is built with a
+       .map() and handed over as a variable, which an insert-site parser cannot
+       see at all. That was this rule's first blind spot, and it was the whole
+       reason the rule existed. */
+    const tables = new Set([...source.matchAll(/\.from\(\s*'([a-z_]+)'/g)].map((m) => m[1]));
+
+    for (const rule of rules) {
+      if (!tables.has(rule.table)) continue;
+
+      /* Every object literal in the file that sets the trigger column. */
+      const trigger = new RegExp('(?:^|[{,\\s])' + rule.column + '\\s*:\\s*([^,}\\n]+)', 'g');
+
+      for (const hit of source.matchAll(trigger)) {
+        const value = hit[1].trim().replace(/,$/, '');
+
+        /* A literal that is plainly something else cannot break a constraint
+           about the other value. "is_minor: false" is fine. Anything that is
+           not a literal counts, because "is_minor: runner.isMinor" can be true
+           at runtime and the row has to carry the guardian columns either way. */
+        const isLiteral = /^(true|false|'[^']*'|"[^"]*"|\d+|null)$/.test(value);
+        if (isLiteral && value !== rule.value) continue;
+
+        /* The object literal this sits inside, found by walking back to its
+           opening brace and forward to the matching close. */
+        const body = enclosingObject(source, hit.index);
+        if (!body) continue;
+
+        const missing = rule.needs.filter(
+          (need) => !new RegExp('(?:^|[{,\\s])' + need + '\\s*:').test(body)
+        );
+
+        if (missing.length) {
+          problems.push({
+            file: relative,
+            line: source.slice(0, hit.index).split(NEWLINE).length,
+            table: rule.table,
+            trigger: rule.column + ' = ' + rule.value,
+            missing,
+          });
+        }
+      }
+    }
+  }
+
+  return problems;
+}
+
+/** The object literal containing this index, or null if it is not in one. */
+function enclosingObject(source, index) {
+  let depth = 0;
+  let open = -1;
+
+  for (let i = index; i >= 0; i -= 1) {
+    const c = source[i];
+    if (c === '}') depth += 1;
+    else if (c === '{') {
+      if (depth === 0) {
+        open = i;
+        break;
+      }
+      depth -= 1;
+    }
+  }
+
+  if (open < 0) return null;
+
+  depth = 0;
+  for (let i = open; i < source.length; i += 1) {
+    const c = source[i];
+    if (c === '{') depth += 1;
+    else if (c === '}') {
+      depth -= 1;
+      if (depth === 0) return source.slice(open, i + 1);
+    }
+  }
+
+  return null;
+}
+
+
 const GENERIC_COLUMNS = new Set(['status', 'source', 'kind']);
 
 function checkAllowedValues(files, allowed) {
@@ -516,6 +660,39 @@ if (!unique.length) {
   const allowed = readAllowedValues();
   if (!allowed) {
     console.error(NEWLINE + 'check-schema: SCHEMA.md has no ```values block, so allowed values cannot be checked.' + NEWLINE);
+    process.exit(1);
+  }
+
+  const rules = readRequiredTogether();
+  if (!rules) {
+    console.error(NEWLINE + 'check-schema: SCHEMA.md has no requires block, so conditional constraints cannot be checked.' + NEWLINE);
+    process.exit(1);
+  }
+
+  const badPairs = checkRequiredTogether(walk(root), rules);
+  if (badPairs.length) {
+    console.error(
+      NEWLINE + 'check-schema: ' + badPairs.length + ' write(s) that a conditional check constraint refuses.' + NEWLINE
+    );
+    for (const b of badPairs) {
+      console.error(
+        '  ' + b.file + ':' + b.line + '  ' + b.table + ' sets ' + b.trigger +
+          ' without ' + b.missing.join(', ')
+      );
+    }
+    console.error(
+      [
+        '',
+        'Postgres rejects these with 23514 and fails the whole statement. They are',
+        'harder to see than a misspelled value because nothing is misspelled: the',
+        'insert is well formed, every literal is legal, and the row is refused',
+        'because a column is missing rather than wrong.',
+        '',
+        'Either add the columns to the write, or the constraint changed and the',
+        'requires block in SCHEMA.md has not been updated to match production.',
+        '',
+      ].join(NEWLINE)
+    );
     process.exit(1);
   }
 

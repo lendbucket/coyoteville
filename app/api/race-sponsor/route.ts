@@ -115,17 +115,6 @@ export async function POST(request: Request) {
     }
   }
 
-  /* The agreement acceptance goes in placement_notes alongside anything they
-     typed. There is no column for it on race_sponsors and the schema is fixed,
-     so it is recorded as text rather than not recorded: a business that
-     committed fifteen hundred dollars is entitled to a record of which version
-     it accepted and when. */
-  const acceptance =
-    `Accepted ${agreementVersion} as "${signatureName}" on ` +
-    `${new Date().toISOString()} from ${ip}.`;
-
-  const notes = [placementNotes, acceptance].filter(Boolean).join('\n\n');
-
   const { error } = await getSupabaseAdmin().from('race_sponsors').insert({
     id: sponsorId,
     race_slug: race.slug,
@@ -138,7 +127,22 @@ export async function POST(request: Request) {
     logo_path: logoPath,
     amount_cents: level.cents,
     payment_status: 'unpaid',
-    placement_notes: notes,
+    /* What they typed, and nothing else. placement_notes is for placement:
+       where the banner goes, which booth they want, what they told us on the
+       phone. It briefly carried the agreement acceptance as text because there
+       was no column for it, which made the one record a fifteen hundred dollar
+       commitment depends on a string somebody could reasonably edit. */
+    placement_notes: placementNotes || null,
+    /* The acceptance, on its own columns. race_sponsors_agreement_signed
+       refuses an accepted row without a version, a name and a time, so all
+       three are written together or the insert is refused. check-schema
+       enforces the same rule at build. */
+    agreement_version: agreementVersion,
+    agreement_accepted: true,
+    signature_name: signatureName,
+    signed_at: new Date().toISOString(),
+    signer_ip: ip,
+    signer_user_agent: request.headers.get('user-agent')?.slice(0, 400) ?? null,
   });
 
   if (error) {

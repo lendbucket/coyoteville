@@ -106,7 +106,8 @@ race_sponsors
   id, race_slug, level, business_name, contact_name, email, phone,
   website, logo_path, amount_cents, payment_status, square_order_id,
   square_payment_id, paid_at, placement_notes, published_at,
-  created_at, updated_at
+  agreement_version, agreement_accepted, signature_name, signed_at,
+  signer_ip, signer_user_agent, created_at, updated_at
 
 subscribers
   id, email, source, signup_ip, confirmed_at, unsubscribed_at,
@@ -212,6 +213,35 @@ race_registrations.payment_status
 race_sponsors.payment_status
   unpaid, paid, refunded, not_required
 ```
+
+## Columns that are required together
+
+**A list of allowed values is not enough either. Some check constraints are
+conditional: a column may be anything until another column says a particular
+thing, and then two or three more have to be present.**
+
+Postgres rejects these with 23514 and fails the whole statement, exactly like a
+value outside an enum. They are harder to see because nothing is misspelled:
+the insert is well formed, every value is legal, and the row is still refused
+because of a column that is missing rather than wrong.
+
+`npm run check:schema` reads the block below and fails the build on any insert
+or update that writes the trigger value without every column the constraint
+then demands.
+
+```requires
+race_registrations.is_minor = true
+  guardian_name, guardian_signature_name
+
+race_sponsors.agreement_accepted = true
+  agreement_version, signature_name, signed_at
+```
+
+`race_registrations_minor_guardian` is what stops a runner under 18 being
+registered with nobody standing behind the waiver. `race_sponsors_agreement_signed`
+is the same shape for a business: accepting the sponsorship agreement without a
+version, a name and a time is an acceptance nobody can produce later, which for
+a fifteen hundred dollar commitment is the whole reason the record exists.
 
 `denied` and `cancelled` are both on `approval_status` and are not
 interchangeable. `denied` is a decision somebody made and it refunds.
