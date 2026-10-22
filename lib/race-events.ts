@@ -43,9 +43,11 @@ async function night(slug: string): Promise<RaceNight | null> {
     slug,
     weekday: weekdayAndDate(starts),
     opens: clockTime(starts),
-    /* The booking form takes the event on the query string, the same way every
-       other signup link on the site does. */
-    signupHref: `/#apply?event=${encodeURIComponent(slug)}`,
+    /* Query first, then the fragment: /?event=slug#apply, which is what
+       EventsSection has always built. Written the other way round the query
+       ends up inside the fragment, where the form never sees it, and the link
+       still returns 200 so nothing complains. */
+    signupHref: `/?event=${encodeURIComponent(slug)}#apply`,
   };
 }
 

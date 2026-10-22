@@ -23,7 +23,8 @@
     "check:square-env": "node scripts/check-square-env.js",
     "check:race-dates": "node scripts/check-race-dates.js",
     "check:traced-assets": "node scripts/check-traced-assets.js",
-    "check:race-export": "node scripts/check-race-export.js"
+    "check:race-export": "node scripts/check-race-export.js",
+    "check:race-pages": "node scripts/check-race-pages.js"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

@@ -18,6 +18,8 @@ on:
       - 'app/admin/**'
       - 'app/globals.css'
       - 'scripts/check-admin-parity.js'
+      - 'scripts/check-race-pages.js'
+      - 'app/turkey-trot/**'
       - 'scripts/admin-fixture-db.js'
       - '.github/workflows/tracker-parity.yml'
   pull_request:
@@ -26,6 +28,8 @@ on:
       - 'app/admin/**'
       - 'app/globals.css'
       - 'scripts/check-admin-parity.js'
+      - 'scripts/check-race-pages.js'
+      - 'app/turkey-trot/**'
       - 'scripts/admin-fixture-db.js'
   workflow_dispatch:
 
@@ -66,3 +70,9 @@ jobs:
         env:
           CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
         run: npm run check:admin-parity
+
+      # The race pages readiness pass. Chrome too, so it lives here rather
+      # than in the Vercel build, same rule as the parity gate. It builds
+      # against its own fixture database, so it needs no secrets.
+      - name: Race pages
+        run: npm run check:race-pages

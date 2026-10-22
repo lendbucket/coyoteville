@@ -357,9 +357,18 @@ export default async function TurkeyTrotPage() {
                   site wide and there is no event specific price to read. A
                   page quoting a price checkout will not honour is worse than
                   a page quoting a lower one. */}
-              <a className="btn btn--primary" href="/#apply">
-                Book a spot, food truck {PRICING.truck.price}, vendor booth{' '}
-                {PRICING.booth.price}
+              {nights.pickup ? (
+                <a className="btn btn--primary" href={nights.pickup.signupHref}>
+                  Book {nights.pickup.weekday}
+                </a>
+              ) : null}
+              {nights.morning ? (
+                <a className="btn btn--primary" href={nights.morning.signupHref}>
+                  Book {nights.morning.weekday}
+                </a>
+              ) : null}
+              <a className="btn btn--ghost" href="/#apply">
+                Food truck {PRICING.truck.price}, vendor booth {PRICING.booth.price}
               </a>
             </p>
           </div>
