@@ -19,6 +19,8 @@ export type RaceConfirmation = {
   displayDate: string;
   /** "8:00 AM". */
   displayTime: string;
+  /** "7:00 AM". Derived from registration_closes_at, never typed. */
+  checkInTime: string;
   distanceLabel: string;
   tierLabel: string;
   shirtSize: string | null;
@@ -51,7 +53,7 @@ export function renderRaceConfirmation(r: RaceConfirmation): {
     '',
     ...facts.map(([k, v]) => `  ${k}: ${v}`),
     '',
-    'CHECK IN BY 7:00 AM',
+    `CHECK IN BY ${r.checkInTime}`,
     `  ${r.packetPickup}`,
     '',
     'YOUR ENTRY INCLUDES',
@@ -73,7 +75,7 @@ export function renderRaceConfirmation(r: RaceConfirmation): {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${esc(subject)}</title></head>
 <body style="margin:0;padding:0;background-color:#F4F4F5;">
-${preheader(`${r.displayDate} at ${r.displayTime}. Check in by 7:00 AM.`)}
+${preheader(`${r.displayDate} at ${r.displayTime}. Check in by ${r.checkInTime}.`)}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F4F4F5;">
 <tr><td align="center" style="padding:20px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;margin:0 auto;background-color:#FFFFFF;border:1px solid #DDDDE0;">
@@ -92,9 +94,9 @@ ${facts
   .join('\n')}
     </table>
 
-    <p style="margin:24px 0 6px;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#6B6B72;">Check in by 7:00 AM</p>
+    <p style="margin:24px 0 6px;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#6B6B72;">Check in by ${esc(r.checkInTime)}</p>
     <p style="margin:0 0 6px;">${esc(r.packetPickup)}</p>
-    <p style="margin:0 0 18px;color:#C4552B;"><b>Every runner has to be checked in by 7:00 AM for an ${esc(r.displayTime)} start.</b></p>
+    <p style="margin:0 0 18px;color:#C4552B;"><b>Every runner has to be checked in by ${esc(r.checkInTime)} for a ${esc(r.displayTime)} start.</b></p>
 
     <p style="margin:0 0 6px;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#6B6B72;">Your entry includes</p>
     <ul style="margin:0 0 18px;padding-left:20px;">

@@ -58,9 +58,11 @@ export const RACE_SUBHEAD = `The ${RACE_NAME}`;
  * shirt_deadline_at said another, and nothing could see it.
  */
 export function raceDescription(race: Race | null): string {
+  /* No row, no date. A fallback that names one is a date typed into a string,
+     which is the thing this file stopped doing. */
   const when = race
     ? `${longDate(Date.parse(race.startsAtISO))} at ${clockTime(Date.parse(race.startsAtISO))}`
-    : 'Saturday, November 14, 2026';
+    : 'race day';
 
   return (
     `The ${RACE_PHRASE} is back for its first year. A ${RACE_DISTANCE} run through ` +
@@ -71,7 +73,7 @@ export function raceDescription(race: Race | null): string {
 /** The sponsors page, which targets its own phrase. */
 export const SPONSOR_TITLE = 'Turkey Trot Sponsorship, Alice TX | Coyoteville';
 export function sponsorDescription(race: Race | null): string {
-  const when = race ? monthDayYear(Date.parse(race.startsAtISO)) : 'November 14, 2026';
+  const when = race ? monthDayYear(Date.parse(race.startsAtISO)) : 'race day';
   return (
     'Sponsor the Alice TX Turkey Trot. Put your business on the shirt, the start ' +
     `line and the course of the first annual Coyoteville Turkey Trot, ${when}.`

@@ -20,6 +20,7 @@ import {
   type RaceTier,
 } from '@/lib/race';
 import { clockFor, getRace, getRaceCounts } from '@/lib/races';
+import { raceDates } from '@/lib/race-dates';
 import { createRacePaymentLink, raceGroupReferenceId, raceReferenceId } from '@/lib/race-payment-link';
 import { sendRaceAlert, sendRaceConfirmation } from '@/lib/race-alert';
 import { supportEmail } from '@/lib/support';
@@ -86,6 +87,8 @@ export async function POST(request: Request) {
 
   const clock = clockFor(race);
   const now = Date.now();
+  /* Every date the confirmation prints, off the columns. */
+  const dates = raceDates(race, now);
 
   if (!registrationOpenAt(clock, now)) {
     return bad('Registration has closed for this year.', 409);
@@ -381,8 +384,9 @@ export async function POST(request: Request) {
       sendRaceConfirmation(email, {
         firstName: runners[0].firstName,
         raceName: race.name,
-        displayDate: race.displayDate,
-        displayTime: race.displayTime,
+        displayDate: dates.startLong,
+        displayTime: dates.startTime,
+        checkInTime: dates.checkInTime,
         distanceLabel: race.distanceLabel,
         tierLabel:
           path === 'solo'
