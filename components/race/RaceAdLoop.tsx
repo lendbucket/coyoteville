@@ -148,7 +148,7 @@ export default function RaceAdLoop({ src, poster }: { src: string; poster: strin
 
   return (
     <div className="racead">
-      <div className="racead__phone" ref={frameRef}>
+      <div className="racead__frame" ref={frameRef}>
         <video
           ref={videoRef}
           className="racead__video"

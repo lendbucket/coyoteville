@@ -38,3 +38,56 @@ export const HAS_VIDEO = present('video/turkey-trot-ad.mp4');
 export const HAS_POSTER = present('video/turkey-trot-ad-poster.jpg');
 export const HAS_LOGO = present('photos/turkey-trot-logo.png');
 export const HAS_COURSE = present('course/turkey-trot-2026.gpx');
+
+/**
+ * The poster's real pixel size, read out of the file.
+ *
+ * The og:image width and height were written out by hand as 1080x1920, which
+ * was true of the vertical cut and became wrong the moment the video was
+ * replaced with a 16:9 one at 1280x720. Nothing would have noticed: social
+ * cards would simply have been laid out to the wrong shape.
+ *
+ * So it is parsed instead. Only the two headers that matter are understood, PNG
+ * and baseline or progressive JPEG, and anything unparseable returns null, in
+ * which case the metadata omits the dimensions rather than claiming a shape.
+ */
+function imageSize(absolute: string): { width: number; height: number } | null {
+  let buffer: Buffer;
+  try {
+    buffer = fs.readFileSync(absolute);
+  } catch {
+    return null;
+  }
+
+  /* PNG: the IHDR chunk is always first, at a fixed offset. */
+  if (buffer.length > 24 && buffer.toString('ascii', 1, 4) === 'PNG') {
+    return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  }
+
+  /* JPEG: walk the segments to a start of frame marker and read it. */
+  if (buffer.length > 4 && buffer[0] === 0xff && buffer[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < buffer.length) {
+      if (buffer[i] !== 0xff) {
+        i += 1;
+        continue;
+      }
+      const marker = buffer[i + 1];
+      /* SOF0 through SOF15, skipping the four that are not frame headers. */
+      const isFrame =
+        marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+
+      if (isFrame) {
+        return { height: buffer.readUInt16BE(i + 5), width: buffer.readUInt16BE(i + 7) };
+      }
+      i += 2 + buffer.readUInt16BE(i + 2);
+    }
+  }
+
+  return null;
+}
+
+/** Null until the poster is in the repo, or if it cannot be parsed. */
+export const POSTER_SIZE = HAS_POSTER
+  ? imageSize(path.join(PUBLIC, 'video', 'turkey-trot-ad-poster.jpg'))
+  : null;

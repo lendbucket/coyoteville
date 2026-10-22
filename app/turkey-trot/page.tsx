@@ -28,7 +28,7 @@ import {
   registrationOpenAt,
   shirtsAvailableAt,
 } from '@/lib/race';
-import { HAS_LOGO, HAS_POSTER, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
+import { HAS_LOGO, HAS_POSTER, HAS_VIDEO, POSTER_SIZE, RACE_ASSETS } from '@/lib/race-assets';
 import { COURSE_MAP, COURSE_PNG, HAS_COURSE_PNG } from '@/lib/race-course';
 import { getRaceNights } from '@/lib/race-events';
 import { PRICING } from '@/lib/seo';
@@ -78,8 +78,22 @@ export async function generateMetadata(): Promise<Metadata> {
          in a feed. The course map second, because a route anybody can
          recognise is still better than a generic site card. The site card
          last, so this is never a 404. */
+      /* The poster frame first: it is the strongest single image we have and
+         it is what shows when somebody shares this. The course map second,
+         because a route people recognise still beats a generic card. The site
+         card last, so this is never a 404.
+
+         The dimensions come off the file. They were written out as 1080x1920,
+         which was the vertical cut, and went wrong the moment the video was
+         replaced with a 16:9 one. Nothing would have caught it: the card would
+         just have been laid out to the wrong shape. */
       images: HAS_POSTER
-        ? [{ url: `${SITE_URL}${RACE_OG_IMAGE}`, width: 1080, height: 1920 }]
+        ? [
+            {
+              url: `${SITE_URL}${RACE_OG_IMAGE}`,
+              ...(POSTER_SIZE ?? {}),
+            },
+          ]
         : HAS_COURSE_PNG
           ? [{ url: `${SITE_URL}${COURSE_PNG}` }]
           : [OG_IMAGE],
