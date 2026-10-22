@@ -376,6 +376,12 @@ export default function RaceRegistration({
   /* What the signature still needs, for the line under the button and for
      the disabled state. Article 14.2 makes the boxes, the name and the click
      one act, so the button is not offered until all of them are there. */
+  /* Where the documents live. One page per version, server rendered and
+     indexable, so a signed row’s waiver_version resolves to a URL that
+     keeps working rather than to text that only exists while this form is
+     on screen. */
+  const waiverHref = `/turkey-trot/waiver/${encodeURIComponent(waiverVersion)}`;
+
   const missing: string[] = [];
   if (!waiverAccepted) missing.push('the Participant Agreement');
   if (!mediaAccepted) missing.push('the Media Release');
@@ -952,6 +958,17 @@ export default function RaceRegistration({
       <fieldset className="racereg__block racereg__waiver">
         <legend>Sign</legend>
 
+        {/* The documents, named and linked above the boxes as well as inside
+            them. Article 2.2 turns on the participant having had a full and
+            fair opportunity to read: a clear link they chose not to open
+            satisfies that, and one they could not find does not. */}
+        <p className="racereg__readfirst">
+          <a className="racereg__doclink" href={waiverHref} target="_blank" rel="noreferrer">
+            Read all three documents in full
+          </a>{' '}
+          before you sign. They open in a new tab.
+        </p>
+
         <p className="hint">
           Checking these boxes, typing your full legal name and clicking the button together
           are your electronic signature, under Article 14.2. One signature covers all three
@@ -966,7 +983,14 @@ export default function RaceRegistration({
           />
           <span>
             I have read and agree to the{' '}
-            <a href="#waiver-participant-agreement">Participant Agreement</a>, including the
+            <a
+              className="racereg__doclink"
+              href={`${waiverHref}#participant-agreement`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Participant Agreement
+            </a>, including the
             release and indemnity for the Released Parties’ own negligence
           </span>
         </label>
@@ -978,7 +1002,15 @@ export default function RaceRegistration({
             onChange={(e) => setMediaAccepted(e.target.checked)}
           />
           <span>
-            I grant the <a href="#waiver-media-release">Photograph, Video and Media Release</a>
+            I grant the{' '}
+            <a
+              className="racereg__doclink"
+              href={`${waiverHref}#media-release`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Photograph, Video and Media Release
+            </a>
           </span>
         </label>
 
@@ -1002,7 +1034,14 @@ export default function RaceRegistration({
             />
             <span>
               I am the parent or legal guardian and I agree to the{' '}
-              <a href="#waiver-guardian-addendum">Parent or Legal Guardian Addendum</a> on this
+              <a
+                className="racereg__doclink"
+                href={`${waiverHref}#guardian-addendum`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Parent or Legal Guardian Addendum
+              </a> on this
               minor’s behalf and my own
             </span>
           </label>

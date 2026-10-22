@@ -4,8 +4,9 @@ import Footer from '@/components/Footer';
 import JsonLd from '@/components/JsonLd';
 import StringLights from '@/components/StringLights';
 import RaceAdLoop from '@/components/race/RaceAdLoop';
+import CourseMapReveal from '@/components/race/CourseMapReveal';
+import StickyRegister from '@/components/race/StickyRegister';
 import RaceCountdown from '@/components/race/RaceCountdown';
-import RaceDocuments from '@/components/race/RaceDocuments';
 import StripeBand from '@/components/race/StripeBand';
 import RaceRegistration from '@/components/race/RaceRegistration';
 import {
@@ -120,7 +121,7 @@ export default async function TurkeyTrotPage() {
               <a href={`mailto:${supportEmail()}`}>{supportEmail()}</a> and we will send them.
             </p>
           </div>
-        </main>
+      </main>
         <Footer />
       </>
     );
@@ -132,9 +133,11 @@ export default async function TurkeyTrotPage() {
   const sponsors = await getPublishedSponsors(race.slug);
   /* The two vendor nights, off their own rows in events. */
   const nights = await getRaceNights();
-  /* What is still open, for the sponsors block. Counting is already done in
+  /* What is still open, for the sponsors block. Counting already lives in
      getSponsorStanding, which the Race tab uses too. */
   const standing = await getSponsorStanding(race.slug);
+  /* What is still open, for the sponsors block. Counting is already done in
+     getSponsorStanding, which the Race tab uses too. */
 
   /* Every human date on this page, derived from the columns. Nothing here
      prints one by hand. */
@@ -151,6 +154,14 @@ export default async function TurkeyTrotPage() {
       : window === 'regular'
         ? RACE_PRICING.adultRegular
         : RACE_PRICING.adultRaceDay;
+
+  /* The label every Register button on this page uses. One string, one price,
+     read from the clock the checkout charges on, so the four of them cannot
+     disagree with each other or with the form, and all four change
+     themselves when the step does. */
+  const registerLabel = registrationOpen
+    ? `Register, ${dollars(adultNow)} today`
+    : 'Registration is closed';
 
   return (
     <>
@@ -221,7 +232,7 @@ export default async function TurkeyTrotPage() {
 
             <p className="racehero__cta">
               <a className="btn btn--primary btn--lg" href="#register">
-                Register
+                {registerLabel}
               </a>
               <a className="btn btn--ghost btn--lg" href="/turkey-trot/sponsors">
                 Sponsor the race
@@ -259,10 +270,18 @@ export default async function TurkeyTrotPage() {
                  describing the course in words, so this wrapper adds no role,
                  no label and no heading of its own. A second announcement
                  would make a screen reader read the route twice. */
-              <div
-                className="race__coursemap"
-                dangerouslySetInnerHTML={{ __html: COURSE_MAP }}
-              />
+              <>
+                <div
+                  id="course-map"
+                  className="race__coursemap"
+                  dangerouslySetInnerHTML={{ __html: COURSE_MAP }}
+                />
+                {/* Starts the draw when the map is in view, once. Renders
+                    nothing and takes nothing: it finds the container by id, so
+                    the inlined SVG stays server rendered markup rather than
+                    becoming a prop or a child of a client component. */}
+                <CourseMapReveal targetId="course-map" />
+              </>
             ) : (
               <div className="race__coursemap race__coursemap--soon">
                 <p className="race__coursesoon">
@@ -404,6 +423,13 @@ export default async function TurkeyTrotPage() {
                 no finish time awards. Run it for the morning and the medal.
               </p>
             ) : null}
+            {/* Somebody who has read this far should not have to scroll back
+                up to act. */}
+            <p className="race__cta">
+              <a className="btn btn--primary btn--lg" href="#register">
+                {registerLabel}
+              </a>
+            </p>
           </div>
         </section>
 
@@ -420,6 +446,13 @@ export default async function TurkeyTrotPage() {
 
             <p className="race__hard">
               Every runner has to be checked in by {dates.checkInTime} for a {dates.startTime} start.
+            </p>
+            {/* Somebody who has read this far should not have to scroll back
+                up to act. */}
+            <p className="race__cta">
+              <a className="btn btn--primary btn--lg" href="#register">
+                {registerLabel}
+              </a>
             </p>
           </div>
         </section>
@@ -555,26 +588,6 @@ export default async function TurkeyTrotPage() {
         </section>
 
         {/* ------------------------------------------------------- register */}
-        {/* ------------------------------------------------- the documents */}
-
-        {/* Rendered here, by the server, as a sibling of the form and outside
-            any client boundary. It used to live inside RaceRegistration, which
-            is a client component because it owns form state, so the whole
-            forty thousand character instrument was being serialized into the
-            bundle. Passing it down as children or a prop would have moved the
-            same bytes into the flight payload instead. */}
-        <section
-          className="section section--char"
-          id="documents"
-          aria-labelledby="documents-title"
-        >
-          <div className="shell">
-            <p className="eyebrow">What you are signing</p>
-            <h2 id="documents-title">The documents</h2>
-            <RaceDocuments />
-          </div>
-        </section>
-
         <section className="section section--char" id="register" aria-labelledby="register-title">
           <div className="shell">
             <p className="eyebrow">Register</p>
@@ -592,6 +605,10 @@ export default async function TurkeyTrotPage() {
             />
           </div>
         </section>
+        {/* Phones only. Appears once the hero has gone and hides again when
+            the form is on screen, because a bar covering the button it points
+            at is just a bar over a button. */}
+        <StickyRegister label={registerLabel} />
       </main>
 
       <Footer />

@@ -10415,3 +10415,268 @@ p {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* ------------------------------------------- holding the course map undrawn
+
+   The SVG ships with its animation classes already applied, so without this it
+   starts drawing at page load and is finished long before anybody scrolls to
+   it. These rules hold everything at its starting state until
+   CourseMapReveal adds is-drawn, which happens when the map enters the
+   viewport.
+
+   stroke-dashoffset stays at full rather than 0, so the route sits undrawn and
+   then draws. Setting it to 0 would flash the finished map and then redraw it,
+   which is worse than not animating at all.
+
+   Wrapped in no-preference so it cannot reach somebody who asked for less
+   movement: for them the SVG's own reduced motion query draws it complete
+   immediately, with no observer and no wait. */
+@media (prefers-reduced-motion: no-preference) {
+  .race__coursemap:not(.is-drawn) svg .draw {
+    animation: none;
+    stroke-dashoffset: 2622;
+  }
+
+  .race__coursemap:not(.is-drawn) svg .flow {
+    animation: none;
+    stroke-opacity: 0;
+  }
+
+  .race__coursemap:not(.is-drawn) svg .runner,
+  .race__coursemap:not(.is-drawn) svg .pulse {
+    animation: none;
+    opacity: 0;
+  }
+
+  /* The fades too, so the map arrives as one thing rather than appearing in
+     pieces before the line that connects them. */
+  .race__coursemap:not(.is-drawn) svg .pin,
+  .race__coursemap:not(.is-drawn) svg .st,
+  .race__coursemap:not(.is-drawn) svg .ttl,
+  .race__coursemap:not(.is-drawn) svg .grid {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+/* =========================================================== HERO FIXES ===
+
+   Five faults, all measured in the browser rather than guessed at.
+   =========================================================== */
+
+/* 1. The content block was at 699..1440 of a 1440 hero, hard against the right
+      edge, because .string-lights is position: relative and so was an in flow
+      flex item taking the first slot and pushing the shell across. Taking the
+      lights out of flow fixes the content position and the lights position with
+      one change. */
+.racehero {
+  display: block;
+}
+
+.racehero__in {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 2. The lights belong at the top, under the nav. They are a canopy; measured
+      at 747px down a 794px hero, which is the bottom, and that reads as a
+      mistake rather than as decoration. */
+.racehero .string-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+
+/* 3. The stray rounded dark shape against the right edge was this button,
+      measured at 90 by 768 with a 999px radius. The base rule sets top: 10px,
+      my hero rule set right and bottom, and an element with both a top and a
+      bottom stretches between them. Resetting top and left is the fix. */
+.racead__mute--hero {
+  top: auto;
+  left: auto;
+  right: 18px;
+  bottom: 18px;
+  /* 44px minimum, because it is tapped with a thumb. */
+  min-height: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(247, 240, 222, 0.55);
+  background: rgba(23, 34, 46, 0.72);
+  color: var(--tt-cream);
+  font-family: var(--font-condensed), Arial, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* 4. The scrim was too light and cream type was sitting on a sunlit field.
+      70% at the top, 85% at the bottom, plus a radial behind the type block so
+      the H1 and the countdown digits sit on their own darkness rather than on
+      whatever frame the video happens to be showing. */
+.racehero::after {
+  background:
+    radial-gradient(
+      120% 80% at 50% 78%,
+      rgba(23, 34, 46, 0.72) 0%,
+      rgba(23, 34, 46, 0) 70%
+    ),
+    linear-gradient(
+      to bottom,
+      rgba(23, 34, 46, 0.7) 0%,
+      rgba(23, 34, 46, 0.74) 45%,
+      rgba(23, 34, 46, 0.85) 100%
+    );
+}
+
+/* 5. The stripe band had a cream segment breaking the sunset. Gold to orange,
+      no white. */
+.stripeband {
+  background: linear-gradient(
+    to right,
+    var(--tt-gold) 0 20%,
+    var(--tt-orange) 20% 40%,
+    var(--tt-gold) 40% 60%,
+    var(--tt-orange) 60% 80%,
+    var(--tt-gold) 80% 100%
+  );
+}
+
+/* ------------------------------------------------- the sticky register bar
+
+   Phones only. On a page this long somebody who reads to the bottom has to
+   scroll back up to act, and somebody convinced in the hero has nothing to tap
+   once it has gone. This is the one element that answers both.
+
+   Hidden rather than absent when it is not wanted, so there is no layout shift
+   when it arrives, and its link is taken out of the tab order while hidden so
+   it is not a focus stop nobody can see. */
+.stickyreg {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(23, 34, 46, 0.96);
+  border-top: 1px solid rgba(247, 240, 222, 0.18);
+  transform: translateY(110%);
+  visibility: hidden;
+  /* The one transition on the page, and it is a bar sliding in rather than
+     content animating as you read it. */
+  transition: transform 0.18s ease-out, visibility 0.18s;
+}
+
+.stickyreg[data-show='yes'] {
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.stickyreg__btn {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  text-align: center;
+}
+
+/* Desktop has the buttons in the page and does not need a bar over them. */
+@media (min-width: 700px) {
+  .stickyreg {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stickyreg {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------- the document links
+
+   Conspicuous, not a buried terms link. Article 2.2 turns on the participant
+   having had a full and fair opportunity to read, so the link sits in the
+   acknowledgment text itself, underlined, in the accent colour, at the size of
+   the sentence around it. */
+.racereg__doclink {
+  color: var(--tt-gold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 700;
+}
+
+.racereg__readfirst {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--tt-gold);
+  background: rgba(242, 165, 65, 0.1);
+  font-size: 0.95rem;
+}
+
+/* -------------------------------------------------- the waiver page */
+
+.waiverpage__h1 {
+  color: var(--tt-cream);
+}
+
+.waiverpage__toc {
+  margin: 18px 0 0;
+  padding-left: 20px;
+}
+
+.waiverpage__toc a {
+  color: var(--tt-gold);
+}
+
+.waiverpage__doc {
+  max-width: 44rem;
+  margin: 0 auto 44px;
+  /* Linked to from an acknowledgment, so it needs room above it. */
+  scroll-margin-top: 20px;
+}
+
+.waiverpage__title {
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid rgba(23, 34, 46, 0.2);
+  font-family: var(--font-condensed), Arial, sans-serif;
+}
+
+.waiverpage__h {
+  margin: 22px 0 8px;
+  font-size: 1.02rem;
+}
+
+.waiverpage__doc p {
+  margin: 0 0 12px;
+  line-height: 1.65;
+}
+
+.waiverpage__conspicuous {
+  padding: 14px 16px;
+  border-left: 3px solid var(--tt-orange);
+  background: rgba(232, 84, 31, 0.08);
+  font-weight: 700;
+}
+
+.waiverpage__list {
+  margin: 10px 0 14px;
+  padding-left: 24px;
+}
+
+.waiverpage__list li {
+  margin: 0 0 6px;
+}
+
+.waiverpage__paper {
+  max-width: 44rem;
+  margin: 0 auto 22px;
+  font-size: 0.9rem;
+  color: rgba(23, 34, 46, 0.72);
+}

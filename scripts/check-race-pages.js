@@ -844,30 +844,119 @@ async function main() {
           : 'no drawn path found'
       );
 
+      /* Held at the top of the page, drawing once scrolled to.
+
+         This asserted that the map animates on load, which it did, and which
+         was the bug: it finished about three and a half seconds in, while the
+         visitor was still in the hero, so nobody was ever going to see it. It
+         waits now, so the check has to test the behaviour that is wanted
+         rather than the behaviour that was there. */
       record(
-        'course map: without that preference it animates',
-        Boolean(narrow.motion) && narrow.motion.animationName !== 'none',
+        'course map: held undrawn until it is scrolled to',
+        Boolean(narrow.motion) &&
+          narrow.motion.animationName === 'none' &&
+          parseFloat(narrow.motion.dashoffset) > 2000,
         narrow.motion
           ? `animation ${narrow.motion.animationName}, dashoffset ${narrow.motion.dashoffset}`
           : 'no drawn path found'
       );
+
+      /* And it draws once it is in view. Scrolled for real rather than
+         inferred from the class, because the class is what this is testing. */
+      {
+        const page = await browser.newPage();
+        await page.setViewport({ width: 390, height: 844 });
+        await page.goto(BASE + '/turkey-trot', { waitUntil: 'networkidle0' });
+        await page.evaluate(() =>
+          document.getElementById('course-map')?.scrollIntoView({ block: 'center' })
+        );
+        await new Promise((r) => setTimeout(r, 900));
+
+        const after = await page.evaluate(() => {
+          const el = document.querySelector('#course-map svg .draw');
+          if (!el) return null;
+          const cs = getComputedStyle(el);
+          return {
+            animation: cs.animationName,
+            drawn: document.getElementById('course-map').classList.contains('is-drawn'),
+          };
+        });
+        await page.close();
+
+        record(
+          'course map: draws once it enters the viewport',
+          Boolean(after) && after.drawn && after.animation === 'draw',
+          after ? `animation ${after.animation}, drawn ${after.drawn}` : 'no drawn path found'
+        );
+      }
     }
 
-    /* ---- the waiver is in the served markup ---- */
+    /* ---- the waiver page itself ---- */
 
     {
-      /* Three phrases, one per document, from the executed text. Each has to
-         be in the HTML, because the whole point is that a signer can read
-         what they are signing before they sign it.
+      /* A new public page, so it gets the same treatment as the other two:
+         it has to render, hold all three documents, and not scroll sideways
+         on a phone. It is also the URL a signed row resolves to, so a 404
+         here is a signature record pointing at nothing. */
+      const url = '/turkey-trot/waiver/race-v1.0-2026';
 
-         There was a second assertion here, that none of it appears in the
-         flight payload, and it was wrong. The App Router serializes the
-         whole server rendered tree into self.__next_f so a client side
-         navigation can rebuild the page, so correctly server rendered text is
-         in the payload as well. It failed against the right architecture,
-         which made it a bad check rather than a finding. What the payload
-         cannot tell you, the bundle and the import graph can: see
-         check-waiver-not-bundled. */
+      for (const width of [390, 1440]) {
+        const page = await browser.newPage();
+        await page.setViewport({ width, height: 1000 });
+        await page.setCacheEnabled(false);
+
+        const res = await page.goto(BASE + url, { waitUntil: 'networkidle0' });
+
+        const r = await page.evaluate(() => {
+          const past = [];
+          for (const el of document.querySelectorAll('body *')) {
+            const box = el.getBoundingClientRect();
+            if (box.width === 0 || box.height === 0) continue;
+            if (box.right <= window.innerWidth + 2) continue;
+
+            let clipped = false;
+            for (let a = el.parentElement; a; a = a.parentElement) {
+              const o = getComputedStyle(a);
+              if (/hidden|clip|auto|scroll/.test(o.overflowX + o.overflow)) {
+                clipped = true;
+                break;
+              }
+            }
+            if (!clipped) {
+              past.push(el.tagName.toLowerCase() + '.' + String(el.className).split(' ')[0]);
+            }
+          }
+
+          return {
+            scrolls: document.documentElement.scrollWidth > window.innerWidth,
+            past: past.slice(0, 4),
+            docs: document.querySelectorAll('.waiverpage__doc').length,
+          };
+        });
+
+        record(
+          `${url} @ ${width}: renders, holds all three documents, no overflow`,
+          res.status() === 200 && r.docs === 3 && !r.scrolls && r.past.length === 0,
+          `status ${res.status()}, ${r.docs} documents, scrolls ${r.scrolls}` +
+            (r.past.length ? ', past the edge: ' + r.past.join(', ') : '')
+        );
+
+        await page.close();
+      }
+    }
+
+    /* ---- the documents are behind a conspicuous link ---- */
+
+    {
+      /* They were inline on the registration page and this asserted they
+         were present. They live at their own permanent URL now, so the
+         assertion inverts: the registration page must NOT carry the text and
+         must carry a findable link to it.
+
+         Article 2.2 turns on the participant having had a full and fair
+         opportunity to read. A link they chose not to open satisfies that; a
+         link that is not there does not, which is why the link is checked
+         for rather than only the absence of the text. */
       const PHRASES = [
         'being struck by a motor vehicle can cause catastrophic injury or death',
         'SUBLICENSABLE, AND TRANSFERABLE RIGHT AND LICENSE',
@@ -875,14 +964,25 @@ async function main() {
       ];
 
       const html = await (await fetch(BASE + '/turkey-trot')).text();
-      const inMarkup = PHRASES.filter((x) => html.includes(x)).length;
+      const inline = PHRASES.filter((x) => html.includes(x));
 
       record(
-        'waiver: all three documents are in the served markup',
-        inMarkup === PHRASES.length,
-        `${inMarkup} of ${PHRASES.length} phrases present`
+        'registration page: the document text is not inline',
+        inline.length === 0,
+        inline.length ? `${inline.length} phrase(s) still inline` : 'none of the three present'
+      );
+
+      const links = [...html.matchAll(/turkey-trot\/waiver\/[A-Za-z0-9.%-]+/g)].map((m) => m[0]);
+
+      record(
+        'registration page: the documents are linked from the acknowledgments',
+        links.length >= 2,
+        links.length
+          ? `${links.length} references: ` + [...new Set(links)].join(' ')
+          : 'no link to the waiver page found'
       );
     }
+
     /* ---- the ad loop defers the video download ---- */
 
     {
