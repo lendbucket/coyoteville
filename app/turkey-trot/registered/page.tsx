@@ -3,6 +3,7 @@ import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import { RACE_SLUG } from '@/lib/race';
 import { getRace } from '@/lib/races';
+import { raceDates } from '@/lib/race-dates';
 import { supportEmail } from '@/lib/support';
 
 /** Where Square sends a runner after they pay. */
@@ -32,7 +33,8 @@ export default async function RegisteredPage() {
           {race ? (
             <>
               <p className="race__hard">
-                Every runner has to be checked in by 7:00 AM for an {race.displayTime} start.
+                Every runner has to be checked in by {raceDates(race).checkInTime} for a{' '}
+                {raceDates(race).startTime} start.
               </p>
               {race.packetPickup ? <p>{race.packetPickup}</p> : null}
             </>

@@ -3,11 +3,11 @@ import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import JsonLd from '@/components/JsonLd';
 import StringLights from '@/components/StringLights';
-import RaceAd from '@/components/race/RaceAd';
+import RaceAdLoop from '@/components/race/RaceAdLoop';
 import RaceRegistration from '@/components/race/RaceRegistration';
 import {
-  RACE_DESCRIPTION,
   RACE_H1,
+  raceDescription,
   RACE_OG_IMAGE,
   RACE_SUBHEAD,
   RACE_TITLE,
@@ -30,6 +30,7 @@ import {
 } from '@/lib/race';
 import { HAS_LOGO, HAS_POSTER, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
 import { clockFor, getPublishedSponsors, getRace, getRaceCounts } from '@/lib/races';
+import { raceDates } from '@/lib/race-dates';
 import { OG_IMAGE, SITE_URL } from '@/lib/seo';
 import { supportEmail } from '@/lib/support';
 
@@ -46,6 +47,7 @@ const CANONICAL = `${SITE_URL}/turkey-trot`;
 
 export async function generateMetadata(): Promise<Metadata> {
   const race = await getRace(RACE_SLUG);
+  const description = raceDescription(race);
 
   /**
    * Published decides indexing, not whether the page exists.
@@ -61,12 +63,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title: { absolute: RACE_TITLE },
-    description: RACE_DESCRIPTION,
+    description: description,
     alternates: { canonical: CANONICAL },
     ...(unpublished ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
       title: RACE_TITLE,
-      description: RACE_DESCRIPTION,
+      description: description,
       url: CANONICAL,
       type: 'website',
       /* The poster frame, which is a still of the thing happening. Falls back
@@ -78,7 +80,7 @@ export async function generateMetadata(): Promise<Metadata> {
     twitter: {
       card: 'summary_large_image',
       title: RACE_TITLE,
-      description: RACE_DESCRIPTION,
+      description: description,
     },
   };
 }
@@ -108,6 +110,10 @@ export default async function TurkeyTrotPage() {
   const now = Date.now();
   const counts = await getRaceCounts(race);
   const sponsors = await getPublishedSponsors(race.slug);
+
+  /* Every human date on this page, derived from the columns. Nothing here
+     prints one by hand. */
+  const dates = raceDates(race, now);
 
   const window = priceWindowAt(clock, now);
   const shirtsOpen = shirtsAvailableAt(clock, now);
@@ -139,7 +145,9 @@ export default async function TurkeyTrotPage() {
             <h1 className="race__h1">{RACE_H1}</h1>
             <p className="race__sub">{RACE_SUBHEAD}</p>
 
-            <p className="race__when">Saturday, November 14, 2026 at {race.displayTime}</p>
+            <p className="race__when">
+              {dates.startLong} at {dates.startTime}
+            </p>
 
             <p className="lede race__lede">
               A {race.distanceLabel} run through Alice on streets the city closes for the
@@ -159,10 +167,10 @@ export default async function TurkeyTrotPage() {
         </section>
 
         {/* ------------------------------------------------------------- ad */}
-        {HAS_VIDEO ? (
+        {HAS_VIDEO && HAS_POSTER ? (
           <section className="section section--cream">
             <div className="shell">
-              <RaceAd src={RACE_ASSETS.video} poster={RACE_ASSETS.poster} />
+              <RaceAdLoop src={RACE_ASSETS.video} poster={RACE_ASSETS.poster} />
             </div>
           </section>
         ) : null}
@@ -284,7 +292,7 @@ export default async function TurkeyTrotPage() {
             {race.packetPickup ? <p className="lede">{race.packetPickup}</p> : null}
 
             <p className="race__hard">
-              Every runner has to be checked in by 7:00 AM for an {race.displayTime} start.
+              Every runner has to be checked in by {dates.checkInTime} for a {dates.startTime} start.
             </p>
           </div>
         </section>

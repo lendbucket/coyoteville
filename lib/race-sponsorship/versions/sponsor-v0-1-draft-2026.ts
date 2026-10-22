@@ -21,14 +21,24 @@
  *      payment, in a document the sponsor accepts, is enough, and whether the
  *      refund rule in section 5 is the right remedy.
  *
- *      The date in the clause is the end of Sunday November 1, 2026, Central,
- *      which is what races.shirt_deadline_at actually holds: the column is
- *      2026-11-02T05:59:59Z, and at that instant Central has already gone back
- *      to CST, so it is 11:59:59 PM on the first. This was drafted as
- *      "November 2" and corrected before anybody signed it. A deadline clause
- *      that is a day out is the clause that causes the argument it exists to
- *      prevent, and it was off in the sponsor's favour, which is the direction
- *      that costs money.
+ *      The date in the clause is the end of Monday November 2, 2026, Central,
+ *      and it matches races.shirt_deadline_at, which is 2026-11-03T05:59:59Z.
+ *
+ *      HISTORY, so the correction below is not misread by the next person.
+ *      This clause was drafted as November 2. The column at the time was
+ *      2026-11-02T05:59:59Z, which resolves to 11:59:59 PM on Sunday November
+ *      1 Central, because daylight saving ends on November 1 in 2026 and that
+ *      instant is already CST. The text was briefly changed to November 1 to
+ *      match the column.
+ *
+ *      That was the wrong direction. Robert's brief said Monday November 2 and
+ *      the timestamp did not; the column was wrong, not the text. The column
+ *      is now 2026-11-03T05:59:59Z, which is 11:59:59 PM Monday November 2
+ *      Central, and the clause says November 2 again.
+ *
+ *      Nobody had signed either version. check-race-dates now asserts this
+ *      clause against the column resolved in America/Chicago, so the two
+ *      cannot drift apart again without the build saying so.
  *   2. Section 4, what we are promising. These are deliverables rather than
  *      outcomes: a banner at the finish, not a number of impressions. Counsel
  *      should say whether anything here reads as a guarantee of attendance or
@@ -72,7 +82,7 @@ const document: SponsorshipDocument = {
     { kind: 'heading', text: '3. The shirt deadline, which is real' },
     {
       kind: 'conspicuous',
-      text: 'SHIRT PLACEMENT DEPENDS ON THE SHIRT ORDER DEADLINE AT THE END OF SUNDAY, NOVEMBER 1, 2026, CENTRAL. IF YOUR PAYMENT CLEARS AFTER THAT DATE, YOUR LOGO CANNOT GO ON THE SHIRTS, BECAUSE THE SHIRTS WILL ALREADY BE AT THE PRINTER.',
+      text: 'SHIRT PLACEMENT DEPENDS ON THE SHIRT ORDER DEADLINE OF NOVEMBER 2, 2026. IF YOUR PAYMENT CLEARS AFTER THAT DATE, YOUR LOGO CANNOT GO ON THE SHIRTS, BECAUSE THE SHIRTS WILL ALREADY BE AT THE PRINTER.',
     },
     {
       kind: 'paragraph',

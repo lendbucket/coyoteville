@@ -8,6 +8,7 @@ import {
   dollars,
 } from './race';
 import type { Race } from './races';
+import { clockTime, longDate, monthDayYear } from './race-dates';
 
 /**
  * One source for the title, the description and the H1.
@@ -45,21 +46,37 @@ export const RACE_H1 = `Alice TX Turkey Trot 2026`;
 export const RACE_SUBHEAD = `The ${RACE_NAME}`;
 
 /**
- * The meta description.
+ * The meta description, built from the race row.
  *
  * Under 160 characters, leads with the phrase, carries the date and the
  * distance, and says the one thing that makes somebody click: it is the first
  * one.
+ *
+ * A function rather than a constant because it names a date, and a date typed
+ * into a string is a date that drifts from the column it came from. That is
+ * not hypothetical here: the sponsorship agreement said one thing and
+ * shirt_deadline_at said another, and nothing could see it.
  */
-export const RACE_DESCRIPTION =
-  `The ${RACE_PHRASE} is back for its first year. A ${RACE_DISTANCE} run through ` +
-  `Alice on Saturday, November 14, 2026 at 8:00 AM, starting and finishing at Coyoteville.`;
+export function raceDescription(race: Race | null): string {
+  const when = race
+    ? `${longDate(Date.parse(race.startsAtISO))} at ${clockTime(Date.parse(race.startsAtISO))}`
+    : 'Saturday, November 14, 2026';
+
+  return (
+    `The ${RACE_PHRASE} is back for its first year. A ${RACE_DISTANCE} run through ` +
+    `Alice on ${when}, starting and finishing at Coyoteville.`
+  );
+}
 
 /** The sponsors page, which targets its own phrase. */
 export const SPONSOR_TITLE = 'Turkey Trot Sponsorship, Alice TX | Coyoteville';
-export const SPONSOR_DESCRIPTION =
-  'Sponsor the Alice TX Turkey Trot. Put your business on the shirt, the start ' +
-  'line and the course of the first annual Coyoteville Turkey Trot, November 14, 2026.';
+export function sponsorDescription(race: Race | null): string {
+  const when = race ? monthDayYear(Date.parse(race.startsAtISO)) : 'November 14, 2026';
+  return (
+    'Sponsor the Alice TX Turkey Trot. Put your business on the shirt, the start ' +
+    `line and the course of the first annual Coyoteville Turkey Trot, ${when}.`
+  );
+}
 
 /**
  * The social card.
@@ -101,7 +118,7 @@ export function raceSchema(race: Race) {
     '@type': 'SportsEvent',
     name: race.name,
     /* The phrase, in the one field a crawler reads as prose. */
-    description: RACE_DESCRIPTION,
+    description: raceDescription(race),
     sport: 'Running',
     startDate: race.startsAtISO,
     eventStatus: 'https://schema.org/EventScheduled',
@@ -151,10 +168,13 @@ export function raceSchema(race: Race) {
  * ask. Google penalises exactly that mismatch and it is invisible to look at.
  */
 export function raceFaq(race: Race): { q: string; a: string }[] {
+  const starts = Date.parse(race.startsAtISO);
+  const closes = Date.parse(race.registrationClosesAtISO);
+
   return [
     {
       q: 'When and where is the Alice TX Turkey Trot?',
-      a: `Saturday, November 14, 2026 at ${race.displayTime}. It starts and finishes at ${race.locationName}, ${race.locationAddress}. The city closes the streets on the route for the morning.`,
+      a: `${longDate(starts)} at ${clockTime(starts)}. It starts and finishes at ${race.locationName}, ${race.locationAddress}. The city closes the streets on the route for the morning.`,
     },
     {
       q: 'How long is the course?',
@@ -172,7 +192,7 @@ export function raceFaq(race: Race): { q: string; a: string }[] {
     },
     {
       q: 'What time do I need to be there?',
-      a: 'Every runner has to be checked in by 7:00 AM for an 8:00 AM start. Packet pickup is the Friday evening before, and again from 6:00 AM on race morning.',
+      a: `Every runner has to be checked in by ${clockTime(closes)} for a ${clockTime(starts)} start. Packet pickup is the Friday evening before, and again from 6:00 AM on race morning.`,
     },
     {
       q: 'Can I pick up a packet for somebody else?',

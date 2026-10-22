@@ -3,7 +3,7 @@ import Nav from '@/components/Nav';
 import Footer from '@/components/Footer';
 import JsonLd from '@/components/JsonLd';
 import SponsorForm from '@/components/race/SponsorForm';
-import { SPONSOR_DESCRIPTION, SPONSOR_TITLE } from '@/lib/race-seo';
+import { sponsorDescription, SPONSOR_TITLE } from '@/lib/race-seo';
 import { RACE_SLUG, dollars } from '@/lib/race';
 import { SPONSOR_LEVELS, availabilityFor } from '@/lib/race-sponsorship';
 import { getPublishedSponsors, getRace, getSponsorStanding } from '@/lib/races';
@@ -28,15 +28,16 @@ export async function generateMetadata(): Promise<Metadata> {
      direct link this week, so it has to render and be right before it is
      indexed, and it indexes complete on the first crawl once he publishes. */
   const unpublished = !race?.isPublished;
+  const description = sponsorDescription(race);
 
   return {
     title: { absolute: SPONSOR_TITLE },
-    description: SPONSOR_DESCRIPTION,
+    description: description,
     alternates: { canonical: CANONICAL },
     ...(unpublished ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
       title: SPONSOR_TITLE,
-      description: SPONSOR_DESCRIPTION,
+      description: description,
       url: CANONICAL,
       type: 'website',
       images: [OG_IMAGE],

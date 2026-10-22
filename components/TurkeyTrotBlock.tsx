@@ -1,5 +1,8 @@
-import { RACE_ADDONS, dollars } from '@/lib/race';
-import { HAS_LOGO, RACE_ASSETS } from '@/lib/race-assets';
+import { RACE_SLUG } from '@/lib/race';
+import { HAS_LOGO, HAS_POSTER, HAS_VIDEO, RACE_ASSETS } from '@/lib/race-assets';
+import { raceDates } from '@/lib/race-dates';
+import { getRace } from '@/lib/races';
+import RaceAdLoop from '@/components/race/RaceAdLoop';
 
 /**
  * The Turkey Trot, on the homepage, right under the hero.
@@ -9,7 +12,11 @@ import { HAS_LOGO, RACE_ASSETS } from '@/lib/race-assets';
  * a CDN. The two buttons are the two things somebody can do about it: run it,
  * or pay to put their name on it.
  */
-export default function TurkeyTrotBlock() {
+export default async function TurkeyTrotBlock() {
+  const race = await getRace(RACE_SLUG);
+  /* The date comes off the row, like every other date on this site. */
+  const when = race ? raceDates(race).startWeekday : null;
+
   return (
     <section className="section tt" aria-labelledby="tt-title">
       <div className="shell tt__in">
@@ -21,7 +28,7 @@ export default function TurkeyTrotBlock() {
         <div className="tt__words">
           <p className="eyebrow">New for 2026</p>
           <h2 id="tt-title">The Coyoteville Turkey Trot</h2>
-          <p className="tt__when">Saturday, November 14</p>
+          {when ? <p className="tt__when">{when}</p> : null}
           <p className="lede">
             A run of approximately 3.1 miles through Alice, starting and finishing at the park.
             The streets are closed and the lot is open before and after.
@@ -43,6 +50,12 @@ export default function TurkeyTrotBlock() {
             <a href="/#apply">Book a spot</a>.
           </p>
         </div>
+
+        {/* The loop. Downloads nothing until somebody scrolls to it, which on
+            the homepage is most of the point. */}
+        {HAS_VIDEO && HAS_POSTER ? (
+          <RaceAdLoop src={RACE_ASSETS.video} poster={RACE_ASSETS.poster} />
+        ) : null}
       </div>
     </section>
   );
