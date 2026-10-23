@@ -12,7 +12,7 @@
     "check:booking-shape": "node scripts/check-booking-shape.js",
     "check:webhook": "node scripts/check-webhook-settles.js",
     "check:font-preload": "node scripts/check-font-preload.js",
-    "prebuild": "npm run check:build-portable && npm run check:square-env && npm run check:schema && npm run check:capacity && npm run check:email-copy && npm run check:recipient-privacy && npm run check:race-dates && npm run check:waiver && npm run check:race-export && npm run check:booking-shape",
+    "prebuild": "npm run check:build-portable && npm run check:square-env && npm run check:reference-length && npm run check:schema && npm run check:capacity && npm run check:email-copy && npm run check:recipient-privacy && npm run check:race-dates && npm run check:waiver && npm run check:race-export && npm run check:booking-shape",
     "build": "next build",
     "postbuild": "npm run check:pdf-bundle && npm run check:waiver-bundle && npm run check:traced-assets && npm run check:webhook && npm run check:font-preload",
     "start": "next start",
@@ -26,7 +26,8 @@
     "check:race-export": "node scripts/check-race-export.js",
     "check:race-pages": "node scripts/check-race-pages.js",
     "check:waiver": "node scripts/check-waiver-transcription.js",
-    "check:waiver-bundle": "node scripts/check-waiver-not-bundled.js"
+    "check:waiver-bundle": "node scripts/check-waiver-not-bundled.js",
+    "check:reference-length": "node scripts/check-reference-length.js"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

@@ -885,9 +885,13 @@ async function raceCase(label, orderId, reference, amount, expect) {
   check(label + ': handler returned 200', response.status === 200, 'got ' + response.status);
   check(label + ': took the race branch', body.race === true, JSON.stringify(body));
   check(label + ': named the right kind', body.kind === expect.kind, String(body.kind));
+  /* The long form carries the slug and the short form does not, by design:
+     the row knows its own race_slug and the lookup is by id. Null is the right
+     answer for a short reference, and asserting the slug unconditionally would
+     mean the gate could only ever pass for the form that is no longer built. */
   check(
     label + ': named the race',
-    body.raceSlug === RACE_SLUG_FIXTURE,
+    body.raceSlug === (expect.raceSlug === undefined ? RACE_SLUG_FIXTURE : expect.raceSlug),
     String(body.raceSlug)
   );
   check(label + ': settled', body.settled === expect.settled, String(body.settled));
@@ -939,6 +943,39 @@ async function raceCases() {
     'sponsor:' + RACE_SLUG_FIXTURE + ':' + RACE_SPONSOR_ID,
     RACE_SPONSOR_CENTS,
     { kind: 'sponsor', table: 'race_sponsors', settled: true }
+  );
+
+  /* THE SHORT FORM, which is what every new link carries.
+
+     The three above are the long form, kept only because a link made before
+     the 40 character limit was hit can still be paid. They are not what the
+     site builds any more, and a gate that only exercises them would pass
+     while every new payment settled nothing. Square takes the money either
+     way; the only question is whether the webhook can still find the row. */
+  const shortRef = (marker, id) => marker + id.replace(/-/g, '');
+
+  await raceCase(
+    'race registration, short reference',
+    'ORDER_RACE_REG_SHORT',
+    shortRef('r', RACE_REG_ID),
+    RACE_ENTRY_CENTS,
+    { kind: 'registration', table: 'race_registrations', settled: true, raceSlug: null }
+  );
+
+  await raceCase(
+    'race group, short reference',
+    'ORDER_RACE_GROUP_SHORT',
+    shortRef('g', RACE_GROUP_ID),
+    RACE_GROUP_CENTS,
+    { kind: 'group', table: 'race_groups', settled: true, raceSlug: null }
+  );
+
+  await raceCase(
+    'race sponsor, short reference',
+    'ORDER_RACE_SPONSOR_SHORT',
+    shortRef('s', RACE_SPONSOR_ID),
+    RACE_SPONSOR_CENTS,
+    { kind: 'sponsor', table: 'race_sponsors', settled: true, raceSlug: null }
   );
 
   /* A redelivery of a settled payment is a no op. Square redelivers until it

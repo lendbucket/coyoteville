@@ -1,4 +1,5 @@
 import 'server-only';
+import { RACE_SLUG } from './race';
 import { SITE, SITE_URL } from './seo';
 import { renderRaceAlert, type RaceAlert } from './email/race-alert';
 import { renderRaceConfirmation, type RaceConfirmation } from './email/race-confirmation';
@@ -46,7 +47,9 @@ export async function sendRaceConfirmation(
  */
 export async function sendRaceSettledAlert(reference: {
   kind: 'registration' | 'group' | 'sponsor';
-  raceSlug: string;
+  /* Null on the short reference form, which carries no slug because the row
+     already knows its own and the lookup is by id. Only a label here. */
+  raceSlug: string | null;
   id: string;
 }): Promise<boolean> {
   try {
@@ -75,7 +78,7 @@ export async function sendRaceSettledAlert(reference: {
 
       return await sendRaceAlert({
         stage: 'paid',
-        raceName: reference.raceSlug,
+        raceName: reference.raceSlug ?? RACE_SLUG,
         what: `Sponsorship, ${row.level}`,
         leadName: row.business_name,
         email: row.email ?? '',
@@ -114,7 +117,7 @@ export async function sendRaceSettledAlert(reference: {
 
       return await sendRaceAlert({
         stage: 'paid',
-        raceName: reference.raceSlug,
+        raceName: reference.raceSlug ?? RACE_SLUG,
         what: `${row.group_name}, ${row.runner_count} runners`,
         leadName: row.captain_name,
         email: row.captain_email,
@@ -140,7 +143,7 @@ export async function sendRaceSettledAlert(reference: {
 
     return await sendRaceAlert({
       stage: 'paid',
-      raceName: reference.raceSlug,
+      raceName: reference.raceSlug ?? RACE_SLUG,
       what: 'Just me',
       leadName: `${row.first_name} ${row.last_name}`,
       email: row.email,
