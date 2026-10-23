@@ -27,7 +27,8 @@
     "check:race-pages": "node scripts/check-race-pages.js",
     "check:waiver": "node scripts/check-waiver-transcription.js",
     "check:waiver-bundle": "node scripts/check-waiver-not-bundled.js",
-    "check:reference-length": "node scripts/check-reference-length.js"
+    "check:reference-length": "node scripts/check-reference-length.js",
+    "check:admin-contrast": "node scripts/check-admin-contrast.js"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

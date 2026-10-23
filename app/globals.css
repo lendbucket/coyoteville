@@ -3780,7 +3780,9 @@ p {
 .arev__dot {
   font-style: normal;
   padding: 0 0.3rem;
-  color: rgba(243, 238, 229, 0.28);
+  /* Was 0.28, which is 2.35:1 and genuinely hard to see rather than tastefully
+     quiet. A separator still has to be visible to separate anything. */
+  color: rgba(243, 238, 229, 0.62);
 }
 
 .arev__more {
@@ -5737,6 +5739,18 @@ p {
   text-align: center;
 }
 
+/* After the base rule on purpose.
+ *
+ * The modifier is declared further up with color: var(--black), and the base
+ * rule above has the same specificity and comes later, so the modifier never
+ * applied and the badge rendered cream on ember at 3.85:1. Deepening the
+ * background rather than flipping to black text keeps every badge on the bar
+ * reading the same way, and cream on this clears 5.4:1. */
+.tabbar__badge--review {
+  background: #9d4525;
+  color: var(--cream);
+}
+
 /* ------------------------------------------------------------- composer */
 
 .cmp {
@@ -5844,7 +5858,10 @@ p {
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--dust);
+  /* Not --dust here. That token is tuned against --black and this label sits
+     on --char-2, which is lighter, so the same colour that reads elsewhere
+     lands at 4.20:1 on this panel. Brightened for this surface only. */
+  color: #a39889;
   margin-right: 4px;
   line-height: 1.4;
 }
@@ -9339,8 +9356,21 @@ p {
   gap: 22px;
 }
 
+/* A surface that sets its own background must set its own foreground.
+ *
+ * This is where the Race tab went unreadable. body is cream on black because
+ * the public site is dark, so anything that paints itself white and says
+ * nothing about text inherits cream onto white. Every label here that happened
+ * to set its own colour survived and every label that inherited disappeared,
+ * which is why the fault looked selective rather than global.
+ *
+ * Fixed at the pairing rather than on each label, because the next label added
+ * to this card would have been invisible too. check-admin-contrast measures
+ * the real pixels behind every text node on the admin and fails under 4.5:1,
+ * so a surface added later without a foreground cannot ship. */
 .race-tr__block {
   background: var(--card, #fff);
+  color: var(--ink);
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: var(--radius-sm);
   padding: 16px;
@@ -9349,6 +9379,41 @@ p {
 .race-tr__block h3 {
   margin: 0 0 12px;
   font-size: 1.05rem;
+}
+
+/* The same leak one layer down. A ghost button is transparent with a cream
+   border, which is correct on a dark section and invisible on a white card:
+   the label sat on nothing and the outline was not there either. Only the
+   two neutral colours are restated; the orange primary button is already
+   legible and is left alone. */
+.race-tr__block .btn--ghost,
+.race-tr__block .btn--quiet {
+  color: var(--ink);
+  border-color: rgba(11, 11, 12, 0.35);
+}
+
+/* btn--quiet is used in the markup and was never defined anywhere, so it fell
+   through to a mid grey with no declared background at all. Given one here,
+   light, so the ink label on it reads at better than 12:1 instead of 3.83. */
+.race-tr__block .btn--quiet {
+  background: #efe9dd;
+}
+
+/* Cream on rust is 2.83:1 at this size, which is below AA and is the thing
+   the design pass itself warned about: orange carries large type and accents,
+   not body sized labels. The fill stays, the label goes to ink, and it reads
+   at 6:1 with the button still obviously the orange one. */
+.race-tr__block .btn--primary {
+  /* The brand orange rather than --rust, which is a shade darker and leaves
+     ink at 4.39:1, just under AA. This is the same #e8541f the race pages
+     use, and with ink it reads at 5.36:1. */
+  background: #e8541f;
+  color: var(--ink);
+}
+
+.race-tr__block .btn--ghost:hover,
+.race-tr__block .btn--quiet:hover {
+  border-color: var(--ember);
 }
 
 .race-tr__sub {
