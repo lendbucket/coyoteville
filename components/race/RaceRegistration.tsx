@@ -343,6 +343,7 @@ export default function RaceRegistration({
         ok?: boolean;
         error?: string;
         checkoutUrl?: string | null;
+        checkoutFailed?: boolean;
       };
 
       if (!res.ok || !data.ok) {
@@ -356,7 +357,14 @@ export default function RaceRegistration({
         return;
       }
 
-      window.location.assign('/turkey-trot/registered');
+      /* Checkout did not open. The registration is saved, so this is not an
+         error state on the form, but it is not a plain success either and it
+         must not be shown as one: the landing page says what happened and
+         what to expect. Dropping this on the floor and showing "you are in"
+         is how somebody ended up signed, unpaid and unaware. */
+      window.location.assign(
+        data.checkoutFailed ? '/turkey-trot/registered?checkout=failed' : '/turkey-trot/registered'
+      );
     } catch {
       setStatus('error');
       setError('We could not reach the server. Check your connection and try again.');

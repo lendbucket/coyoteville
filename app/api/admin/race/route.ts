@@ -9,6 +9,7 @@ import {
   setShirtCollected,
   setSponsorPublished,
 } from '@/lib/race-admin';
+import { sendRacePaymentLink } from '@/lib/race-payment-resend';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -79,6 +80,36 @@ export async function POST(request: Request) {
     if (action === 'publish-sponsor') {
       const at = await setSponsorPublished(id, on);
       return NextResponse.json({ ok: true, publishedAt: at });
+    }
+
+    /* Send a runner the link for the row they already have.
+     *
+     * Its failures are reported with Square's own words and its own status
+     * code rather than falling through to the generic handler below, because
+     * "that did not save" is useless when the question is why Square refused.
+     * Reporting success for a link that was never created is exactly what hid
+     * the original bug from the runner. */
+    if (action === 'pay-link') {
+      const race = await getRace(RACE_SLUG);
+      if (!race) {
+        return NextResponse.json(
+          { ok: false, error: 'The race row could not be read, so no link can be built.' },
+          { status: 503 }
+        );
+      }
+
+      const result = await sendRacePaymentLink(id, race);
+      if (!result.ok) {
+        return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
+      }
+
+      return NextResponse.json({
+        ok: true,
+        sentTo: result.sentTo,
+        sentAt: result.sentAt,
+        amountCents: result.amountCents,
+        grouped: result.grouped,
+      });
     }
 
     return NextResponse.json({ ok: false, error: 'Unknown action.' }, { status: 400 });

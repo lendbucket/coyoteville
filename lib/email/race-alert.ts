@@ -18,7 +18,16 @@ function money(cents: number): string {
 }
 
 export type RaceAlert = {
-  stage: 'created' | 'paid';
+  /**
+   * 'checkout-failed' is the one that needs reading the night it arrives.
+   *
+   * It means a registration was written, Square refused to create the link,
+   * and the runner has signed everything with no way to pay. Nothing chases
+   * these on its own: somebody opens the Race tab and sends the link.
+   */
+  stage: 'created' | 'paid' | 'checkout-failed';
+  /** What Square said, on a checkout-failed alert. */
+  failureDetail?: string;
   raceName: string;
   /** "Just me", "Family of 4", "Team, 12 runners". */
   what: string;
@@ -43,7 +52,9 @@ export function renderRaceAlert(a: RaceAlert): {
   const subject =
     a.stage === 'paid'
       ? `Paid: ${a.leadName}, ${a.what}, ${money(a.amountCents)}`
-      : `New registration: ${a.leadName}, ${a.what}`;
+      : a.stage === 'checkout-failed'
+        ? `ACTION NEEDED, no checkout: ${a.leadName}, ${a.what}, ${money(a.amountCents)}`
+        : `New registration: ${a.leadName}, ${a.what}`;
 
   const minors = a.runners.filter((r) => r.minor).length;
 
@@ -65,7 +76,12 @@ export function renderRaceAlert(a: RaceAlert): {
   );
 
   const text = [
-    a.stage === 'paid' ? 'Paid. The place is theirs.' : 'Registered. Nothing is held until it is paid.',
+    a.stage === 'paid'
+      ? 'Paid. The place is theirs.'
+      : a.stage === 'checkout-failed'
+        ? 'Registered, and Square would not create a payment link, so they cannot pay. Open the Race tab and send one. ' +
+          (a.failureDetail ?? 'Square gave no reason.')
+        : 'Registered. Nothing is held until it is paid.',
     '',
     ...rows.map(([k, v]) => `  ${k}: ${v}`),
     '',
@@ -87,7 +103,12 @@ export function renderRaceAlert(a: RaceAlert): {
   <tr><td style="padding:20px 22px;font-family:${BODY};font-size:15px;line-height:23px;color:#111111;">
     <p style="margin:0 0 4px;font-size:22px;line-height:1.2;font-weight:bold;">${esc(a.leadName)}</p>
     <p style="margin:0 0 16px;color:#444448;">${esc(
-      a.stage === 'paid' ? 'Paid. The place is theirs.' : 'Registered. Nothing is held until it is paid.'
+      a.stage === 'paid'
+      ? 'Paid. The place is theirs.'
+      : a.stage === 'checkout-failed'
+        ? 'Registered, and Square would not create a payment link, so they cannot pay. Open the Race tab and send one. ' +
+          (a.failureDetail ?? 'Square gave no reason.')
+        : 'Registered. Nothing is held until it is paid.'
     )}</p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:${BODY};font-size:14px;">
 ${rows

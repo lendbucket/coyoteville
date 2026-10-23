@@ -9536,6 +9536,81 @@ p {
   overflow-wrap: anywhere;
 }
 
+/* ------------------------------------------------ money not collected ---
+
+   The unpaid block leads the tab. It is deliberately the loudest thing in
+   here: every other number on this page is operational and this one is money
+   that has not arrived. */
+.race-tr__block--owed {
+  border-left: 3px solid #e8541f;
+}
+
+.race-tr__owed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin: 0 0 8px;
+}
+
+.race-tr__owedsum {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #8d3417;
+}
+
+.race-tr__owedwhat {
+  font-size: 0.95rem;
+  color: #5b6670;
+}
+
+.race-tr__orphans {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  padding: 8px 10px;
+  margin: 0 0 10px;
+  border-radius: 6px;
+  background: rgba(232, 84, 31, 0.12);
+  color: #8d3417;
+}
+
+/* Per runner, under the name. */
+.race-tr__orphan,
+.race-tr__sent,
+.race-tr__sendok,
+.race-tr__sendbad {
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  margin-top: 4px;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+
+.race-tr__orphan {
+  background: rgba(232, 84, 31, 0.14);
+  color: #8d3417;
+  font-weight: 600;
+}
+
+.race-tr__sent {
+  background: rgba(23, 34, 46, 0.06);
+  color: #5b6670;
+}
+
+.race-tr__sendok {
+  background: rgba(31, 122, 62, 0.12);
+  color: #1f5c33;
+}
+
+/* A failed send has to be readable as a failure without reading the words,
+   because the whole point is that it must not pass for success. */
+.race-tr__sendbad {
+  background: rgba(176, 32, 32, 0.12);
+  color: #8d1b1b;
+  font-weight: 600;
+}
+
 .race-tr__taps {
   display: flex;
   flex-direction: column;

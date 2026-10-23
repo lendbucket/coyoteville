@@ -24,6 +24,7 @@ import { raceDates } from '@/lib/race-dates';
 import { RACE_WAIVER_VERSION } from '@/lib/race-waiver/current';
 import { createRacePaymentLink, raceGroupReferenceId, raceReferenceId } from '@/lib/race-payment-link';
 import { sendRaceAlert, sendRaceConfirmation } from '@/lib/race-alert';
+import { appendNote, checkoutFailedNote } from '@/lib/race-notes';
 import { supportEmail } from '@/lib/support';
 
 export const runtime = 'nodejs';
@@ -467,13 +468,83 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, checkoutUrl });
   } catch (err) {
     console.error('[race] payment link failed', err);
-    /* The rows are saved. Say so, because telling somebody their registration
-       failed when it did not is how they register twice. */
+
+    /* THE ORPHAN PATH.
+     *
+     * The rows are saved and Square would not make a link, so this runner has
+     * signed everything and has no way to pay. Three things have to happen,
+     * and before this they all did not:
+     *
+     *   the row is marked, so it reads as "never reached checkout" rather
+     *   than as an ordinary abandoned cart and shows up in the tracker's
+     *   unpaid filter as something to chase tonight;
+     *
+     *   somebody is told, because a failure nobody sees is the failure;
+     *
+     *   the runner gets a true sentence instead of a success page.
+     *
+     * Why the rows are still written first rather than created after a
+     * successful link: the reverse order trades this failure for a worse one.
+     * A link exists the moment Square makes it and is payable immediately, so
+     * if the insert then failed the runner could pay a link whose reference
+     * points at no row, and the webhook would answer "unknown row" while the
+     * money was taken. This way round, a failure can never take money. The
+     * worst case is a saved registration that the tracker fixes in one tap.
+     */
+    const stamp = checkoutFailedNote();
+    const marked = isGroup ? registrationIds : [registrationIds[0]];
+
+    for (const rowId of marked) {
+      const { data: existing } = await supabase
+        .from('race_registrations')
+        .select('admin_notes')
+        .eq('id', rowId)
+        .maybeSingle();
+
+      const { error: noteError } = await supabase
+        .from('race_registrations')
+        .update({
+          admin_notes: appendNote(existing?.admin_notes ?? null, stamp),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', rowId);
+
+      if (noteError) console.error('[race] could not flag the orphan', rowId, noteError);
+    }
+
+    /* Fire and forget, like every other alert on this path. */
+    fireAndForget(
+      () =>
+        sendRaceAlert({
+          stage: 'checkout-failed',
+          raceName: race.name,
+          what,
+          leadName,
+          email,
+          phone,
+          runners: runners.map((r) => ({
+            name: `${r.firstName} ${r.lastName}`,
+            age: r.age,
+            shirt: r.shirtSize || null,
+            minor: r.isMinor,
+          })),
+          amountCents: totalCents,
+          paymentStatus: 'unpaid, no checkout was ever created',
+          taken: counts.taken + runners.length,
+          capacity: counts.capacity,
+          failureDetail:
+            err instanceof Error && err.message ? err.message : 'Square gave no reason.',
+        }),
+      'race checkout failure alert'
+    );
+
     return NextResponse.json(
       {
         ok: true,
         checkoutUrl: null,
-        error: 'You are registered, but we could not open checkout. We will email you a link.',
+        checkoutFailed: true,
+        error:
+          'You are registered and your waiver is saved, but we could not open checkout, so nothing has been charged. We have been told and will email you a payment link.',
       },
       { status: 200 }
     );

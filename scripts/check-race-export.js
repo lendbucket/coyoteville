@@ -30,6 +30,16 @@ const root = path.join(__dirname, '..');
 
 /* The note the fixture runner carries. Distinctive so finding it anywhere in
    the output is unambiguous, and shaped like a real one. */
+/**
+ * What a leak of admin_notes would look like.
+ *
+ * It holds the payment link and checkout failure stamps, and it is written by
+ * the tracker, so it is operational detail about a person that belongs behind
+ * the password for the same reason the medical note does. Same sheet, same
+ * parking lot table.
+ */
+const ADMIN_SECRET = 'ADMINNOTELEAK-Payment link sent 2026-11-05T18:22:00.000Z';
+
 const SECRET = 'ASTHMA-CARRIES-INHALER-SEVERE-NUT-ALLERGY';
 
 /* ------------------------------------------------------- compile the module */
@@ -51,6 +61,8 @@ Module._load = function patched(request, parent, isMain) {
     };
   }
   if (request === '@/lib/race') return loadTs('lib/race.ts');
+  if (request === '@/lib/race-notes') return loadTs('lib/race-notes.ts');
+  if (request === './note-stamps') return loadTs('lib/note-stamps.ts');
   return originalLoad(request, parent, isMain);
 };
 
@@ -91,6 +103,9 @@ const runner = {
   emergencyContactName: 'Rosa Ybarra',
   emergencyContactPhone: '361-555-0199',
   medicalNotes: SECRET,
+  adminNotes: ADMIN_SECRET,
+  payLinkSentAt: '2026-11-05T18:22:00.000Z',
+  checkoutFailedAt: '2026-11-05T18:20:00.000Z',
   tier: 'adult',
   teamName: 'Coyote Pack',
   shirtSize: 'M',
@@ -153,9 +168,18 @@ for (const { name, csv, headers } of exports_) {
     );
   }
 
+  if (csv.includes(ADMIN_SECRET)) {
+    const line = csv.split('\r\n').findIndex((l) => l.includes(ADMIN_SECRET)) + 1;
+    failures.push(
+      `the ${name} export contains the row's admin notes, on line ${line}.\n` +
+        '    admin_notes carries the payment link and checkout failure stamps.\n' +
+        '    It belongs on the tracker row and nowhere else, same as the medical note.'
+    );
+  }
+
   /* And a column that announces itself, in case a future one is left empty in
      this fixture and so slips the check above. */
-  const named = headers.find((h) => /medical|health|condition|allerg/i.test(h));
+  const named = headers.find((h) => /medical|health|condition|allerg|admin.?note/i.test(h));
   if (named) {
     failures.push(`the ${name} export has a column called "${named}". See SCHEMA.md.`);
   }
@@ -164,6 +188,10 @@ for (const { name, csv, headers } of exports_) {
 /* The check is only worth anything if the fixture would have shown the note. */
 if (!view.runners[0].medicalNotes) {
   failures.push('the fixture runner has no medical note, so this check proves nothing.');
+}
+
+if (!view.runners[0].adminNotes) {
+  failures.push('the fixture runner has no admin notes, so that half of this check proves nothing.');
 }
 
 /* And the sheet has to still be useful: the emergency contact IS meant to be on
@@ -198,7 +226,7 @@ if (failures.length) {
 }
 
 console.log(
-  `check-race-export: ${exports_.length} exports built from a runner carrying a medical note, ` +
-    'none of them contains it, and the runner sheet still carries the bib, the name and the ' +
-    'emergency contact.'
+  `check-race-export: ${exports_.length} exports built from a runner carrying both a medical ` +
+    'note and admin notes, neither appears in any of them, and the runner sheet still carries ' +
+    'the bib, the name and the emergency contact.'
 );

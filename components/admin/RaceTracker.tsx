@@ -35,6 +35,11 @@ type Runner = {
   shirtCollected: boolean;
   isMinor: boolean;
   guardianName: string | null;
+  amountCents: number;
+  /** When a payment link was last sent by hand. */
+  payLinkSentAt: string | null;
+  /** Set when Square never created a checkout for this row. */
+  checkoutFailedAt: string | null;
 };
 
 type Group = {
@@ -76,6 +81,12 @@ type View = {
   sponsors: Sponsor[];
   checkedIn: number;
   bibbed: number;
+  unpaid: {
+    entries: number;
+    groups: number;
+    orphans: number;
+    totalCents: number;
+  };
 };
 
 const settled = (status: string) => status === 'paid' || status === 'not_required';
@@ -95,6 +106,13 @@ export default function RaceTracker() {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [bibNote, setBibNote] = useState<string | null>(null);
+  /* The unpaid filter. Off by default: check in is what this tab is for on
+     race morning, and money is what it is for the week before. */
+  const [unpaidOnly, setUnpaidOnly] = useState(false);
+  /* Per runner, because a failure belongs next to the button that caused it
+     rather than at the top of a long list where it is scrolled away from. */
+  const [sendNote, setSendNote] = useState<Record<string, string>>({});
+  const [sendFailed, setSendFailed] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     try {
@@ -155,6 +173,64 @@ export default function RaceTracker() {
       shirtCollected: !row.shirtCollected,
     }));
 
+  /**
+   * Send this runner the link for the row they already have.
+   *
+   * Square's own words are shown when it refuses. A generic failure here would
+   * repeat the thing that made tonight expensive: the row looked fine, nobody
+   * knew the link had never been created, and the runner just never got
+   * anywhere.
+   */
+  const sendPayLink = async (r: Runner) => {
+    setBusy(r.id + 'pay-link');
+    setSendNote((n) => ({ ...n, [r.id]: '' }));
+    setSendFailed((f) => ({ ...f, [r.id]: false }));
+
+    try {
+      const res = await fetch('/api/admin/race', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pay-link', id: r.id }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? 'That did not send, and no reason came back.');
+      }
+
+      const when = new Date(data.sentAt);
+      setSendNote((n) => ({
+        ...n,
+        [r.id]: `Sent ${dollars(data.amountCents)} to ${data.sentTo} at ${when.toLocaleTimeString()}.${
+          data.grouped ? ' That is the group link, to the captain.' : ''
+        }`,
+      }));
+
+      /* Patch the stamp in so a second tap does not read as the first. */
+      setView((current) =>
+        current
+          ? {
+              ...current,
+              runners: current.runners.map((row) =>
+                row.id === r.id || (data.grouped && row.groupId && row.groupId === r.groupId)
+                  ? { ...row, payLinkSentAt: data.sentAt }
+                  : row
+              ),
+            }
+          : current
+      );
+      setError(null);
+    } catch (err) {
+      setSendFailed((f) => ({ ...f, [r.id]: true }));
+      setSendNote((n) => ({
+        ...n,
+        [r.id]: err instanceof Error ? err.message : 'That did not send.',
+      }));
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const assignBibs = async () => {
     setBusy('bibs');
     setBibNote(null);
@@ -212,14 +288,19 @@ export default function RaceTracker() {
   const shown = useMemo(() => {
     if (!view) return [];
     const q = query.trim().toLowerCase();
-    if (!q) return view.runners;
-    return view.runners.filter((r) =>
+
+    /* The filter is applied before the search so the two compose: unpaid, then
+       narrowed to a name. */
+    const base = unpaidOnly ? view.runners.filter((r) => !settled(r.paymentStatus)) : view.runners;
+
+    if (!q) return base;
+    return base.filter((r) =>
       [r.lastName, r.firstName, r.teamName ?? '', String(r.bibNumber ?? '')]
         .join(' ')
         .toLowerCase()
         .includes(q)
     );
-  }, [view, query]);
+  }, [view, query, unpaidOnly]);
 
   if (error && !view) {
     return (
@@ -310,6 +391,48 @@ export default function RaceTracker() {
 
         <p className="race-tr__note">
           {view.checkedIn} checked in. {view.bibbed} numbered.
+        </p>
+      </section>
+
+      {/* -------------------------------------------------------- not paid */}
+      {/* First, and before check in, because this is the number nobody goes
+          looking for. An unpaid entry buried in a list of three hundred is
+          money that quietly does not arrive. */}
+      <section className="race-tr__block race-tr__block--owed" aria-labelledby="rt-owed">
+        <h3 id="rt-owed">Not paid</h3>
+
+        <p className="race-tr__owed">
+          <span className="race-tr__owedsum">{dollars(view.unpaid.totalCents)}</span>
+          <span className="race-tr__owedwhat">
+            {view.unpaid.entries} {view.unpaid.entries === 1 ? 'entry' : 'entries'}
+            {view.unpaid.groups
+              ? `, ${view.unpaid.groups} ${view.unpaid.groups === 1 ? 'group' : 'groups'}`
+              : ''}
+          </span>
+        </p>
+
+        {view.unpaid.orphans ? (
+          <p className="race-tr__orphans">
+            {view.unpaid.orphans} of them never reached checkout at all. Square refused the link
+            after the registration was written, so these people signed everything and were never
+            given a way to pay. Send them one.
+          </p>
+        ) : null}
+
+        <p className="race-tr__actions">
+          <button
+            type="button"
+            className={unpaidOnly ? 'btn btn--primary' : 'btn btn--ghost'}
+            onClick={() => setUnpaidOnly((on) => !on)}
+            aria-pressed={unpaidOnly}
+          >
+            {unpaidOnly ? 'Showing not paid only' : 'Show not paid only'}
+          </button>
+        </p>
+
+        <p className="race-tr__note">
+          A group pays once, so a family of five counts as one group here and not as five
+          entries. Filters the check in list below.
         </p>
       </section>
 
@@ -491,6 +614,29 @@ export default function RaceTracker() {
                 {r.medicalNotes ? (
                   <span className="race-tr__medical">Medical: {r.medicalNotes}</span>
                 ) : null}
+
+                {/* The orphan, called what it is. This row has no checkout
+                    behind it and will never settle on its own. */}
+                {r.checkoutFailedAt && r.paymentStatus === 'unpaid' ? (
+                  <span className="race-tr__orphan">
+                    Checkout was never created for this entry.
+                  </span>
+                ) : null}
+
+                {r.payLinkSentAt ? (
+                  <span className="race-tr__sent">
+                    Payment link sent {new Date(r.payLinkSentAt).toLocaleString()}
+                  </span>
+                ) : null}
+
+                {sendNote[r.id] ? (
+                  <span
+                    className={sendFailed[r.id] ? 'race-tr__sendbad' : 'race-tr__sendok'}
+                    role="status"
+                  >
+                    {sendNote[r.id]}
+                  </span>
+                ) : null}
               </div>
 
               <div className="race-tr__taps">
@@ -510,6 +656,23 @@ export default function RaceTracker() {
                 >
                   {r.shirtCollected ? 'Shirt given' : 'Shirt'}
                 </button>
+
+                {/* Only on a row that owes money. A paid runner has no use for
+                    it and a refunded one must never be sent one by accident. */}
+                {r.paymentStatus === 'unpaid' ? (
+                  <button
+                    type="button"
+                    className="btn btn--quiet"
+                    onClick={() => void sendPayLink(r)}
+                    disabled={busy === r.id + 'pay-link'}
+                  >
+                    {busy === r.id + 'pay-link'
+                      ? 'Sending'
+                      : r.payLinkSentAt
+                        ? 'Send link again'
+                        : 'Send payment link'}
+                  </button>
+                ) : null}
               </div>
             </li>
           ))}

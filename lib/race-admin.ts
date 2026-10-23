@@ -7,6 +7,7 @@ import {
   type RaceTier,
   type ShirtSize,
 } from '@/lib/race';
+import { lastCheckoutFailureFrom, lastPayLinkFrom } from '@/lib/race-notes';
 
 /**
  * Everything the Race tab reads and everything it writes.
@@ -44,6 +45,7 @@ const RUNNER_COLUMNS = [
   'emergency_contact_name',
   'emergency_contact_phone',
   'medical_notes',
+  'admin_notes',
   'tier',
   'team_name',
   'shirt_size',
@@ -77,6 +79,23 @@ export type RunnerRow = {
   emergencyContactPhone: string;
   /** Admin only. Never exported. */
   medicalNotes: string | null;
+  /**
+   * Admin only, and never exported either.
+   *
+   * Carries the payment link and checkout failure stamps. Kept raw as well as
+   * parsed because the admin occasionally needs to read the whole history.
+   */
+  adminNotes: string | null;
+  /** When a payment link was last sent by hand, from the stamps. */
+  payLinkSentAt: string | null;
+  /**
+   * When a checkout was never created for this row.
+   *
+   * The orphan marker. Set by the registration route when Square refuses the
+   * link after the row is written, which is a different thing from somebody
+   * opening checkout and walking away, and needs chasing rather than waiting.
+   */
+  checkoutFailedAt: string | null;
   tier: RaceTier;
   teamName: string | null;
   shirtSize: ShirtSize | null;
@@ -120,6 +139,29 @@ export type SponsorRow = {
   publishedAt: string | null;
 };
 
+/**
+ * What is owed and has not arrived.
+ *
+ * Its own number on the view rather than something the tracker derives,
+ * because it is the figure that decides whether somebody spends tonight
+ * chasing people, and a number that has to be assembled by the reader is a
+ * number nobody assembles.
+ *
+ * Grouped runners carry amount_cents 0 and their money sits on the group row,
+ * so entries and groups are counted separately and added. Summing every
+ * unpaid registration alone would report a family of five as owing nothing.
+ */
+export type UnpaidSummary = {
+  /** Unpaid registrations that owe on their own row. */
+  entries: number;
+  /** Unpaid groups, counted once each rather than per runner. */
+  groups: number;
+  /** Runners who cannot pay because no checkout was ever created. */
+  orphans: number;
+  /** Every cent of it. */
+  totalCents: number;
+};
+
 export type RaceAdminView = {
   /** Registered, paid and unpaid, per tier and in total. */
   byTier: Record<RaceTier | 'total', { registered: number; paid: number; unpaid: number }>;
@@ -131,6 +173,7 @@ export type RaceAdminView = {
   sponsors: SponsorRow[];
   checkedIn: number;
   bibbed: number;
+  unpaid: UnpaidSummary;
 };
 
 /* ------------------------------------------------------------------- reads */
@@ -185,6 +228,9 @@ export async function getRaceAdminView(raceSlug: string): Promise<RaceAdminView>
     emergencyContactName: String(r.emergency_contact_name ?? ''),
     emergencyContactPhone: String(r.emergency_contact_phone ?? ''),
     medicalNotes: (r.medical_notes as string | null) ?? null,
+    adminNotes: (r.admin_notes as string | null) ?? null,
+    payLinkSentAt: lastPayLinkFrom((r.admin_notes as string | null) ?? null),
+    checkoutFailedAt: lastCheckoutFailureFrom((r.admin_notes as string | null) ?? null),
     tier: r.tier as RaceTier,
     teamName: (r.team_name as string | null) ?? null,
     shirtSize: (r.shirt_size as ShirtSize | null) ?? null,
@@ -268,7 +314,22 @@ export async function getRaceAdminView(raceSlug: string): Promise<RaceAdminView>
     publishedAt: (s.published_at as string | null) ?? null,
   }));
 
-  return { byTier, shirts, shirtTotal, runners, groups, sponsors, checkedIn, bibbed };
+  /* Counted off the rows already read rather than with another query, and
+     deliberately in two parts: an entry that owes on its own row, and a group
+     that owes once however many runners are under it. */
+  const unpaidEntries = runners.filter((r) => r.paymentStatus === 'unpaid' && !r.groupId);
+  const unpaidGroups = groups.filter((g) => g.paymentStatus === 'unpaid');
+
+  const unpaid: UnpaidSummary = {
+    entries: unpaidEntries.length,
+    groups: unpaidGroups.length,
+    orphans: runners.filter((r) => r.paymentStatus === 'unpaid' && r.checkoutFailedAt).length,
+    totalCents:
+      unpaidEntries.reduce((sum, r) => sum + r.amountCents, 0) +
+      unpaidGroups.reduce((sum, g) => sum + g.amountCents, 0),
+  };
+
+  return { byTier, shirts, shirtTotal, runners, groups, sponsors, checkedIn, bibbed, unpaid };
 }
 
 /* ------------------------------------------------------------------ writes */

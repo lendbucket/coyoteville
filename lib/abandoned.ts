@@ -46,20 +46,12 @@ const REMINDER_MARKER = 'Payment reminder sent';
  * payment request that creates a link for somebody who never had one. They must
  * stay distinguishable, so they get their own markers and share the parsing.
  */
-export function lastStampFrom(adminNotes: string | null, marker: string): string | null {
-  if (!adminNotes) return null;
+/* Moved to lib/note-stamps.ts so a build gate can read a stamp without a
+   database import. Re-exported here because the vendor side imports them
+   from this module and there is no reason to churn those call sites. */
+import { lastStampFrom, stampNote } from './note-stamps';
 
-  const stamps = [...adminNotes.matchAll(new RegExp(`${marker} (\\S+)`, 'g'))]
-    .map((m) => m[1])
-    .filter((s) => !Number.isNaN(Date.parse(s)));
-
-  if (stamps.length === 0) return null;
-  return stamps.sort().at(-1) ?? null;
-}
-
-export function stampNote(marker: string, now: Date = new Date()): string {
-  return `${marker} ${now.toISOString()}`;
-}
+export { lastStampFrom, stampNote };
 
 export function lastReminderFrom(adminNotes: string | null): string | null {
   return lastStampFrom(adminNotes, REMINDER_MARKER);
